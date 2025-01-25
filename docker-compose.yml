@@ -3,7 +3,7 @@ services:
   meshtastic_listener:
     build: 
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
     container_name: meshtastic_listener
     volumes:
       - ./data:/home/meshtastic/data
