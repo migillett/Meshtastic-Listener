@@ -53,30 +53,38 @@ class MeshtasticListener:
             return str(node_details.user.shortName)
         return str(node_num)
     
+    def __handle_text_message__(self, packet: dict) -> None:
+        # remap keys to match the MessageReceived model
+        packet['fromId'] = packet['from']
+        packet['toId'] = packet['to']
+        sender = self.__get_shortname__(packet['fromId'])
+        payload = MessageReceived(fromName=sender, **packet)
+
+        logging.info(f"Message Received: {payload.fromName} - {payload.decoded.payload}")
+        self.history.append(payload)
+
+        if self.cmd_handler is not None:
+            response = self.cmd_handler.handle_command(context=payload)
+            if response is not None:
+                logging.info(f'Replying to {payload.fromId}: {response}')
+                self.interface.sendText(
+                    text=response,
+                    destinationId=payload.fromId,
+                    channelIndex=0
+                )
+
+        else:
+            logging.error("Command Handler not initialized. Cannot reply to message.")
+    
     def __on_receive__(self, packet: dict) -> None:
         try:
-            if packet['decoded'].get('portnum') == 'TEXT_MESSAGE_APP':
-                # remap keys to match the MessageReceived model
-                packet['fromId'] = packet['from']
-                packet['toId'] = packet['to']
-                sender = self.__get_shortname__(packet['fromId'])
-                payload = MessageReceived(fromName=sender, **packet)
-
-                logging.info(f"Message Received: {payload.fromName} - {payload.decoded.payload}")
-                self.history.append(payload)
-
-                if self.cmd_handler is not None:
-                    response = self.cmd_handler.handle_command(context=payload)
-                    if response is not None:
-                        logging.info(f'Replying to {payload.fromId}: {response}')
-                        self.interface.sendText(
-                            text=response,
-                            destinationId=payload.fromId,
-                            channelIndex=0
-                        )
-
-                else:
-                    logging.error("Command Handler not initialized. Cannot reply to message.")
+            packet['decoded'].pop('raw', None)
+            portnum = packet['decoded']['portnum']
+            match portnum:
+                case 'TEXT_MESASGE_APP':
+                    self.__handle_text_message__(packet)
+                case _:
+                    logging.info(f"Received unhandled {portnum} packet: {packet}")
 
         # except KeyError as e:
         #     logging.error(f"Message decoding failed due to KeyError: {packet} - {e}")
@@ -100,7 +108,8 @@ if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
     if device is None:
         raise ValueError("DEVICE_INTERFACE environment variable is not set")
-    
+    logging.info(f'Connecting to device: {device}')
+
     # IP address
     if '.' in device and len(device.split('.')) == 4:
         interface = TCPInterface(hostname=device)
