@@ -33,6 +33,7 @@ class CommandHandler:
         '''
         !read - Read the last 24 hours of board messages
         '''
+        response_str = 'BBS:\n'
         for i, annoucement in enumerate(self.db.get_annoucements(hours_past=24)):
             response_str += f'{i+1}. {annoucement[0]}: {annoucement[1]}\n'
         return response_str
