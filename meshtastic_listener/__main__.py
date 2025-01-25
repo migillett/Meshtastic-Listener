@@ -38,7 +38,7 @@ class MeshtasticListener:
             cmd_handler: CommandHandler | None,
             node_update_interval: int = 15,
             response_char_limit: int = 220,
-            welcome_message: bool = True,
+            welcome_message: str | None = None,
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -111,10 +111,10 @@ class MeshtasticListener:
         if not self.db.check_node_exists(node_num):
             logging.info(f"New Node detected: {node_num}. Attempting traceroute...")
             self.interface.sendTraceRoute(destinationId=node_num, hopLimit=5, channelIndex=0)
-            if self.welcome_message:
+            if self.welcome_message is not None:
                 logging.info(f"Sending welcome message to {node_num}")
                 self.__reply__(
-                    text="Welcome to the Mountain Mesh Network. Reply with !help for commands. Visit https://mtnme.sh for more info.",
+                    text=self.welcome_message,
                     destinationId=node_num)
             self.__load_local_nodes__(force=True)
 
@@ -196,7 +196,7 @@ if __name__ == "__main__":
         cmd_handler=cmd_handler,
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
         response_char_limit=int(environ.get("RESPONSE_CHAR_LIMIT", 220)),
-        welcome_message=environ.get("WELCOME_MESSAGE", 'true').lower() == 'true'
+        welcome_message=environ.get("WELCOME_MESSAGE")
     )
     
     listener.run()

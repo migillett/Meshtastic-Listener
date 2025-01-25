@@ -19,15 +19,15 @@ poetry install
 ## Environment Variables
 `DEVICE_INTERFACE` - The interace in which you wish to interact with your radio. Can either be an IPV4 address (`192.168.x.x`) or a serial path (`/dev/ttyUSBx`). The software will use whatever environment variable is provided to attempt a connection.
 
-`CMD_PREFIX` - (optional) What you want the command prefix to trigger the `cmd_handler.py`. Default is `!`.
+`CMD_PREFIX` - (optional, default `!`) What you want the command prefix to trigger the `cmd_handler.py`. Default is `!`.
 
-`DB_NAME` - (optional) The name to the SQLite database. Default is `:memory:`. Names must end in `.db`. This database will be created in the `./data`.
+`DB_NAME` - (optional, default `:memory:`) The name to the SQLite database. Names must end in `.db`. This database will be created in the `../data` in relation to the absolute path of `__main__.py`.
 
 `NODE_UPDATE_INTERVAL` - (optional, default 15) how often the service should load the local Node database to the SQLite DB in minutes.
 
-`RESPONSE_CHAR_LIMIT` - (optional, default 220) the maximum lenght of a message in characters before pagination.
+`RESPONSE_CHAR_LIMIT` - (optional, default 220) the maximum length of a message in characters before pagination.
 
-`WELCOME_MESSAGE` - (optional, default `True`) Enables / disables a welcome message for all unrecognized nodes.
+`WELCOME_MESSAGE` - (optional str, default `None`) Whenever we see a new node on the mesh, we immediately traceroute it. Adding this environment variable will include a welcome message. Keep welcome messages under 220 characters.
 
 ## Running Locally
 ```bash
