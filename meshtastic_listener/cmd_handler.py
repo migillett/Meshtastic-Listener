@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class CommandHandler:
     # all command functions need to start with cmd_ to be recognized as commands
     # all command functions need to have a docstring to be recognized as a command
-    def __init__(self, prefix: str = '!', cmd_db: ListenerDb) -> None:
+    def __init__(self, cmd_db: ListenerDb, prefix: str = '!') -> None:
         self.prefix = prefix
         logger.info(f'CommandHandler initialized with prefix: {self.prefix}')
         self.db = cmd_db
