@@ -43,7 +43,6 @@ class User(BaseModel):
     hwModel: Optional[str] = None
     publicKey: Optional[str] = None
     role: Optional[str] = None
-    isLicensed: Optional[bool] = None
 
 class Position(BaseModel):
     latitudeI: Optional[int] = None
