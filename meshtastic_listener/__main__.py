@@ -58,7 +58,7 @@ class MeshtasticListener:
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
 
-    def __reply__(self, text: str, destinationId: int, char_limit: int = 200) -> None:
+    def __reply__(self, text: str, destinationId: int, char_limit: int = 220) -> None:
         # splits the input text into chunks of char_limit length
         # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
         # round down to 200 to account for the message header and pagination footer
