@@ -43,7 +43,6 @@ class User(BaseModel):
     hwModel: Optional[str] = None
     publicKey: Optional[str] = None
     role: Optional[str] = None
-    isLicensed: Optional[bool] = None
 
 class Position(BaseModel):
     latitudeI: Optional[int] = None
@@ -60,6 +59,15 @@ class DeviceMetrics(BaseModel):
     channelUtilization: Optional[float] = None
     airUtilTx: Optional[float] = None
     uptimeSeconds: Optional[int] = None
+    numPacketsTx: Optional[int] = None
+    numPacketsRx: Optional[int] = None
+    numPacketsRxBad: Optional[int] = None
+    numOnlineNodes: Optional[int] = None
+    numTotalNodes: Optional[int] = None
+    numRxDupe: Optional[int] = None
+    numTxRelay: Optional[int] = None
+    numTxRelayCanceled: Optional[int] = None
+    
 
 class NodeBase(BaseModel):
     num: int
