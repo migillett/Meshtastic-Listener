@@ -35,7 +35,8 @@ class MeshtasticListener:
             interface: TCPInterface | SerialInterface,
             db_object: ListenerDb,
             cmd_handler: CommandHandler | None,
-            node_update_interval: int = 15
+            node_update_interval: int = 15,
+            response_char_limit: int = 220
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -50,6 +51,8 @@ class MeshtasticListener:
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
         self.__load_local_nodes__()
 
+        self.char_limit = response_char_limit
+
     def __load_local_nodes__(self) -> None:
         now = time.time()
         if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds():
@@ -58,11 +61,11 @@ class MeshtasticListener:
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
 
-    def __reply__(self, text: str, destinationId: int, char_limit: int = 220) -> None:
+    def __reply__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
         # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
         # round down to 200 to account for the message header and pagination footer
-        messages = [text[i:i + char_limit] for i in range(0, len(text), char_limit)]
+        messages = [text[i:i + self.char_limit] for i in range(0, len(text), self.char_limit)]
         logging.info(f'Broke response message into {len(messages)} parts')
         for i, message in enumerate(messages):
             if len(messages) > 1:
