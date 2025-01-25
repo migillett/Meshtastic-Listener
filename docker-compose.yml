@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: meshtastic_listener
     volumes:
-      - ./data:/home/meshtastic/meshtastic_listener/data
+      - ./data:/home/meshtastic/data
     environment:
       - DEVICE_INTERFACE=192.168.3.185
       - DB_NAME=listener.db

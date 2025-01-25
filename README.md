@@ -48,7 +48,7 @@ docker build . -t meshtastic_listener:latest
 
 ### Run
 ```bash
-docker run -d --rm --name meshtastic_listener -e DEVICE_INTERFACE=192.168.3.185 -e DB_NAME=listener.db -v ./data:/home/meshtastic/meshtastic_listener/data meshtastic_listener:latest
+docker run -d --rm --name meshtastic_listener -e DEVICE_INTERFACE=192.168.3.185 -e DB_NAME=listener.db -v ./data:/home/meshtastic/data meshtastic_listener:latest
 ```
 
 > **Note**

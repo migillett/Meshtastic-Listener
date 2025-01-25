@@ -43,7 +43,6 @@ class MeshtasticListener:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
         logging.info(f"====== Initializing MeshtasticListener v{version} ======")
-        logging.info(f"Device Interface: {interface.__class__.__name__}")
         
         self.interface = interface
         self.db = db_object

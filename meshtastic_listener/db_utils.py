@@ -22,11 +22,11 @@ class ListenerDb:
             """
             CREATE TABLE IF NOT EXISTS annoucements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
                 fromId INTEGER NOT NULL,
                 toId INTEGER NOT NULL,
                 fromName TEXT DEFAULT NULL,
                 message TEXT NOT NULL,
-                rxTime INTEGER NOT NULL,
                 rxSnr FLOAT NOT NULL,
                 rxRssi INTEGER NOT NULL,
                 hopStart INTEGER NOT NULL,
@@ -55,6 +55,7 @@ class ListenerDb:
             """
             CREATE TABLE IF NOT EXISTS metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
                 nodeNum INTEGER NOT NULL,
                 batteryLevel INTEGER DEFAULT NULL,
                 voltage FLOAT DEFAULT NULL,
@@ -79,15 +80,14 @@ class ListenerDb:
         self.cursor.execute(
             """
             INSERT INTO annoucements (
-                fromId, toId, fromName, message, rxTime, rxSnr, rxRssi, hopStart, hopLimit
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                fromId, toId, fromName, message, rxSnr, rxRssi, hopStart, hopLimit
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
             """,
             (
                 payload['fromId'],
                 payload['toId'],
                 payload['fromName'],
                 payload['message'],
-                payload['rxTime'],
                 payload['rxSnr'],
                 payload['rxRssi'],
                 payload['hopStart'],
