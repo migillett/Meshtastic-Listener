@@ -173,7 +173,10 @@ class ListenerDb:
         self.cursor.execute(
             """
             INSERT INTO metrics (
-                nodeNum, batteryLevel, voltage, channelUtilization, airUtilTx, uptimeSeconds
+                nodeNum, batteryLevel, voltage, channelUtilization,
+                airUtilTx, uptimeSeconds, numPacketsTx, numPacketsRx,
+                numPacketsRxBad, numOnlineNodes, numTotalNodes, numRxDupe,
+                numTxRelay, numTxRelayCanceled
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 node_num,
