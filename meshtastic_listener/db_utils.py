@@ -174,13 +174,21 @@ class ListenerDb:
             """
             INSERT INTO metrics (
                 nodeNum, batteryLevel, voltage, channelUtilization, airUtilTx, uptimeSeconds
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 node_num,
                 metrics.batteryLevel,
                 metrics.voltage,
                 metrics.channelUtilization,
                 metrics.airUtilTx,
-                metrics.uptimeSeconds
+                metrics.uptimeSeconds,
+                metrics.numPacketsTx,
+                metrics.numPacketsRx,
+                metrics.numPacketsRxBad,
+                metrics.numOnlineNodes,
+                metrics.numTotalNodes,
+                metrics.numRxDupe,
+                metrics.numTxRelay,
+                metrics.numTxRelayCanceled,
             ))
         self.conn.commit()

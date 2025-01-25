@@ -1,6 +1,6 @@
 FROM python:3.13-bookworm
 
-WORKDIR /home/meshtastic_listener
+WORKDIR /home/meshtastic
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
