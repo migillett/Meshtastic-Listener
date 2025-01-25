@@ -100,20 +100,22 @@ class MeshtasticListener:
             return
 
         telemetry = packet.get('decoded', {}).get('telemetry', {})
-        metrics = telemetry.get('deviceMetrics')
-        local_stats = telemetry.get('localStats')
+        metrics = telemetry.get('deviceMetrics', {})
+        local_stats = telemetry.get('localStats', {})
 
         combined_metrics = DeviceMetrics(**metrics, **local_stats)
         logging.info(f"Telemetry Received from {node_num}: {combined_metrics.model_dump_json()}")
         self.db.insert_metrics(node_num, combined_metrics)
 
-
     def __handle_new_node__(self, node_num: int) -> None:
-        if not self.db.check_node_exists(node_num) and self.welcome_message:
-            logging.info(f"New Node detected: {node_num}")
-            self.__reply__(
-                text="Welcome to the Mountain Mesh Network. Reply with !help for commands. Visit https://mtnme.sh for more info.",
-                destinationId=node_num)
+        if not self.db.check_node_exists(node_num):
+            logging.info(f"New Node detected: {node_num}. Attempting traceroute...")
+            self.interface.sendTraceRoute(destinationId=node_num, hopLimit=5, channelIndex=0)
+            if self.welcome_message:
+                logging.info(f"Sending welcome message to {node_num}")
+                self.__reply__(
+                    text="Welcome to the Mountain Mesh Network. Reply with !help for commands. Visit https://mtnme.sh for more info.",
+                    destinationId=node_num)
             self.__load_local_nodes__(force=True)
 
     def __on_receive__(self, packet: dict) -> None:
