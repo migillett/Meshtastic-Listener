@@ -3,6 +3,7 @@ import sys
 from os import environ, path, mkdir
 from datetime import timedelta
 import logging
+import signal
 
 from meshtastic_listener.db_utils import ListenerDb
 from meshtastic_listener.cmd_handler import CommandHandler
@@ -16,7 +17,7 @@ import toml
 
 # the `/data` directory is for storing logs and .db files
 abs_path = path.dirname(path.abspath(__file__))
-data_dir = path.join(abs_path, 'data')
+data_dir = path.join(abs_path, '..', 'data')
 if not path.exists(data_dir):
     mkdir(data_dir)
 
@@ -135,6 +136,14 @@ class MeshtasticListener:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
     
     def run(self):
+        def handle_shutdown_signal(signum, frame):
+            logging.info("Received shutdown signal. Exiting gracefully...")
+            self.interface.close()
+            exit(0)
+
+        signal.signal(signal.SIGTERM, handle_shutdown_signal)
+        signal.signal(signal.SIGINT, handle_shutdown_signal)
+
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
         logging.info("Subscribed to meshtastic.receive")
         try:
@@ -152,19 +161,21 @@ if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
     if device is None:
         raise ValueError("DEVICE_INTERFACE environment variable is not set")
-    logging.info(f'Connecting to device: {device}')
 
-    # IP address
-    if '.' in device and len(device.split('.')) == 4:
-        interface = TCPInterface(hostname=device)
+    try:
+        # IP address
+        if '.' in device and len(device.split('.')) == 4:
+            interface = TCPInterface(hostname=device)
+        # Serial port path
+        elif device.startswith('/') or device.startswith('COM'):
+            interface = SerialInterface(device)
+        else:
+            raise ValueError("Invalid DEVICE_INTERFACE value. Must be a hostname or serial port path.")
+    except ConnectionRefusedError:
+        logging.error(f"Connection to {device} refused. Exiting...")
+        exit(1)
+    logging.info(f'Connected to {interface.__class__.__name__} device: {device}')
 
-    # Serial port path
-    elif device.startswith('/') or device.startswith('COM'):
-        interface = SerialInterface(device)
-
-    else:
-        raise ValueError("Invalid DEVICE_INTERFACE value. Must be a hostname or serial port path.")
-    
     # sanitizing the db_path
     db_path = environ.get("DB_NAME", ':memory:')
     if db_path != ':memory:':
