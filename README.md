@@ -34,8 +34,13 @@ poetry install
 poetry run python -m meshtastic_listener
 ```
 
-## Docker
+## Docker Compose
+This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. Just modify that file with your specific environment variables and run the following command:
+```bash
+docker-compose up -d --force-recreate --build
+```
 
+## Docker
 ### Build
 ```bash
 docker build . -t meshtastic_listener:latest
