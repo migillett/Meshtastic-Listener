@@ -26,6 +26,10 @@ class CommandHandler:
         !post <message> - Post a message to the board
         '''
         context.decoded.text = context.decoded.text.replace('!post', '').strip()
+        if len(context.decoded.text) > 220:
+            return 'Message too long. Max 220 characters'
+        elif len(context.decoded.text) == 0:
+            return 'Message is empty'
         self.db.insert_annoucement(context.db_payload())
         return 'message received'
     
@@ -36,7 +40,7 @@ class CommandHandler:
         response_str = 'BBS:\n'
         for i, annoucement in enumerate(self.db.get_annoucements(hours_past=24)):
             response_str += f'{i+1}. {annoucement[0]}: {annoucement[1]}\n'
-        return response_str
+        return response_str.strip('\n') # remove trailing newline
 
     def cmd_help(self) -> str:
         '''
