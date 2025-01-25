@@ -138,6 +138,7 @@ class MeshtasticListener:
         def handle_shutdown_signal(signum, frame):
             logging.info(f"Received shutdown signal: {signum}. Exiting gracefully...")
             self.interface.close()
+            logging.info("====== MeshtasticListener Exiting ======")
             exit(0)
 
         signal.signal(signal.SIGTERM, handle_shutdown_signal)
@@ -145,15 +146,11 @@ class MeshtasticListener:
 
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
         logging.info("Subscribed to meshtastic.receive")
-        try:
-            while True:
-                sys.stdout.flush()
-                self.__load_local_nodes__()
-                time.sleep(1)
-        except KeyboardInterrupt:
-            self.interface.close()
-            logging.info("====== MeshtasticListener Exiting ======")
-            exit(0)
+        
+        while True:
+            sys.stdout.flush()
+            self.__load_local_nodes__()
+            time.sleep(1)
 
 
 if __name__ == "__main__":

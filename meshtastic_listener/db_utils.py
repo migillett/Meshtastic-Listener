@@ -30,7 +30,8 @@ class ListenerDb:
                 rxSnr FLOAT NOT NULL,
                 rxRssi INTEGER NOT NULL,
                 hopStart INTEGER NOT NULL,
-                hopLimit INTEGER NOT NULL
+                hopLimit INTEGER NOT NULL,
+                readCount INTEGER DEFAULT 0
             );
             """
         )
@@ -97,22 +98,31 @@ class ListenerDb:
         self.conn.commit()
         logger.info(f'Annoucement inserted into db: {payload}')
 
-    def get_annoucements(self, hours_past: int = 24) -> list[tuple[str, str]]:
+    def mark_annoucement_read(self, annoucement_ids: list[int]) -> None:
+        cmd = f'UPDATE annoucements SET readCount = readCount + 1 WHERE id IN ({",".join(annoucement_ids)});'
+        self.cursor.execute(cmd)
+        self.conn.commit()
+
+    def get_annoucements(self, hours_past: int = 24) -> list[tuple[int, str, str]]:
         '''
-        returns a list of tuples containing the fromName (shortname) and message of annoucements from the past n hours
+        returns a list of tuples containing:
+         1. the announcement id
+         2. the author fromName (shortname)
+         3. message of annoucements from the past n hours
         example:
-        [(1, 'Hello, World!'), (2, 'Hello, World 2!')]
+        [(1, 'NAME', 'Hello, World!'), (2, 'NAME', 'Hello, World 2!')]
         '''
         logger.info(f'Fetching annoucements from db for the last {hours_past} hours')
         look_back = int(time()) - (hours_past * 3600)
         self.cursor.execute(
             """
-            SELECT fromName, message FROM annoucements WHERE rxTime > ? ORDER BY rxTime DESC;
+            SELECT id, fromName, message FROM annoucements WHERE rxTime > ? ORDER BY rxTime DESC;
             """,
             (look_back,)
         )
-        results = self.cursor.fetchall()
+        results = self.cursor.fetchall()        
         logger.info(f'Successfully fetched {len(results)} annoucements')
+        self.mark_annoucement_read([str(x[0]) for x in results])
         return results
     
     def insert_nodes(self, nodes: list[NodeBase]) -> None:

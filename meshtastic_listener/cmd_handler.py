@@ -39,8 +39,8 @@ class CommandHandler:
         '''
         response_str = 'BBS:\n'
         for i, annoucement in enumerate(self.db.get_annoucements(hours_past=24)):
-            response_str += f'{i+1}. {annoucement[0]}: {annoucement[1]}\n'
-        return response_str.strip('\n') # remove trailing newline
+            response_str += f'{i+1}. {annoucement[1]}: {annoucement[2]}\n'
+        return response_str.strip('\n')
 
     def cmd_help(self) -> str:
         '''
@@ -48,11 +48,11 @@ class CommandHandler:
         '''
         help_str = 'Commands:'
         for name, member in inspect.getmembers(self.__class__, inspect.isfunction):
-                # Check if it's a method and has a docstring
-                if name.startswith('cmd_'):
-                    doc = inspect.getdoc(member)
-                    if doc:
-                        help_str += f'\n  {doc}'
+            # Check if it's a method and has a docstring
+            if name.startswith('cmd_'):
+                doc = inspect.getdoc(member)
+                if doc:
+                    help_str += f'\n  {doc}'
         return help_str
 
     def handle_command(self, context: MessageReceived) -> str | None:
