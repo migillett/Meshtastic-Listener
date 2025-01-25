@@ -78,10 +78,10 @@ class MeshtasticListener:
     
     def __on_receive__(self, packet: dict) -> None:
         try:
-            packet['decoded'].pop('raw', None)
+            packet.pop('raw', None)
             portnum = packet['decoded']['portnum']
             match portnum:
-                case 'TEXT_MESASGE_APP':
+                case 'TEXT_MESSAGE_APP':
                     self.__handle_text_message__(packet)
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}")
