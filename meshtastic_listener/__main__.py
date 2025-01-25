@@ -63,7 +63,8 @@ class MeshtasticListener:
         # 233 is set by the meshtastic constants in mesh_pb.pyi
         messages = [text[i:i + char_limit] for i in range(0, len(text), char_limit)]
         for i, message in enumerate(messages):
-            message += f'\n\n({i + 1}/{len(messages)})'
+            if len(messages) > 1:
+                message += f'\n\n({i + 1}/{len(messages)})'
             self.interface.sendText(
                 text=message,
                 destinationId=destinationId,
@@ -89,7 +90,7 @@ class MeshtasticListener:
         node_num = packet.get('from', None)
         metrics = packet.get('decoded', {}).get('telemetry', {}).get('deviceMetrics')
         if metrics is None or node_num is None:
-            logging.error("Telemetry data not found in packet")
+            logging.error(f"Telemetry data not found in packet: {packet}")
             return
         logging.info(f"Telemetry Received from {node_num}: {metrics}")
         self.db.insert_metrics(node_num, DeviceMetrics(**metrics))

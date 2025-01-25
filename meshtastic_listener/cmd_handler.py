@@ -33,11 +33,10 @@ class CommandHandler:
         '''
         !read - Read the last 24 hours of board messages
         '''
-        response_str = ''
+        response_str = 'BBS:\n\n'
         for annoucement in self.db.get_annoucements(hours_past=24):
             response_str += f'{annoucement[0]}: {annoucement[1]}\n'
         return response_str
-
 
     def cmd_help(self) -> str:
         '''
