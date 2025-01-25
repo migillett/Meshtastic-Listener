@@ -63,6 +63,11 @@ class MeshtasticListener:
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
 
+    def __reconnect__(self) -> None:
+        logging.error("Connection lost with node. Attempting to reconnect...")
+        self.interface.close()
+        self.interface.connect()
+
     def __reply__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
         # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
@@ -145,6 +150,7 @@ class MeshtasticListener:
         signal.signal(signal.SIGINT, handle_shutdown_signal)
 
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
+        pub.subscribe(self.__reconnect__, "meshtastic.connection.lost")
         logging.info("Subscribed to meshtastic.receive")
         
         while True:
