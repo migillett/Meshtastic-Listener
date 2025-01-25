@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "meshtatic_listener"
+version = "0.2.7"
+description = "A server for connecting to a Meshtastic device and responding to commands."
+authors = ["Michael Gillett <51103663+migillett@users.noreply.github.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.scripts]
+meshtastic_listener = "meshtastic_listener.__main__:main"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.14"
+pubsub = "^0.1.2"
+requests = "^2.32.3"
+meshtastic = "^2.5.10"
+pydantic = "^2.10.5"
+toml = "^0.10.2"
+pytest = "^8.3.4"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "./meshtatic_listener",
+]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
