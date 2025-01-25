@@ -68,7 +68,7 @@ class MeshtasticListener:
         # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
         # round down to 200 to account for the message header and pagination footer
         messages = [text[i:i + self.char_limit] for i in range(0, len(text), self.char_limit)]
-        logging.info(f'Broke response message into {len(messages)} parts')
+        logging.info(f'Transmitting response message in {len(messages)} part(s)')
         for i, message in enumerate(messages):
             if len(messages) > 1:
                 message += f'\n({i + 1}/{len(messages)})'
