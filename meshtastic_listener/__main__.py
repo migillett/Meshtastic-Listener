@@ -60,11 +60,13 @@ class MeshtasticListener:
 
     def __reply__(self, text: str, destinationId: int, char_limit: int = 200) -> None:
         # splits the input text into chunks of char_limit length
-        # 233 is set by the meshtastic constants in mesh_pb.pyi
+        # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
+        # round down to 200 to account for the message header and pagination footer
         messages = [text[i:i + char_limit] for i in range(0, len(text), char_limit)]
+        logging.info(f'Broke response message into {len(messages)} parts')
         for i, message in enumerate(messages):
             if len(messages) > 1:
-                message += f'\n\n({i + 1}/{len(messages)})'
+                message += f'\n({i + 1}/{len(messages)})'
             self.interface.sendText(
                 text=message,
                 destinationId=destinationId,
