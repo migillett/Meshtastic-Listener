@@ -12,11 +12,10 @@ class ListenerDb:
     # used for storing messages
     def __init__(self, db_path: str) -> None:
         self.db_path = db_path
-        logger.info(f'ListenerDb initialized with db_path: {self.db_path}')
-
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.cursor = self.conn.cursor()
         self.create_table()
+        logger.info(f'ListenerDb initialized with db_path: {self.db_path}')
 
     def create_table(self) -> None:
         self.cursor.execute(
@@ -35,8 +34,6 @@ class ListenerDb:
             );
             """
         )
-        self.conn.commit()
-        logger.info('annoucements table created')
 
         self.cursor.execute(
             """
@@ -53,8 +50,6 @@ class ListenerDb:
             );
             """
         )
-        self.conn.commit()
-        logger.info('nodes table created')
 
         self.cursor.execute(
             """
@@ -65,10 +60,20 @@ class ListenerDb:
                 voltage FLOAT DEFAULT NULL,
                 channelUtilization FLOAT DEFAULT NULL,
                 airUtilTx FLOAT DEFAULT NULL,
-                uptimeSeconds INTEGER DEFAULT NULL
+                uptimeSeconds INTEGER DEFAULT NULL,
+                numPacketsTx INTEGER DEFAULT NULL,
+                numPacketsRx INTEGER DEFAULT NULL,
+                numPacketsRxBad INTEGER DEFAULT NULL,
+                numOnlineNodes INTEGER DEFAULT NULL,
+                numTotalNodes INTEGER DEFAULT NULL,
+                numRxDupe INTEGER DEFAULT NULL,
+                numTxRelay INTEGER DEFAULT NULL,
+                numTxRelayCanceled INTEGER DEFAULT NULL
             );
             """
         )
+        self.conn.commit()
+
 
     def insert_annoucement(self, payload: dict) -> None:
         self.cursor.execute(
@@ -153,6 +158,16 @@ class ListenerDb:
         if result:
             return result[0]
         return str(node_num)
+    
+    def check_node_exists(self, node_num: int) -> bool:
+        self.cursor.execute(
+            """
+            SELECT num FROM nodes WHERE num = ?;
+            """,
+            (node_num,)
+        )
+        result = self.cursor.fetchone()
+        return result is not None
     
     def insert_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
         self.cursor.execute(

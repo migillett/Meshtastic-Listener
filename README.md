@@ -23,6 +23,12 @@ poetry install
 
 `DB_NAME` - (optional) The name to the SQLite database. Default is `:memory:`. Names must end in `.db`. This database will be created in the `./data`.
 
+`NODE_UPDATE_INTERVAL` - (optional, default 15) how often the service should load the local Node database to the SQLite DB in minutes.
+
+`RESPONSE_CHAR_LIMIT` - (optional, default 220) the maximum lenght of a message in characters before pagination.
+
+`WELCOME_MESSAGE` - (optional, default `True`) Enables / disables a welcome message for all unrecognized nodes.
+
 ## Running Locally
 ```bash
 poetry run python -m meshtastic_listener

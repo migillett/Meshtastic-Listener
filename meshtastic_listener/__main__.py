@@ -36,7 +36,8 @@ class MeshtasticListener:
             db_object: ListenerDb,
             cmd_handler: CommandHandler | None,
             node_update_interval: int = 15,
-            response_char_limit: int = 220
+            response_char_limit: int = 220,
+            welcome_message: bool = True,
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -47,15 +48,16 @@ class MeshtasticListener:
         self.db = db_object
         self.cmd_handler = cmd_handler
 
-        self.node_refresh_ts: float = 0.0
+        self.node_refresh_ts: float = time.time()
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
-        self.__load_local_nodes__()
+        self.__load_local_nodes__(force=True)
 
         self.char_limit = response_char_limit
+        self.welcome_message = welcome_message
 
-    def __load_local_nodes__(self) -> None:
+    def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
-        if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds():
+        if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
             logging.info("Refreshing Node details")
             nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
             self.db.insert_nodes(nodes)
@@ -93,15 +95,30 @@ class MeshtasticListener:
 
     def __handle_telemetry__(self, packet: dict) -> None:
         node_num = packet.get('from', None)
-        metrics = packet.get('decoded', {}).get('telemetry', {}).get('deviceMetrics')
-        if metrics is None or node_num is None:
-            logging.error(f"Telemetry data not found in packet: {packet}")
+        if node_num is None:
+            logging.error(f"Telemetry packet missing 'from' field: {packet}")
             return
-        logging.info(f"Telemetry Received from {node_num}: {metrics}")
-        self.db.insert_metrics(node_num, DeviceMetrics(**metrics))
-    
+
+        telemetry = packet.get('decoded', {}).get('telemetry', {})
+        metrics = telemetry.get('deviceMetrics')
+        local_stats = telemetry.get('localStats')
+
+        combined_metrics = DeviceMetrics(**metrics, **local_stats)
+        logging.info(f"Telemetry Received from {node_num}: {combined_metrics.model_dump_json()}")
+        self.db.insert_metrics(node_num, combined_metrics)
+
+
+    def __handle_new_node__(self, node_num: int) -> None:
+        if not self.db.check_node_exists(node_num) and self.welcome_message:
+            logging.info(f"New Node detected: {node_num}")
+            self.__reply__(
+                text="Welcome to the Mountain Mesh Network. Reply with !help for commands. Visit https://mtnme.sh for more info.",
+                destinationId=node_num)
+            self.__load_local_nodes__(force=True)
+
     def __on_receive__(self, packet: dict) -> None:
         try:
+            self.__handle_new_node__(packet['from'])
             portnum = packet['decoded']['portnum']
             match portnum:
                 case 'TEXT_MESSAGE_APP':
@@ -164,6 +181,10 @@ if __name__ == "__main__":
     listener = MeshtasticListener(
         interface=interface,
         db_object=db_object,
-        cmd_handler=cmd_handler,)
+        cmd_handler=cmd_handler,
+        node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
+        response_char_limit=int(environ.get("RESPONSE_CHAR_LIMIT", 220)),
+        welcome_message=environ.get("WELCOME_MESSAGE", 'true').lower() == 'true'
+    )
     
     listener.run()

@@ -59,6 +59,15 @@ class DeviceMetrics(BaseModel):
     channelUtilization: Optional[float] = None
     airUtilTx: Optional[float] = None
     uptimeSeconds: Optional[int] = None
+    numPacketsTx: Optional[int] = None
+    numPacketsRx: Optional[int] = None
+    numPacketsRxBad: Optional[int] = None
+    numOnlineNodes: Optional[int] = None
+    numTotalNodes: Optional[int] = None
+    numRxDupe: Optional[int] = None
+    numTxRelay: Optional[int] = None
+    numTxRelayCanceled: Optional[int] = None
+    
 
 class NodeBase(BaseModel):
     num: int
