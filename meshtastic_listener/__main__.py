@@ -172,12 +172,9 @@ class MeshtasticListener:
 
 if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
-    if device is None:
-        raise ValueError("DEVICE_INTERFACE environment variable is not set")
-
     try:
         # IP address
-        if '.' in device and len(device.split('.')) == 4:
+        if device and len(device.split('.')) == 4:
             interface = TCPInterface(hostname=device)
         # Serial port path
         else:
