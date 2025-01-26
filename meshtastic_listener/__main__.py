@@ -109,7 +109,6 @@ class MeshtasticListener:
         local_stats = telemetry.get('localStats', {})
 
         combined_metrics = DeviceMetrics(**metrics, **local_stats)
-        logging.info(f"Telemetry Received from {node_num}: {combined_metrics.model_dump_json()}")
         self.db.insert_metrics(node_num, combined_metrics)
 
     def __handle_new_node__(self, node_num: int) -> None:
@@ -135,6 +134,8 @@ class MeshtasticListener:
                     self.__handle_text_message__(packet)
                 case "TELEMETRY_APP":
                     self.__handle_telemetry__(packet)
+                case "NODEINFO_APP":
+                    self.__load_local_nodes__(force=True)
                 case "POSITION_APP":
                     pass
                 case _:
