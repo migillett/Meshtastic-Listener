@@ -180,10 +180,8 @@ if __name__ == "__main__":
         if '.' in device and len(device.split('.')) == 4:
             interface = TCPInterface(hostname=device)
         # Serial port path
-        elif device.startswith('/') or device.startswith('COM'):
-            interface = SerialInterface(device)
         else:
-            raise ValueError("Invalid DEVICE_INTERFACE value. Must be a hostname or serial port path.")
+            interface = SerialInterface()
     except ConnectionRefusedError:
         logging.error(f"Connection to {device} refused. Exiting...")
         exit(1)
