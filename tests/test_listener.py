@@ -21,7 +21,11 @@ def test_listener():
     test_interface = TestInterface()
 
     handler_db = ListenerDb(db_path=":memory:")
-    cmd_handler = CommandHandler(prefix='!', cmd_db=handler_db)
+    cmd_handler = CommandHandler(
+        prefix='!',
+        cmd_db=handler_db,
+        admin_node_id=1234567890,
+    )
     listener = MeshtasticListener(
         interface=test_interface,
         cmd_handler=cmd_handler,
@@ -30,7 +34,7 @@ def test_listener():
     )
     
     test_messages = [
-        b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world'
+        b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world', b'!clear'
     ]
 
     message_received = {

@@ -9,11 +9,30 @@ logger = logging.getLogger(__name__)
 class CommandHandler:
     # all command functions need to start with cmd_ to be recognized as commands
     # all command functions need to have a docstring to be recognized as a command
-    def __init__(self, cmd_db: ListenerDb, prefix: str = '!', bbs_lookback: int = 24) -> None:
+    def __init__(
+            self,
+            cmd_db: ListenerDb,
+            prefix: str = '!',
+            bbs_lookback: int = 24,
+            admin_node_id: str | None = None,
+        ) -> None:
+
         self.prefix = prefix
         logger.info(f'CommandHandler initialized with prefix: {self.prefix}')
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
+        self.admin_node_id = admin_node_id
+
+    def __is_admin__(self, node_id: str) -> bool:
+        if self.admin_node_id is None:
+            logger.error('Admin node not set. Cannot check if node is an admin.')
+            return False
+        elif node_id != self.admin_node_id:
+            logger.warning(f'{node_id} is not authorized')
+            return False
+        else:
+            logger.info(f'{node_id} authenticated as admin')
+            return True
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''
@@ -46,6 +65,16 @@ class CommandHandler:
             return response_str.strip('\n')
         else:
             return f'No BBS messages posted in the last {self.bbs_lookback} hours'
+        
+    def cmd_clear(self, context: MessageReceived) -> str:
+        '''
+        !clear - (admins only) Clear the BBS
+        '''
+        if self.__is_admin__(context.fromId) is False:
+            return 'You are not authorized to clear the BBS'
+        else:
+            self.db.soft_delete_annoucements()
+            return 'BBS Cleared'
 
     def cmd_help(self) -> str:
         '''
@@ -75,6 +104,9 @@ class CommandHandler:
                 
                 case 'read':
                     return self.cmd_read()
+                
+                case 'clear':
+                    return self.cmd_clear(context)
                 
                 case _:
                     logger.error(f'Unknown command: {command}')
