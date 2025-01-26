@@ -193,12 +193,14 @@ if __name__ == "__main__":
             raise ValueError("DB_NAME must be a filename only")
 
     db_object = ListenerDb(
-        db_path=path.join(data_dir, db_path))
+        db_path=path.join(data_dir, db_path)
+    )
 
     cmd_handler = CommandHandler(
         prefix=environ.get("CMD_PREFIX", '!'),
         cmd_db=db_object,
         bbs_lookback=int(environ.get("BBS_HOURS", 24))
+    )
 
     listener = MeshtasticListener(
         interface=interface,
