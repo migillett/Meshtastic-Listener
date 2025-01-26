@@ -9,10 +9,11 @@ logger = logging.getLogger(__name__)
 class CommandHandler:
     # all command functions need to start with cmd_ to be recognized as commands
     # all command functions need to have a docstring to be recognized as a command
-    def __init__(self, cmd_db: ListenerDb, prefix: str = '!') -> None:
+    def __init__(self, cmd_db: ListenerDb, prefix: str = '!', bbs_lookback: int = 24) -> None:
         self.prefix = prefix
         logger.info(f'CommandHandler initialized with prefix: {self.prefix}')
         self.db = cmd_db
+        self.bbs_lookback = bbs_lookback
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''
@@ -38,9 +39,13 @@ class CommandHandler:
         !read - Read the last 24 hours of board messages
         '''
         response_str = 'BBS:\n'
-        for i, annoucement in enumerate(self.db.get_annoucements(hours_past=24)):
-            response_str += f'{i+1}. {annoucement[1]}: {annoucement[2]}\n'
-        return response_str.strip('\n')
+        annoucements = self.db.get_annoucements(hours_past=self.bbs_lookback)
+        if len(annoucements) > 0:
+            for i, annoucement in enumerate(annoucements):
+                response_str += f'{i+1}. {annoucement[1]}: {annoucement[2]}\n'
+            return response_str.strip('\n')
+        else:
+            return f'No BBS messages posted in the last {self.bbs_lookback} hours'
 
     def cmd_help(self) -> str:
         '''
