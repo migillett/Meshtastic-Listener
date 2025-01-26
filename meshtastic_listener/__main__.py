@@ -109,6 +109,7 @@ class MeshtasticListener:
         local_stats = telemetry.get('localStats', {})
 
         combined_metrics = DeviceMetrics(**metrics, **local_stats)
+        logging.debug(f"Telemetry received from {node_num}: {combined_metrics}")
         self.db.insert_metrics(node_num, combined_metrics)
 
     def __handle_new_node__(self, node_num: int) -> None:
