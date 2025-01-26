@@ -136,6 +136,7 @@ class MeshtasticListener:
                 case "TELEMETRY_APP":
                     self.__handle_telemetry__(packet)
                 case "NODEINFO_APP":
+                    logging.info(f'NODEINFO_APP packet received. Refreshing local nodes...')
                     self.__load_local_nodes__(force=True)
                 case "POSITION_APP":
                     pass
