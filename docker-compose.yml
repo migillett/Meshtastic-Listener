@@ -8,7 +8,7 @@ services:
     volumes:
       - ./data:/home/meshtastic/data
     environment:
-      # - DEVICE_INTERFACE=192.168.3.185 # only use if connecting via IP address
+      - DEVICE_INTERFACE=192.168.3.185
       - DB_NAME=listener.db
     # devices:
       # - /dev/ttyUSB0:/dev/ttyUSB0 # only use if connecting via USB
