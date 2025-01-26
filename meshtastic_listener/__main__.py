@@ -89,7 +89,7 @@ class MeshtasticListener:
         sender = self.db.get_node_shortname(packet['fromId'])
         payload = MessageReceived(fromName=sender, **packet)
 
-        logging.debug(f"Message Received: {payload.fromName} - {payload.decoded.payload}")
+        logging.info(f"Message Received: {payload.fromName} - {payload.decoded.payload}")
         if self.cmd_handler is not None:
             response = self.cmd_handler.handle_command(context=payload)
             if response is not None:
