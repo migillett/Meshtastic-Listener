@@ -182,7 +182,7 @@ if __name__ == "__main__":
     except ConnectionRefusedError:
         logging.error(f"Connection to {device} refused. Exiting...")
         exit(1)
-    logging.info(f'Connected to {interface.__class__.__name__} device: {device}')
+    logging.info(f'Connected to {interface.__class__.__name__} device')
 
     # sanitizing the db_path
     db_path = environ.get("DB_NAME", ':memory:')
