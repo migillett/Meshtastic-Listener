@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "meshtatic_listener"
-version = "0.3.14"
+version = "0.3.16"
 description = "A server for connecting to a Meshtastic device and responding to commands."
 authors = ["Michael Gillett <51103663+migillett@users.noreply.github.com>"]
 readme = "README.md"
@@ -27,5 +27,5 @@ pythonpath = [
     "./meshtatic_listener",
 ]
 log_cli = true
-log_cli_level = "INFO"
+log_cli_level = "DEBUG"
 log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"

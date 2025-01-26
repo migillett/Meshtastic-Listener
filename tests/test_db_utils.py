@@ -1,10 +1,10 @@
 from time import time
 
-from meshtastic_listener.functions.db_utils import CommandHandlerDb
+from meshtastic_listener.db_utils import ListenerDb
 
 
 def test_db_functions():
-    db = CommandHandlerDb(':memory:')
+    db = ListenerDb(':memory:')
 
     message = {
         'fromId': 1,
@@ -23,11 +23,11 @@ def test_db_functions():
     annoucements = db.get_annoucements()
     # make sure the response matches up
     assert len(annoucements) == 1
-    assert annoucements[0][0] == message['fromName']
-    assert annoucements[0][1] == message['message']
+    assert annoucements[0][1] == message['fromName']
+    assert annoucements[0][2] == message['message']
 
     # insert test message spoofed as 25 hours in the past
-    message['rxTime'] = int(time()) - 25 * 3600
+    message['rxTime'] = int(time()) - (25 * 3600)
     message['message'] = 'Hello, World! 25 hours ago'
     db.insert_annoucement(message)
     annoucements = db.get_annoucements(hours_past=24)

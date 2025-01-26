@@ -39,6 +39,7 @@ class MeshtasticListener:
             node_update_interval: int = 15,
             response_char_limit: int = 220,
             welcome_message: str | None = None,
+            debug: bool = False,
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -47,15 +48,19 @@ class MeshtasticListener:
         self.interface = interface
         self.db = db_object
         self.cmd_handler = cmd_handler
-
-        self.node_refresh_ts: float = time.time()
-        self.node_refresh_interval = timedelta(minutes=node_update_interval)
-        self.__load_local_nodes__(force=True)
-
+        self.debug = debug
         self.char_limit = response_char_limit
         self.welcome_message = welcome_message
+        self.node_refresh_ts: float = time.time()
+        self.node_refresh_interval = timedelta(minutes=node_update_interval)
+
+        self.__load_local_nodes__(force=True)
+
 
     def __load_local_nodes__(self, force: bool = False) -> None:
+        if self.debug:
+            logging.debug("Debug mode enabled. Skipping node refresh.")
+            return
         now = time.time()
         if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
             logging.info("Refreshing Node details")
@@ -113,7 +118,7 @@ class MeshtasticListener:
         self.db.insert_metrics(node_num, combined_metrics)
 
     def __handle_new_node__(self, node_num: int) -> None:
-        if not self.db.check_node_exists(node_num):
+        if not self.db.check_node_exists(node_num) and not self.debug:
             logging.info(f"New Node detected: {node_num}. Attempting traceroute...")
             try:
                 self.interface.sendTraceRoute(dest=node_num, hopLimit=5, channelIndex=0)
@@ -123,7 +128,7 @@ class MeshtasticListener:
                         text=self.welcome_message,
                         destinationId=node_num)
                 self.__load_local_nodes__(force=True)
-            except interface.MeshInterfaceError as e:
+            except self.interface.MeshInterfaceError as e:
                 logging.error(f"Failed to send traceroute to {node_num}: {e}")
 
     def __on_receive__(self, packet: dict) -> None:

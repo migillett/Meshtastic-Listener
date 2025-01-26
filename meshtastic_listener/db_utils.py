@@ -22,7 +22,7 @@ class ListenerDb:
             """
             CREATE TABLE IF NOT EXISTS annoucements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
+                rxTime INTEGER NOT NULL,
                 fromId INTEGER NOT NULL,
                 toId INTEGER NOT NULL,
                 fromName TEXT DEFAULT NULL,
@@ -81,10 +81,11 @@ class ListenerDb:
         self.cursor.execute(
             """
             INSERT INTO annoucements (
-                fromId, toId, fromName, message, rxSnr, rxRssi, hopStart, hopLimit
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                rxTime, fromId, toId, fromName, message, rxSnr, rxRssi, hopStart, hopLimit
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
             (
+                payload['rxTime'],
                 payload['fromId'],
                 payload['toId'],
                 payload['fromName'],
@@ -112,8 +113,9 @@ class ListenerDb:
         example:
         [(1, 'NAME', 'Hello, World!'), (2, 'NAME', 'Hello, World 2!')]
         '''
-        logger.info(f'Fetching annoucements from db for the last {hours_past} hours')
         look_back = int(time()) - (hours_past * 3600)
+        logger.info(f'Fetching annoucements from db for the last {hours_past} hours')
+        logger.debug(f'Lookback time: rxTime > {look_back}')
         self.cursor.execute(
             """
             SELECT id, fromName, message FROM annoucements WHERE rxTime > ? ORDER BY rxTime DESC;

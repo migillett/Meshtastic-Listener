@@ -1,10 +1,13 @@
 from meshtastic_listener.__main__ import MeshtasticListener
 from meshtastic_listener.cmd_handler import CommandHandler
-from meshtastic_listener.db_utils import CommandHandlerDb
+from meshtastic_listener.db_utils import ListenerDb
+
+from meshtastic.mesh_interface import MeshInterface
 
 
-class TestInterface:
+class TestInterface(MeshInterface):
     def __init__(self) -> None:
+        super().__init__()
         self.nodes = {}
 
     def close(self) -> None:
@@ -17,11 +20,14 @@ class TestInterface:
 def test_listener():
     test_interface = TestInterface()
 
-    handler_db = CommandHandlerDb(db_path=":memory:")
+    handler_db = ListenerDb(db_path=":memory:")
     cmd_handler = CommandHandler(prefix='!', cmd_db=handler_db)
     listener = MeshtasticListener(
         interface=test_interface,
-        cmd_handler=cmd_handler)
+        cmd_handler=cmd_handler,
+        db_object=handler_db,
+        debug=True
+    )
     
     test_messages = [
         b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world'
