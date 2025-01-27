@@ -17,7 +17,7 @@ poetry install
 ```
 
 ## Environment Variables
-`DEVICE_INTERFACE` - The interace in which you wish to interact with your radio. Can either be an IPV4 address (`192.168.x.x`) or a serial path (`/dev/ttyUSBx`). The software will use whatever environment variable is provided to attempt a connection.
+`DEVICE_INTERFACE` - (optional, default to serial) The interace in which you wish to interact with your radio. Can either be an IPV4 address (`x.x.x.x`) or a serial path (`/dev/ttyUSBx`). The software will use whatever environment variable is provided to attempt a connection. If you're doing serial and Docker deploys, don't forget to pass the serial path into the container using `devices`.
 
 `CMD_PREFIX` - (optional, default `!`) What you want the command prefix to trigger the `cmd_handler.py`. Default is `!`.
 
@@ -43,6 +43,8 @@ This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. Jus
 ```bash
 docker-compose up -d --force-recreate --build
 ```
+
+A note on devices: I've found that passing in `/dev/ttyUSB0` for Linux is working well so far on my Raspberry Pi 3B+.
 
 ## Docker
 ### Build

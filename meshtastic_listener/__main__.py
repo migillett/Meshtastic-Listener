@@ -158,7 +158,6 @@ class MeshtasticListener:
             exit(0)
 
         signal.signal(signal.SIGTERM, handle_shutdown_signal)
-        signal.signal(signal.SIGINT, handle_shutdown_signal)
 
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
         pub.subscribe(self.__reconnect__, "meshtastic.connection.lost")
@@ -172,22 +171,17 @@ class MeshtasticListener:
 
 if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
-    if device is None:
-        raise ValueError("DEVICE_INTERFACE environment variable is not set")
-
     try:
         # IP address
-        if '.' in device and len(device.split('.')) == 4:
+        if device and len(device.split('.')) == 4:
             interface = TCPInterface(hostname=device)
         # Serial port path
-        elif device.startswith('/') or device.startswith('COM'):
-            interface = SerialInterface(device)
         else:
-            raise ValueError("Invalid DEVICE_INTERFACE value. Must be a hostname or serial port path.")
+            interface = SerialInterface()
     except ConnectionRefusedError:
         logging.error(f"Connection to {device} refused. Exiting...")
         exit(1)
-    logging.info(f'Connected to {interface.__class__.__name__} device: {device}')
+    logging.info(f'Connected to {interface.__class__.__name__} device')
 
     # sanitizing the db_path
     db_path = environ.get("DB_NAME", ':memory:')
