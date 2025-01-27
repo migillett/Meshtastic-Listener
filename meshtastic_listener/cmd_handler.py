@@ -21,14 +21,14 @@ class CommandHandler:
         logger.info(f'CommandHandler initialized with prefix: {self.prefix}')
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
-        self.admin_node_id = admin_node_id
+        self.admin_node_id = str(admin_node_id)
         logging.info(f'Admin node ID set to: {self.admin_node_id}')
 
     def __is_admin__(self, node_id: str) -> bool:
         if self.admin_node_id is None:
             logger.error('Admin node not set. Cannot check if node is an admin.')
             return False
-        elif str(node_id) != str(self.admin_node_id):
+        elif str(node_id) != self.admin_node_id:
             logger.warning(f'{node_id} is not authorized')
             return False
         else:
