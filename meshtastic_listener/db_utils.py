@@ -182,7 +182,6 @@ class ListenerDb:
                 ),
             )
         self.conn.commit()
-        logger.info(f'Upserted {len(nodes)} records into nodes table.')
 
     def get_node_shortname(self, node_num: int) -> str:
         self.cursor.execute(
