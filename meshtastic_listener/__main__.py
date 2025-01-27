@@ -118,6 +118,7 @@ class MeshtasticListener:
         self.db.insert_metrics(node_num, combined_metrics)
 
     def __handle_traceroute__(self, packet: dict) -> None:
+        logging.debug(f"Received traceroute packet: {packet}")
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})
         traceroute_details.pop('raw', None)
 
