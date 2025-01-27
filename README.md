@@ -31,6 +31,8 @@ poetry install
 
 `BBS_HOURS` - (optional int, default `24`) The number of hours the server will look back for bulletin board service (BBS) messages. Only BBS messages posted within that window will return when someone runs `!read`.
 
+`ADMIN_NODE_ID` - (optional str, default disabled) An admin role that allows you to `!clear` the BBS messages.
+
 ## Running Locally
 ```bash
 poetry run python -m meshtastic_listener
