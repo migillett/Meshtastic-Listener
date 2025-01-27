@@ -32,7 +32,8 @@ class ListenerDb:
                 rxRssi INTEGER NOT NULL,
                 hopStart INTEGER NOT NULL,
                 hopLimit INTEGER NOT NULL,
-                readCount INTEGER DEFAULT 0
+                readCount INTEGER DEFAULT 0,
+                isDeleted INTEGER DEFAULT 0
             );
             """
         )
@@ -133,7 +134,11 @@ class ListenerDb:
         logger.debug(f'Lookback time: rxTime > {look_back}')
         self.cursor.execute(
             """
-            SELECT id, fromName, message FROM annoucements WHERE rxTime > ? ORDER BY rxTime DESC;
+            SELECT id, fromName, message
+            FROM annoucements
+            WHERE rxTime > ?
+            AND isDeleted = 0
+            ORDER BY rxTime DESC;
             """,
             (look_back,)
         )
@@ -142,6 +147,11 @@ class ListenerDb:
         self.mark_annoucement_read([str(x[0]) for x in results])
         return results
     
+    def soft_delete_annoucements(self) -> None:
+        logger.info('Soft deleting all annoucements')
+        self.cursor.execute("UPDATE annoucements SET isDeleted = 1;")
+        self.conn.commit()
+
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         for node in nodes:
             self.cursor.execute(

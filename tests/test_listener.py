@@ -20,8 +20,16 @@ class TestInterface(MeshInterface):
 def test_listener():
     test_interface = TestInterface()
 
-    handler_db = ListenerDb(db_path=":memory:")
-    cmd_handler = CommandHandler(prefix='!', cmd_db=handler_db)
+    handler_db = ListenerDb(
+        db_path=":memory:"
+    )
+
+    cmd_handler = CommandHandler(
+        prefix='!',
+        cmd_db=handler_db,
+        admin_node_id=1234567890,
+    )
+    
     listener = MeshtasticListener(
         interface=test_interface,
         cmd_handler=cmd_handler,
@@ -30,7 +38,7 @@ def test_listener():
     )
     
     test_messages = [
-        b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world'
+        b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world', b'!clear'
     ]
 
     message_received = {
@@ -38,9 +46,9 @@ def test_listener():
         "to": 1234567890,
         "decoded": {
             "portnum": "TEXT_MESSAGE_APP",
-            "payload": b"!help",
+            "payload": b"",
             "bitfield": 0,
-            "text": "!help"
+            "text": ""
         },
         "id": 1234567890,
         "rxTime": 1737489128,

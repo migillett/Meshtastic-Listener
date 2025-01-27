@@ -217,7 +217,8 @@ if __name__ == "__main__":
     cmd_handler = CommandHandler(
         prefix=environ.get("CMD_PREFIX", '!'),
         cmd_db=db_object,
-        bbs_lookback=int(environ.get("BBS_HOURS", 24))
+        bbs_lookback=int(environ.get("BBS_HOURS", 24)),
+        admin_node_id=environ.get("ADMIN_NODE_ID"),
     )
 
     listener = MeshtasticListener(
