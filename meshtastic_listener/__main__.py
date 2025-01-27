@@ -158,7 +158,6 @@ class MeshtasticListener:
             exit(0)
 
         signal.signal(signal.SIGTERM, handle_shutdown_signal)
-        signal.signal(signal.SIGINT, handle_shutdown_signal)
 
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
         pub.subscribe(self.__reconnect__, "meshtastic.connection.lost")
