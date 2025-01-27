@@ -22,6 +22,7 @@ class CommandHandler:
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
         self.admin_node_id = admin_node_id
+        logging.info(f'Admin node ID set to: {self.admin_node_id}')
 
     def __is_admin__(self, node_id: str) -> bool:
         if self.admin_node_id is None:
