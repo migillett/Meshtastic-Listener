@@ -123,9 +123,9 @@ class ListenerDb:
     def get_annoucements(self, hours_past: int = 24) -> list[tuple[int, str, str]]:
         '''
         returns a list of tuples containing:
-         1. the announcement id
-         2. the author fromName (shortname)
-         3. message of annoucements from the past n hours
+            1. the announcement id
+            2. the author fromName (shortname)
+            3. message of annoucements from the past n hours
         example:
         [(1, 'NAME', 'Hello, World!'), (2, 'NAME', 'Hello, World 2!')]
         '''
