@@ -28,7 +28,7 @@ class CommandHandler:
         if self.admin_node_id is None:
             logger.error('Admin node not set. Cannot check if node is an admin.')
             return False
-        elif node_id != self.admin_node_id:
+        elif str(node_id) != str(self.admin_node_id):
             logger.warning(f'{node_id} is not authorized')
             return False
         else:
