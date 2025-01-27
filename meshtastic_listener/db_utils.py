@@ -1,6 +1,7 @@
 import sqlite3
 import logging
 from time import time
+import json
 
 from meshtastic_listener.data_structures import NodeBase, DeviceMetrics
 
@@ -74,8 +75,22 @@ class ListenerDb:
             );
             """
         )
-        self.conn.commit()
 
+        # TRACEROUTE TABLE
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS traceroutes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
+                fromId INTEGER NOT NULL,
+                toId INTEGER NOT NULL,
+                tracerouteDetails TEXT DEFAULT NULL,
+                snrAvg FLOAT DEFAULT NULL,
+                directConnection BOOLEAN DEFAULT FALSE
+                );
+            """
+        )
+        self.conn.commit()
 
     def insert_annoucement(self, payload: dict) -> None:
         self.cursor.execute(
@@ -207,3 +222,25 @@ class ListenerDb:
                 metrics.numTxRelayCanceled,
             ))
         self.conn.commit()
+
+    def insert_traceroute(
+            self,
+            fromId: str,
+            toId: str,
+            traceroute_dict: dict,
+            snr_avg: float,
+            direct_connection: bool) -> None:
+        self.cursor.execute(
+            """
+            INSERT INTO traceroutes (
+                fromId, toId, tracerouteDetails, snrAvg, directConnection
+            ) VALUES (?, ?, ?, ?, ?)
+            """, (
+                fromId,
+                toId,
+                json.dumps(traceroute_dict, default=str),
+                snr_avg,
+                direct_connection,
+            ))
+        self.conn.commit()
+        logger.info(f'Traceroute inserted into db: {fromId} -> {toId}')
