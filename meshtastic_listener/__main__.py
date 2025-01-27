@@ -117,6 +117,23 @@ class MeshtasticListener:
         logging.debug(f"Telemetry received from {node_num}: {combined_metrics}")
         self.db.insert_metrics(node_num, combined_metrics)
 
+    def __handle_traceroute__(self, packet: dict) -> None:
+        logging.debug(f"Received traceroute packet: {packet}")
+        traceroute_details = packet.get('decoded', {}).get('traceroute', {})
+        traceroute_details.pop('raw', None)
+
+        direct_connection = 'route' not in traceroute_details or 'routeBack' not in traceroute_details
+        snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
+        snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
+
+        self.db.insert_traceroute(
+            fromId=packet['from'],
+            toId=packet['to'],
+            traceroute_dict=traceroute_details,
+            snr_avg=snr_avg,
+            direct_connection=direct_connection,
+        )
+
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.check_node_exists(node_num) and not self.debug:
             logging.info(f"New Node detected: {node_num}. Attempting traceroute...")
@@ -143,6 +160,8 @@ class MeshtasticListener:
                 case "NODEINFO_APP":
                     logging.info(f'NODEINFO_APP packet received. Refreshing local nodes...')
                     self.__load_local_nodes__(force=True)
+                case "TRACEROUTE_APP":
+                    self.__handle_traceroute__(packet)
                 case "POSITION_APP":
                     pass
                 case _:
