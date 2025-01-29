@@ -63,7 +63,7 @@ class MeshtasticListener:
             return
         now = time.time()
         if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
-            logging.info("Refreshing Node details")
+            logging.debug("Refreshing Node details")
             nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
@@ -134,6 +134,10 @@ class MeshtasticListener:
             direct_connection=direct_connection,
         )
 
+    def __handle_neighbor_info__(self, packet: dict) -> None:
+        neighbor_info = packet.get('decoded', {}).get('neighborInfo', {})
+        logging.debug(f"Received neighbor info packet: {neighbor_info}")
+
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.check_node_exists(node_num) and not self.debug:
             logging.info(f"New Node detected: {node_num}. Attempting traceroute...")
@@ -164,6 +168,8 @@ class MeshtasticListener:
                     self.__handle_traceroute__(packet)
                 case "POSITION_APP":
                     pass
+                case "NEIGHBORINFO_APP":
+                    self.__handle_neighbor_info__(packet)
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:
