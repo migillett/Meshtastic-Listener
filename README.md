@@ -19,7 +19,7 @@ poetry install
 ## Environment Variables
 `DEVICE_INTERFACE` - (optional, default to serial) The interace in which you wish to interact with your radio. Can either be an IPV4 address (`x.x.x.x`) or a serial path (`/dev/ttyUSBx`). The software will use whatever environment variable is provided to attempt a connection. If you're doing serial and Docker deploys, don't forget to pass the serial path into the container using `devices`.
 
-`CMD_PREFIX` - (optional, default `!`) What you want the command prefix to trigger the `cmd_handler.py`. Default is `!`.
+`CMD_PREFIX` - (optional, default `!`) What prefix to use when triggering `cmd_handler.py`.
 
 `DB_NAME` - (optional, default `:memory:`) The name to the SQLite database. Names must end in `.db`. This database will be created in the `../data` in relation to the absolute path of `__main__.py`.
 
