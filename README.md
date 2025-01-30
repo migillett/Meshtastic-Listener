@@ -26,9 +26,9 @@ poetry install
 
 `NODE_UPDATE_INTERVAL` - (optional, default 15) how often the service should load the local Node database to the SQLite DB in minutes.
 
-`RESPONSE_CHAR_LIMIT` - (optional, default 220) the maximum length of a message in characters before pagination.
+`RESPONSE_CHAR_LIMIT` - (optional, default 200) the maximum length of a message in characters before pagination.
 
-`WELCOME_MESSAGE` - (optional str, default `None`) Whenever we see a new node on the mesh, we immediately traceroute it. Adding this environment variable will include a welcome message. Keep welcome messages under 220 characters.
+`WELCOME_MESSAGE` - (optional str, default `None`) Whenever we see a new node on the mesh, we immediately traceroute it. Adding this environment variable will include a welcome message. Keep welcome messages under 200 characters.
 
 `BBS_DAYS` - (optional int, default `7`) The number of days the server will look back for bulletin board service (BBS) messages. Only BBS messages posted within that window will return when someone runs `!read`.
 

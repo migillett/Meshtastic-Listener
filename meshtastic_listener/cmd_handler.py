@@ -15,7 +15,7 @@ class CommandHandler:
             prefix: str = '!',
             bbs_lookback: int = 7,
             admin_node_id: str | None = None,
-            character_limit: int = 220
+            character_limit: int = 200
         ) -> None:
 
         self.prefix = prefix

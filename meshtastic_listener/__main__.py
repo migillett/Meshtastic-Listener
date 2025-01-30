@@ -37,7 +37,7 @@ class MeshtasticListener:
             db_object: ListenerDb,
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
-            response_char_limit: int = 220,
+            response_char_limit: int = 200,
             welcome_message: str | None = None,
             debug: bool = False,
         ) -> None:
@@ -222,7 +222,7 @@ if __name__ == "__main__":
         if '/' in db_path or '\\' in db_path:
             raise ValueError("DB_NAME must be a filename only")
         
-    char_limit = int(environ.get("RESPONSE_CHAR_LIMIT", 220))
+    char_limit = int(environ.get("RESPONSE_CHAR_LIMIT", 200))
 
     db_object = ListenerDb(
         db_path=path.join(data_dir, db_path)
