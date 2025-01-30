@@ -35,7 +35,7 @@ class MeshtasticListener:
             self,
             interface: TCPInterface | SerialInterface,
             db_object: ListenerDb,
-            cmd_handler: CommandHandler | None,
+            cmd_handler: CommandHandler,
             node_update_interval: int = 15,
             response_char_limit: int = 220,
             welcome_message: str | None = None,
@@ -57,8 +57,9 @@ class MeshtasticListener:
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device')
         logging.info(f'ListenerDb initialized with db_path: {self.db.db_path}')
-        if self.cmd_handler and self.cmd_handler.admin_node_id is not None:
-            logging.info(f'Admin node ID set to: {self.admin_node_id}')
+        logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
+        if self.cmd_handler.admin_node_id is not None:
+            logging.info(f'Admin node ID set to: {self.cmd_handler.admin_node_id}')
         else:
             logging.info('Admin node ID not set. Admin commands will not be available.')
 

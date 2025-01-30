@@ -18,7 +18,6 @@ class CommandHandler:
         ) -> None:
 
         self.prefix = prefix
-        logger.info(f'CommandHandler initialized with prefix: {self.prefix}')
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
         self.admin_node_id = admin_node_id
