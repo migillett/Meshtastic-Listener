@@ -86,7 +86,7 @@ class ListenerDb:
                 decoded text NOT NULL
             );
 
-            CREATE VIEW history_viewable AS
+            CREATE VIEW IF NOT EXISTS history_viewable AS
             SELECT 
                 m.rxTime,
                 from_node.longName as from_node_name,
