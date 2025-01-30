@@ -221,6 +221,8 @@ if __name__ == "__main__":
             raise ValueError("DB_NAME must be a .db file")
         if '/' in db_path or '\\' in db_path:
             raise ValueError("DB_NAME must be a filename only")
+        
+    char_limit = int(environ.get("RESPONSE_CHAR_LIMIT", 220))
 
     db_object = ListenerDb(
         db_path=path.join(data_dir, db_path)
@@ -231,6 +233,7 @@ if __name__ == "__main__":
         cmd_db=db_object,
         bbs_lookback=int(environ.get("BBS_DAYS", 7)),
         admin_node_id=environ.get("ADMIN_NODE_ID"),
+        character_limit=char_limit
     )
 
     listener = MeshtasticListener(
@@ -238,7 +241,7 @@ if __name__ == "__main__":
         db_object=db_object,
         cmd_handler=cmd_handler,
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
-        response_char_limit=int(environ.get("RESPONSE_CHAR_LIMIT", 220)),
+        response_char_limit=char_limit,
         welcome_message=environ.get("WELCOME_MESSAGE")
     )
     

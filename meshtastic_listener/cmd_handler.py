@@ -15,12 +15,14 @@ class CommandHandler:
             prefix: str = '!',
             bbs_lookback: int = 7,
             admin_node_id: str | None = None,
+            character_limit: int = 220
         ) -> None:
 
         self.prefix = prefix
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
         self.admin_node_id = admin_node_id
+        self.char_limit = character_limit
 
     def __is_admin__(self, node_id: str) -> bool:
         if self.admin_node_id is None:
@@ -45,8 +47,8 @@ class CommandHandler:
         !post <message> - Post a message to the board
         '''
         context.decoded.text = context.decoded.text.replace('!post', '').strip()
-        if len(context.decoded.text) > 220:
-            return 'Message too long. Max 220 characters'
+        if len(context.decoded.text) > self.char_limit:
+            return f'Message too long. Max {self.char_limit} characters'
         elif len(context.decoded.text) == 0:
             return 'Message is empty'
         self.db.insert_annoucement(context.db_payload())
