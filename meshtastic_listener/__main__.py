@@ -134,10 +134,6 @@ class MeshtasticListener:
             direct_connection=direct_connection,
         )
 
-    def __handle_neighbor_info__(self, packet: dict) -> None:
-        neighbor_info = packet.get('decoded', {}).get('neighborInfo', {})
-        logging.debug(f"Received neighbor info packet: {neighbor_info}")
-
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.check_node_exists(node_num) and not self.debug:
             logging.info(f"New Node detected: {node_num}. Attempting traceroute...")
@@ -155,6 +151,7 @@ class MeshtasticListener:
     def __on_receive__(self, packet: dict) -> None:
         try:
             self.__handle_new_node__(packet['from'])
+            self.db.insert_message_history(packet)
             portnum = packet['decoded']['portnum']
             match portnum:
                 case 'TEXT_MESSAGE_APP':
@@ -168,8 +165,6 @@ class MeshtasticListener:
                     self.__handle_traceroute__(packet)
                 case "POSITION_APP":
                     pass
-                case "NEIGHBORINFO_APP":
-                    self.__handle_neighbor_info__(packet)
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:

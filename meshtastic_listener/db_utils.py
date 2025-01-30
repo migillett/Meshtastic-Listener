@@ -19,7 +19,7 @@ class ListenerDb:
         logger.info(f'ListenerDb initialized with db_path: {self.db_path}')
 
     def create_table(self) -> None:
-        self.cursor.execute(
+        self.cursor.executescript(
             """
             CREATE TABLE IF NOT EXISTS annoucements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,11 +35,7 @@ class ListenerDb:
                 readCount INTEGER DEFAULT 0,
                 isDeleted INTEGER DEFAULT 0
             );
-            """
-        )
 
-        self.cursor.execute(
-            """
             CREATE TABLE IF NOT EXISTS nodes (
                 num INTEGER PRIMARY KEY NOT NULL,
                 longName TEXT DEFAULT NULL,
@@ -51,11 +47,7 @@ class ListenerDb:
                 lastHeard INTEGER DEFAULT NULL,
                 hopsAway INTEGER DEFAULT NULL
             );
-            """
-        )
 
-        self.cursor.execute(
-            """
             CREATE TABLE IF NOT EXISTS metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
@@ -74,12 +66,7 @@ class ListenerDb:
                 numTxRelay INTEGER DEFAULT NULL,
                 numTxRelayCanceled INTEGER DEFAULT NULL
             );
-            """
-        )
 
-        # TRACEROUTE TABLE
-        self.cursor.execute(
-            """
             CREATE TABLE IF NOT EXISTS traceroutes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
@@ -88,7 +75,27 @@ class ListenerDb:
                 tracerouteDetails TEXT DEFAULT NULL,
                 snrAvg FLOAT DEFAULT NULL,
                 directConnection BOOLEAN DEFAULT FALSE
-                );
+            );
+
+            CREATE TABLE IF NOT EXISTS message_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
+                fromId INTEGER NOT NULL,
+                toId INTEGER NOT NULL,
+                portnum TEXT NOT NULL,
+                decoded text NOT NULL
+            );
+
+            CREATE VIEW history_viewable AS
+            SELECT 
+                m.rxTime,
+                from_node.longName as from_node_name,
+                to_node.longName as to_node_name,
+                m.portnum,
+                m.decoded
+            FROM message_history m
+            LEFT JOIN nodes from_node ON m.fromId = from_node.num
+            LEFT JOIN nodes to_node ON m.toId = to_node.num;
             """
         )
         self.conn.commit()
@@ -253,3 +260,17 @@ class ListenerDb:
             ))
         self.conn.commit()
         logger.info(f'Traceroute inserted into db: {fromId} -> {toId}')
+
+    def insert_message_history(self, packet: dict) -> None:
+        self.cursor.execute(
+            """
+            INSERT INTO message_history (
+                fromId, toId, portnum, decoded
+            ) VALUES (?, ?, ?, ?)
+            """, (
+                packet['from'],
+                packet['to'],
+                packet['decoded']['portnum'],
+                json.dumps(packet['decoded'], default=str, indent=2)
+            ))
+        self.conn.commit()

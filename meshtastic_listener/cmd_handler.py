@@ -111,7 +111,7 @@ class CommandHandler:
                 
                 case 'clear':
                     return self.cmd_clear(context)
-                
+
                 case _:
                     logger.error(f'Unknown command: {command}')
                     return f'Unknown command: {command}'
