@@ -16,7 +16,6 @@ class ListenerDb:
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.cursor = self.conn.cursor()
         self.create_table()
-        logger.info(f'ListenerDb initialized with db_path: {self.db_path}')
 
     def create_table(self) -> None:
         self.cursor.executescript(

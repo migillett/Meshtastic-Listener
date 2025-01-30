@@ -54,6 +54,14 @@ class MeshtasticListener:
         self.node_refresh_ts: float = time.time()
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
 
+        # logging device connection and db initialization
+        logging.info(f'Connected to {self.interface.__class__.__name__} device')
+        logging.info(f'ListenerDb initialized with db_path: {self.db.db_path}')
+        if self.cmd_handler and self.cmd_handler.admin_node_id is not None:
+            logging.info(f'Admin node ID set to: {self.admin_node_id}')
+        else:
+            logging.info('Admin node ID not set. Admin commands will not be available.')
+
         self.__load_local_nodes__(force=True)
 
 
@@ -159,7 +167,7 @@ class MeshtasticListener:
                 case "TELEMETRY_APP":
                     self.__handle_telemetry__(packet)
                 case "NODEINFO_APP":
-                    logging.info(f'NODEINFO_APP packet received. Refreshing local nodes...')
+                    logging.info('NODEINFO_APP packet received. Refreshing local nodes...')
                     self.__load_local_nodes__(force=True)
                 case "TRACEROUTE_APP":
                     self.__handle_traceroute__(packet)
@@ -184,10 +192,13 @@ class MeshtasticListener:
         logging.info("Subscribed to meshtastic.receive")
         
         while True:
-            sys.stdout.flush()
-            self.__load_local_nodes__()
-            time.sleep(1)
-
+            try:
+                sys.stdout.flush()
+                self.__load_local_nodes__()
+                time.sleep(1)
+            except Exception as e:
+                logging.exception(f"Encountered fatal error in main loop: {e}")
+                raise e
 
 if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
@@ -199,9 +210,8 @@ if __name__ == "__main__":
         else:
             interface = SerialInterface()
     except ConnectionRefusedError:
-        logging.error(f"Connection to {device} refused. Exiting...")
+        logging.warning(f"Connection to {device} refused. Exiting...")
         exit(1)
-    logging.info(f'Connected to {interface.__class__.__name__} device')
 
     # sanitizing the db_path
     db_path = environ.get("DB_NAME", ':memory:')

@@ -22,10 +22,6 @@ class CommandHandler:
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
         self.admin_node_id = admin_node_id
-        if self.admin_node_id is not None:
-            logging.info(f'Admin node ID set to: {self.admin_node_id}')
-        else:
-            logging.info('Admin node ID not set. Admin commands will not be available.')
 
     def __is_admin__(self, node_id: str) -> bool:
         if self.admin_node_id is None:
