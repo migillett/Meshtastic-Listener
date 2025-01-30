@@ -120,7 +120,7 @@ class ListenerDb:
         self.cursor.execute(cmd)
         self.conn.commit()
 
-    def get_annoucements(self, hours_past: int = 24) -> list[tuple[int, str, str]]:
+    def get_annoucements(self, days_past: int = 7) -> list[tuple[int, str, str]]:
         '''
         returns a list of tuples containing:
             1. the announcement id
@@ -129,8 +129,8 @@ class ListenerDb:
         example:
         [(1, 'NAME', 'Hello, World!'), (2, 'NAME', 'Hello, World 2!')]
         '''
-        look_back = int(time()) - (hours_past * 3600)
-        logger.info(f'Fetching annoucements from db for the last {hours_past} hours')
+        look_back = int(time()) - (days_past * 24 * 3600)
+        logger.info(f'Fetching annoucements from db for the last {days_past} hours')
         logger.debug(f'Lookback time: rxTime > {look_back}')
         self.cursor.execute(
             """

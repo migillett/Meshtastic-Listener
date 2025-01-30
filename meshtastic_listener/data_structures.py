@@ -13,9 +13,9 @@ class MessageReceived(BaseModel):
     fromName: Optional[str] = None
     decoded: Decoded
     id: int
-    rxSnr: float # Signal to Noise Ratio
+    rxSnr: float = 0.0 # Signal to Noise Ratio. The higher the better
+    rxRssi: int = 0 # Received Signal Strength Indicator. The higher the better
     hopLimit: int # Maximum number of hops
-    rxRssi: int # Received Signal Strength Indicator
     hopStart: int
     rxTime: Optional[int] = None
     wantAck: Optional[bool] = None

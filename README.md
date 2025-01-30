@@ -29,7 +29,7 @@ poetry install
 
 `WELCOME_MESSAGE` - (optional str, default `None`) Whenever we see a new node on the mesh, we immediately traceroute it. Adding this environment variable will include a welcome message. Keep welcome messages under 220 characters.
 
-`BBS_HOURS` - (optional int, default `24`) The number of hours the server will look back for bulletin board service (BBS) messages. Only BBS messages posted within that window will return when someone runs `!read`.
+`BBS_DAYS` - (optional int, default `7`) The number of days the server will look back for bulletin board service (BBS) messages. Only BBS messages posted within that window will return when someone runs `!read`.
 
 `ADMIN_NODE_ID` - (optional str, default disabled) An admin role that allows you to `!clear` the BBS messages.
 

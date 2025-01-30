@@ -13,7 +13,7 @@ class CommandHandler:
             self,
             cmd_db: ListenerDb,
             prefix: str = '!',
-            bbs_lookback: int = 24,
+            bbs_lookback: int = 7,
             admin_node_id: str | None = None,
         ) -> None:
 
@@ -21,14 +21,17 @@ class CommandHandler:
         logger.info(f'CommandHandler initialized with prefix: {self.prefix}')
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
-        self.admin_node_id = str(admin_node_id)
-        logging.info(f'Admin node ID set to: {self.admin_node_id}')
+        self.admin_node_id = admin_node_id
+        if self.admin_node_id is not None:
+            logging.info(f'Admin node ID set to: {self.admin_node_id}')
+        else:
+            logging.info('Admin node ID not set. Admin commands will not be available.')
 
     def __is_admin__(self, node_id: str) -> bool:
         if self.admin_node_id is None:
             logger.error('Admin node not set. Cannot check if node is an admin.')
             return False
-        elif str(node_id) != self.admin_node_id:
+        elif str(node_id) != str(self.admin_node_id):
             logger.warning(f'{node_id} is not authorized')
             return False
         else:
@@ -56,16 +59,16 @@ class CommandHandler:
     
     def cmd_read(self) -> str:
         '''
-        !read - Read the last 24 hours of board messages
+        !read - Read board messages
         '''
         response_str = 'BBS:\n'
-        annoucements = self.db.get_annoucements(hours_past=self.bbs_lookback)
+        annoucements = self.db.get_annoucements(days_past=self.bbs_lookback)
         if len(annoucements) > 0:
             for i, annoucement in enumerate(annoucements):
                 response_str += f'{i+1}. {annoucement[1]}: {annoucement[2]}\n'
             return response_str.strip('\n')
         else:
-            return f'No BBS messages posted in the last {self.bbs_lookback} hours'
+            return f'No BBS messages posted in the last {self.bbs_lookback} days'
         
     def cmd_clear(self, context: MessageReceived) -> str:
         '''
