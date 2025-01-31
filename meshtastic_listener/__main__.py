@@ -110,7 +110,11 @@ class MeshtasticListener:
         else:
             log_insert = f"{shortname} ({node_num})"
 
-        logging.info(f"Received {msg_type} payload from {log_insert}: {packet}")
+        msg = f"Received {msg_type} payload from {log_insert}: {packet}"
+        if int(node_num) == int(self.interface.localNode.nodeNum):
+            logging.debug(msg)
+        else:
+            logging.info(msg)
     
     def __handle_text_message__(self, packet: dict) -> None:
         # remap keys to match the MessageReceived model
