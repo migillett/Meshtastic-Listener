@@ -70,7 +70,7 @@ class MeshtasticListener:
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         if self.debug:
-            logging.debug("Debug mode enabled. Skipping node refresh.")
+            logging.info("Debug mode enabled. Skipping node refresh.")
             return
         now = time.time()
         if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
@@ -143,6 +143,33 @@ class MeshtasticListener:
             traceroute_dict=traceroute_details,
             snr_avg=snr_avg,
             direct_connection=direct_connection,
+        )
+
+    def __handle_position__(self, packet: dict) -> None:
+        logging.debug(f"Received position packet: {packet}")
+        position = packet.get('decoded', {}).get('position', {})
+        
+        """{
+            "latitudeI": 341049344,
+            "longitudeI": -844890112,
+            "altitude": 297,
+            "time": 1738256931,
+            "locationSource": "LOC_EXTERNAL",
+            "groundSpeed": 0,
+            "groundTrack": 0,
+            "precisionBits": 13,
+            "raw": "latitude_i: 341049344\nlongitude_i: -844890112\naltitude: 297\ntime: 1738256931\nlocation_source: LOC_EXTERNAL\nground_speed: 0\nground_track: 0\nprecision_bits: 13\n",
+            "latitude": 34.1049344,
+            "longitude": -84.4890112
+        }"""
+        
+        self.db.upsert_position(
+            node_num=packet['from'],
+            last_heard=position.get('time'),
+            latitude=position.get('latitude'),
+            longitude=position.get('longitude'),
+            altitude=position.get('altitude'),
+            precision_bits=position.get('precisionBits')
         )
 
     def __handle_new_node__(self, node_num: int) -> None:
