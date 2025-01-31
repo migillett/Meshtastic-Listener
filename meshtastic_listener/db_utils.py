@@ -264,12 +264,12 @@ class ListenerDb:
         self.conn.commit()
         logger.info(f'Traceroute inserted into db: {fromId} -> {toId}')
 
-    def upsert_position(self, node_num: int, last_heard: int, latitude: float, longitude: float, altitiude: float, precision_bits: int) -> None:
+    def upsert_position(self, node_num: int, last_heard: int, latitude: float, longitude: float, altitude: float, precision_bits: int) -> None:
         self.cursor.execute(
             """
             INSERT INTO nodes (
-                num, latitude, longitude, altitiude, precisionBits
-            ) VALUES (?, ?, ?, ?)
+                num, lastHeard, latitude, longitude, altitiude, precisionBits
+            ) VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(num) DO UPDATE SET
                 lastHeard=excluded.lastHeard,
                 latitude=excluded.latitude,
@@ -278,7 +278,7 @@ class ListenerDb:
                 precisionBits=excluded.precisionBits
             ;
             """,
-            (node_num, last_heard, latitude, longitude, altitiude, precision_bits,)
+            (node_num, last_heard, latitude, longitude, altitude, precision_bits,)
         )
         self.conn.commit()
         logger.info(f'Position updated for node {node_num}')

@@ -69,3 +69,22 @@ def test_listener():
         message_received['decoded']['text'] = message.decode()
         listener.__on_receive__(packet=message_received)
     
+    print('Sending position message')
+    message_received['decoded'] = {
+        "portnum": "POSITION_APP",
+        "bitfield": 1,
+        "position": {
+            "latitudeI": 341,
+            "longitudeI": -844,
+            "altitude": 300,
+            "time": 1738256931,
+            "locationSource": "LOC_EXTERNAL",
+            "groundSpeed": 0,
+            "groundTrack": 0,
+            "precisionBits": 13,
+            "latitude": 34.1,
+            "longitude": -84.4
+        }
+    }
+
+    listener.__on_receive__(packet=message_received)

@@ -182,7 +182,7 @@ class MeshtasticListener:
                 case "TRACEROUTE_APP":
                     self.__handle_traceroute__(packet)
                 case "POSITION_APP":
-                    pass
+                    self.__handle_position__(packet)
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:
