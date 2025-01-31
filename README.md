@@ -4,7 +4,7 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 - `!help` - prints the list of commands
 - `!reply` - replies to the sender with transmission details
 - `!post <message>` - posts a message to the board
-- `!read` - get all posts to the message board from the past n hours.
+- `!read` - get all posts to the message board from the past n days.
 - `!clear` - soft deletes all messages from the BBS. Only available when a node id matches the admin id set in the env vars.
 
 ## To Do

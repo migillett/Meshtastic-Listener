@@ -135,12 +135,12 @@ class ListenerDb:
         returns a list of tuples containing:
             1. the announcement id
             2. the author fromName (shortname)
-            3. message of annoucements from the past n hours
+            3. message of annoucements from the past n days
         example:
         [(1, 'NAME', 'Hello, World!'), (2, 'NAME', 'Hello, World 2!')]
         '''
         look_back = int(time()) - (days_past * 24 * 3600)
-        logger.info(f'Fetching annoucements from db for the last {days_past} hours')
+        logger.info(f'Fetching annoucements from db for the last {days_past} days')
         logger.debug(f'Lookback time: rxTime > {look_back}')
         self.cursor.execute(
             """
