@@ -8,7 +8,16 @@ from meshtastic.mesh_interface import MeshInterface
 class TestInterface(MeshInterface):
     def __init__(self) -> None:
         super().__init__()
-        self.nodes = {}
+        self.nodes = {
+            '1234567890': {
+                'num': 1234567890,
+                'user': {
+                    'id': '1234567890',
+                    'shortName': 'TEST',
+                    'longName': 'TEST'
+                }
+            }
+        }
 
     def close(self) -> None:
         pass
@@ -33,8 +42,7 @@ def test_listener():
     listener = MeshtasticListener(
         interface=test_interface,
         cmd_handler=cmd_handler,
-        db_object=handler_db,
-        debug=True
+        db_object=handler_db
     )
     
     test_messages = [

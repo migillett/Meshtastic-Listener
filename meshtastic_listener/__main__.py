@@ -52,7 +52,6 @@ class MeshtasticListener:
         self.interface = interface
         self.db = db_object
         self.cmd_handler = cmd_handler
-        self.debug = debug
         self.char_limit = response_char_limit
         self.welcome_message = welcome_message
         self.node_refresh_ts: float = time.time()
@@ -71,9 +70,6 @@ class MeshtasticListener:
 
 
     def __load_local_nodes__(self, force: bool = False) -> None:
-        if self.debug:
-            logging.info("Debug mode enabled. Skipping node refresh.")
-            return
         now = time.time()
         if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
             logging.debug("Refreshing Node details")
@@ -104,7 +100,7 @@ class MeshtasticListener:
         if 'raw' in packet:
             packet.pop('raw')
 
-        shortname = self.db.get_node_shortname(node_num)
+        shortname = self.db.get_shortname(node_num)
         if str(shortname) == str(node_num):
             log_insert = f"node {node_num}"
         else:
@@ -120,7 +116,7 @@ class MeshtasticListener:
         # remap keys to match the MessageReceived model
         packet['fromId'] = packet['from']
         packet['toId'] = packet['to']
-        sender = self.db.get_node_shortname(packet['fromId'])
+        sender = self.db.get_shortname(packet['fromId'])
         payload = MessageReceived(fromName=sender, **packet)
 
         self.__print_packet_received__('text message', packet['from'], payload.decoded.model_dump())
@@ -175,7 +171,7 @@ class MeshtasticListener:
         )
 
     def __handle_new_node__(self, node_num: int) -> None:
-        if not self.db.check_node_exists(node_num) and not self.debug:
+        if not self.db.get_node(node_num):
             if self.welcome_message is not None:
                 logging.info(f"Sending welcome message to {node_num}")
                 self.__reply__(

@@ -5,8 +5,7 @@ import json
 from meshtastic_listener.data_structures import NodeBase, DeviceMetrics
 
 import sqlalchemy
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 
 logger = logging.getLogger(__name__)
@@ -103,7 +102,8 @@ class MessageHistory(Base):
 
 class ListenerDb:
     def __init__(self, db_path: str = ':memory:') -> None:
-        self.engine = sqlalchemy.create_engine(f'sqlite:///{db_path}')
+        self.db_path = db_path
+        self.engine = sqlalchemy.create_engine(f'sqlite:///{self.db_path}')
         self.session = sessionmaker(bind=self.engine)
         self.create_tables()
 
@@ -168,6 +168,12 @@ class ListenerDb:
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
             return session.query(Node).filter(Node.num == node_num).first()
+        
+    def get_shortname(self, node_num: int) -> str:
+        node = self.get_node(node_num)
+        if not node:
+            return str(node_num)
+        return node.shortName
     
     def insert_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
         with self.session() as session:
@@ -208,7 +214,7 @@ class ListenerDb:
 
     def upsert_position(self, node_num: int, last_heard: int, latitude: float, longitude: float, altitude: float, precision_bits: int) -> None:
         with self.session() as session:
-            node = session.query(Node).filter(Node.num == node_num).first()
+            node = self.get_node(node_num)
             node.lastHeard = last_heard
             node.latitude = latitude
             node.longitude = longitude
@@ -222,7 +228,7 @@ class ListenerDb:
                 rxTime=packet['rxTime'],
                 fromId=packet['fromId'],
                 toId=packet['toId'],
-                portnum=packet['portnum'],
-                decoded=packet['decoded'],
+                portnum=packet['decoded']['portnum'],
+                decoded=json.dumps(packet['decoded'], default=str, indent=2),
             ))
             session.commit()
