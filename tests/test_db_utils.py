@@ -21,10 +21,13 @@ def test_db_functions():
     # Insert a message
     db.insert_annoucement(message)
     annoucements = db.get_annoucements()
+
     # make sure the response matches up
     assert len(annoucements) == 1
-    assert annoucements[0][1] == message['fromName']
-    assert annoucements[0][2] == message['message']
+
+    assert annoucements[0].fromId == message['fromId']
+    assert annoucements[0].toId == message['toId']
+    assert annoucements[0].message == message['message']
 
     # insert test message spoofed as 8 days in the past
     message['rxTime'] = int(time()) - (8 * 24 * 3600)

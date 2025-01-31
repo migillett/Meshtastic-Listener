@@ -17,6 +17,7 @@ pydantic = "^2.10.5"
 toml = "^0.10.2"
 pytest = "^8.3.4"
 meshtastic = {git = "https://github.com/migillett/meshtastic-python.git", rev = "bug/sender-unknown-pubsub"}
+sqlalchemy = "^2.0.37"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

@@ -1,246 +1,193 @@
-import sqlite3
 import logging
 from time import time
 import json
 
 from meshtastic_listener.data_structures import NodeBase, DeviceMetrics
 
+import sqlalchemy
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
 
 logger = logging.getLogger(__name__)
 
+Base = declarative_base()
+
+
+class Annoucement(Base):
+    __tablename__ = 'annoucements'
+
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+    rxTime = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    fromId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    toId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    fromName = sqlalchemy.Column(sqlalchemy.String, default=None)
+    message = sqlalchemy.Column(sqlalchemy.String, nullable=False)
+    rxSnr = sqlalchemy.Column(sqlalchemy.Float, nullable=False)
+    rxRssi = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    hopStart = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    hopLimit = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    readCount = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    isDeleted = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+
+    def __repr__(self):
+        return f'<Annoucement(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, fromName={self.fromName}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
+
+
+class Node(Base):
+    __tablename__ = 'nodes'
+
+    num = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    longName = sqlalchemy.Column(sqlalchemy.String, default=None)
+    shortName = sqlalchemy.Column(sqlalchemy.String, default=None)
+    macaddr = sqlalchemy.Column(sqlalchemy.String, default=None)
+    hwModel = sqlalchemy.Column(sqlalchemy.String, default=None)
+    publicKey = sqlalchemy.Column(sqlalchemy.String, default=None)
+    role = sqlalchemy.Column(sqlalchemy.String, default=None)
+    lastHeard = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    hopsAway = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+
+    def __repr__(self):
+        return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, hopsAway={self.hopsAway})>'
+
+
+class Metric(Base):
+    __tablename__ = 'metrics'
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+    rxTime = sqlalchemy.Column(sqlalchemy.Integer, default=int(time()))
+    nodeNum = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    batteryLevel = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    voltage = sqlalchemy.Column(sqlalchemy.Float, default=None)
+    channelUtilization = sqlalchemy.Column(sqlalchemy.Float, default=None)
+    airUtilTx = sqlalchemy.Column(sqlalchemy.Float, default=None)
+    uptimeSeconds = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    numPacketsTx = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    numPacketsRx = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    numPacketsRxBad = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    numOnlineNodes = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    numTotalNodes = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    numRxDupe = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    numTxRelay = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    numTxRelayCanceled = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    
+    def __repr__(self):
+        return f'<Metric(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, batteryLevel={self.batteryLevel}, voltage={self.voltage}, channelUtilization={self.channelUtilization}, airUtilTx={self.airUtilTx}, uptimeSeconds={self.uptimeSeconds}, numPacketsTx={self.numPacketsTx}, numPacketsRx={self.numPacketsRx}, numPacketsRxBad={self.numPacketsRxBad}, numOnlineNodes={self.numOnlineNodes}, numTotalNodes={self.numTotalNodes}, numRxDupe={self.numRxDupe}, numTxRelay={self.numTxRelay}, numTxRelayCanceled={self.numTxRelayCanceled})>'
+
+
+class Traceroute(Base):
+    __tablename__ = 'traceroutes'
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+    rxTime = sqlalchemy.Column(sqlalchemy.Integer, default=int(time()))
+    fromId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    toId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    tracerouteDetails = sqlalchemy.Column(sqlalchemy.String, default=None)
+    snrAvg = sqlalchemy.Column(sqlalchemy.Float, default=None)
+    directConnection = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+
+    def __repr__(self):
+        return f'<Traceroute(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, tracerouteDetails={self.tracerouteDetails}, snrAvg={self.snrAvg}, directConnection={self.directConnection})>'
+
+
+class MessageHistory(Base):
+    __tablename__ = 'message_history'
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+    rxTime = sqlalchemy.Column(sqlalchemy.Integer, default=int(time()))
+    fromId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    toId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    portnum = sqlalchemy.Column(sqlalchemy.String, nullable=False)
+    decoded = sqlalchemy.Column(sqlalchemy.String, nullable=False)
+
+    def __repr__(self):
+        return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, decoded={self.decoded})>'
+
+
 class ListenerDb:
-    # for interacting with a local sqlite database
-    # used for storing messages
-    def __init__(self, db_path: str) -> None:
-        self.db_path = db_path
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        self.cursor = self.conn.cursor()
-        self.create_table()
+    def __init__(self, db_path: str = ':memory:') -> None:
+        self.engine = sqlalchemy.create_engine(f'sqlite:///{db_path}')
+        self.session = sessionmaker(bind=self.engine)
+        self.create_tables()
 
-    def create_table(self) -> None:
-        self.cursor.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS annoucements (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                rxTime INTEGER NOT NULL,
-                fromId INTEGER NOT NULL,
-                toId INTEGER NOT NULL,
-                fromName TEXT DEFAULT NULL,
-                message TEXT NOT NULL,
-                rxSnr FLOAT NOT NULL,
-                rxRssi INTEGER NOT NULL,
-                hopStart INTEGER NOT NULL,
-                hopLimit INTEGER NOT NULL,
-                readCount INTEGER DEFAULT 0,
-                isDeleted INTEGER DEFAULT 0
-            );
-
-            CREATE TABLE IF NOT EXISTS nodes (
-                num INTEGER PRIMARY KEY NOT NULL,
-                longName TEXT DEFAULT NULL,
-                shortName TEXT DEFAULT NULL,
-                macaddr TEXT DEFAULT NULL,
-                hwModel TEXT DEFAULT NULL,
-                publicKey TEXT DEFAULT NULL,
-                role TEXT DEFAULT NULL,
-                lastHeard INTEGER DEFAULT NULL,
-                hopsAway INTEGER DEFAULT NULL,
-                latitude FLOAT DEFAULT NULL,
-                longitude FLOAT DEFAULT NULL,
-                altitiude FLOAT DEFAULT NULL,
-                precisionBits INTEGER DEFAULT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS metrics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
-                nodeNum INTEGER NOT NULL,
-                batteryLevel INTEGER DEFAULT NULL,
-                voltage FLOAT DEFAULT NULL,
-                channelUtilization FLOAT DEFAULT NULL,
-                airUtilTx FLOAT DEFAULT NULL,
-                uptimeSeconds INTEGER DEFAULT NULL,
-                numPacketsTx INTEGER DEFAULT NULL,
-                numPacketsRx INTEGER DEFAULT NULL,
-                numPacketsRxBad INTEGER DEFAULT NULL,
-                numOnlineNodes INTEGER DEFAULT NULL,
-                numTotalNodes INTEGER DEFAULT NULL,
-                numRxDupe INTEGER DEFAULT NULL,
-                numTxRelay INTEGER DEFAULT NULL,
-                numTxRelayCanceled INTEGER DEFAULT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS traceroutes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
-                fromId INTEGER NOT NULL,
-                toId INTEGER NOT NULL,
-                tracerouteDetails TEXT DEFAULT NULL,
-                snrAvg FLOAT DEFAULT NULL,
-                directConnection BOOLEAN DEFAULT FALSE
-            );
-
-            CREATE TABLE IF NOT EXISTS message_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                rxTime INTEGER DEFAULT CURRENT_TIMESTAMP,
-                fromId INTEGER NOT NULL,
-                toId INTEGER NOT NULL,
-                portnum TEXT NOT NULL,
-                decoded text NOT NULL
-            );
-
-            CREATE VIEW IF NOT EXISTS history_viewable AS
-            SELECT 
-                m.rxTime,
-                from_node.longName as from_node_name,
-                to_node.longName as to_node_name,
-                m.portnum,
-                m.decoded
-            FROM message_history m
-            LEFT JOIN nodes from_node ON m.fromId = from_node.num
-            LEFT JOIN nodes to_node ON m.toId = to_node.num;
-            """
-        )
-        self.conn.commit()
+    def create_tables(self) -> None:
+        Base.metadata.create_all(self.engine)
 
     def insert_annoucement(self, payload: dict) -> None:
-        self.cursor.execute(
-            """
-            INSERT INTO annoucements (
-                rxTime, fromId, toId, fromName, message, rxSnr, rxRssi, hopStart, hopLimit
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-            """,
-            (
-                payload['rxTime'],
-                payload['fromId'],
-                payload['toId'],
-                payload['fromName'],
-                payload['message'],
-                payload['rxSnr'],
-                payload['rxRssi'],
-                payload['hopStart'],
-                payload['hopLimit'],
-            ),
-        )
-        self.conn.commit()
-        logger.info(f'Annoucement inserted into db: {payload}')
+        session = self.session()
+        session.add(Annoucement(
+            rxTime=payload['rxTime'],
+            fromId=payload['fromId'],
+            toId=payload['toId'],
+            fromName=payload['fromName'],
+            message=payload['message'],
+            rxSnr=payload['rxSnr'],
+            rxRssi=payload['rxRssi'],
+            hopStart=payload['hopStart'],
+            hopLimit=payload['hopLimit'],
+        ))
+        session.commit()
+        session.close()
+        logging.info(f'Annoucement inserted into db: {payload}')
 
     def mark_annoucement_read(self, annoucement_ids: list[int]) -> None:
-        cmd = f'UPDATE annoucements SET readCount = readCount + 1 WHERE id IN ({",".join(annoucement_ids)});'
-        self.cursor.execute(cmd)
-        self.conn.commit()
+        with self.session() as session:
+            session.query(Annoucement).filter(
+                Annoucement.id.in_(annoucement_ids)
+            ).update(
+                {Annoucement.readCount: Annoucement.readCount + 1})
+            session.commit()
 
-    def get_annoucements(self, days_past: int = 7) -> list[tuple[int, str, str]]:
-        '''
-        returns a list of tuples containing:
-            1. the announcement id
-            2. the author fromName (shortname)
-            3. message of annoucements from the past n days
-        example:
-        [(1, 'NAME', 'Hello, World!'), (2, 'NAME', 'Hello, World 2!')]
-        '''
-        look_back = int(time()) - (days_past * 24 * 3600)
-        logger.info(f'Fetching annoucements from db for the last {days_past} days')
-        logger.debug(f'Lookback time: rxTime > {look_back}')
-        self.cursor.execute(
-            """
-            SELECT id, fromName, message
-            FROM annoucements
-            WHERE rxTime > ?
-            AND isDeleted = 0
-            ORDER BY rxTime DESC;
-            """,
-            (look_back,)
-        )
-        results = self.cursor.fetchall()        
-        logger.info(f'Fetched {len(results)} annoucements')
-        self.mark_annoucement_read([str(x[0]) for x in results])
-        return results
-    
+    def get_annoucements(self, days_past: int = 7) -> list[Annoucement]:
+        with self.session() as session:
+            look_back = int(time()) - (days_past * 24 * 3600)
+            results = session.query(Annoucement).filter(Annoucement.rxTime > look_back).all()
+            [self.mark_annoucement_read([result.id]) for result in results]
+            return results
+            
     def soft_delete_annoucements(self) -> None:
-        logger.info('Soft deleting all annoucements')
-        self.cursor.execute("UPDATE annoucements SET isDeleted = 1;")
-        self.conn.commit()
+        with self.session() as session:
+            session.query(Annoucement).filter(
+                Annoucement.isDeleted == 0
+            ).update({Annoucement.isDeleted: 1})
+            session.commit()
 
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
-        for node in nodes:
-            self.cursor.execute(
-                """
-                INSERT INTO nodes (
-                    num, longName, shortName, macaddr, hwModel, publicKey, role, lastHeard, hopsAway
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(num) DO UPDATE SET
-                    longName=excluded.longName,
-                    shortName=excluded.shortName,
-                    macaddr=excluded.macaddr,
-                    hwModel=excluded.hwModel,
-                    publicKey=excluded.publicKey,
-                    role=excluded.role,
-                    lastHeard=excluded.lastHeard,
-                    hopsAway=excluded.hopsAway;
-                """,
-                (
-                    node.num,
-                    node.user.longName,
-                    node.user.shortName,
-                    node.user.macaddr,
-                    node.user.hwModel,
-                    node.user.publicKey,
-                    node.user.role,
-                    node.lastHeard,
-                    node.hopsAway,
-                ),
-            )
-        self.conn.commit()
+        with self.session() as session:
+            for node in nodes:
+                session.add(Node(
+                    num=node.num,
+                    longName=node.user.longName,
+                    shortName=node.user.shortName,
+                    macaddr=node.user.macaddr,
+                    hwModel=node.user.hwModel,
+                    publicKey=node.user.publicKey,
+                    role=node.user.role,
+                    lastHeard=node.lastHeard,
+                    hopsAway=node.hopsAway,
+                ))
+            session.commit()
 
-    def get_node_shortname(self, node_num: int) -> str:
-        self.cursor.execute(
-            """
-            SELECT shortName FROM nodes WHERE num = ?;
-            """,
-            (node_num,)
-        )
-        result = self.cursor.fetchone()
-        if result:
-            return result[0]
-        return str(node_num)
-    
-    def check_node_exists(self, node_num: int) -> bool:
-        self.cursor.execute(
-            """
-            SELECT num FROM nodes WHERE num = ?;
-            """,
-            (node_num,)
-        )
-        result = self.cursor.fetchone()
-        return result is not None
+    def get_node(self, node_num: int) -> Node:
+        with self.session() as session:
+            return session.query(Node).filter(Node.num == node_num).first()
     
     def insert_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
-        self.cursor.execute(
-            """
-            INSERT INTO metrics (
-                nodeNum, batteryLevel, voltage, channelUtilization,
-                airUtilTx, uptimeSeconds, numPacketsTx, numPacketsRx,
-                numPacketsRxBad, numOnlineNodes, numTotalNodes, numRxDupe,
-                numTxRelay, numTxRelayCanceled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                node_num,
-                metrics.batteryLevel,
-                metrics.voltage,
-                metrics.channelUtilization,
-                metrics.airUtilTx,
-                metrics.uptimeSeconds,
-                metrics.numPacketsTx,
-                metrics.numPacketsRx,
-                metrics.numPacketsRxBad,
-                metrics.numOnlineNodes,
-                metrics.numTotalNodes,
-                metrics.numRxDupe,
-                metrics.numTxRelay,
-                metrics.numTxRelayCanceled,
+        with self.session() as session:
+            session.add(Metric(
+                nodeNum=node_num,
+                batteryLevel=metrics.batteryLevel,
+                voltage=metrics.voltage,
+                channelUtilization=metrics.channelUtilization,
+                airUtilTx=metrics.airUtilTx,
+                uptimeSeconds=metrics.uptimeSeconds,
+                numPacketsTx=metrics.numPacketsTx,
+                numPacketsRx=metrics.numPacketsRx,
+                numPacketsRxBad=metrics.numPacketsRxBad,
+                numOnlineNodes=metrics.numOnlineNodes,
+                numTotalNodes=metrics.numTotalNodes,
+                numRxDupe=metrics.numRxDupe,
+                numTxRelay=metrics.numTxRelay,
+                numTxRelayCanceled=metrics.numTxRelayCanceled,
             ))
-        self.conn.commit()
+            session.commit()
 
     def insert_traceroute(
             self,
@@ -249,49 +196,33 @@ class ListenerDb:
             traceroute_dict: dict,
             snr_avg: float,
             direct_connection: bool) -> None:
-        self.cursor.execute(
-            """
-            INSERT INTO traceroutes (
-                fromId, toId, tracerouteDetails, snrAvg, directConnection
-            ) VALUES (?, ?, ?, ?, ?)
-            """, (
-                fromId,
-                toId,
-                json.dumps(traceroute_dict, default=str),
-                snr_avg,
-                direct_connection,
+        with self.session() as session:
+            session.add(Traceroute(
+                fromId=fromId,
+                toId=toId,
+                tracerouteDetails=json.dumps(traceroute_dict, default=str, indent=2),
+                snrAvg=snr_avg,
+                directConnection=direct_connection,
             ))
-        self.conn.commit()
-        logger.info(f'Traceroute inserted into db: {fromId} -> {toId}')
+            session.commit()
 
     def upsert_position(self, node_num: int, last_heard: int, latitude: float, longitude: float, altitude: float, precision_bits: int) -> None:
-        self.cursor.execute(
-            """
-            INSERT INTO nodes (
-                num, lastHeard, latitude, longitude, altitiude, precisionBits
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(num) DO UPDATE SET
-                lastHeard=excluded.lastHeard,
-                latitude=excluded.latitude,
-                longitude=excluded.longitude,
-                altitiude=excluded.altitiude,
-                precisionBits=excluded.precisionBits
-            ;
-            """,
-            (node_num, last_heard, latitude, longitude, altitude, precision_bits,)
-        )
-        self.conn.commit()
+        with self.session() as session:
+            node = session.query(Node).filter(Node.num == node_num).first()
+            node.lastHeard = last_heard
+            node.latitude = latitude
+            node.longitude = longitude
+            node.altitude = altitude
+            node.precisionBits = precision_bits
+            session.commit()
 
     def insert_message_history(self, packet: dict) -> None:
-        self.cursor.execute(
-            """
-            INSERT INTO message_history (
-                fromId, toId, portnum, decoded
-            ) VALUES (?, ?, ?, ?)
-            """, (
-                packet['from'],
-                packet['to'],
-                packet['decoded']['portnum'],
-                json.dumps(packet['decoded'], default=str, indent=2)
+        with self.session() as session:
+            session.add(MessageHistory(
+                rxTime=packet['rxTime'],
+                fromId=packet['fromId'],
+                toId=packet['toId'],
+                portnum=packet['portnum'],
+                decoded=packet['decoded'],
             ))
-        self.conn.commit()
+            session.commit()
