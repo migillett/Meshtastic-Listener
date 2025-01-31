@@ -26,7 +26,9 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(path.join(data_dir, 'listener.log')),
-        logging.StreamHandler(sys.stdout)]
+        logging.StreamHandler(sys.stdout)
+    ],
+    datefmt='%Y-%m-%d %H:%M:%S %Z'
 )
 
 
