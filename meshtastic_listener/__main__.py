@@ -147,17 +147,12 @@ class MeshtasticListener:
 
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.check_node_exists(node_num) and not self.debug:
-            logging.info(f"New Node detected: {node_num}. Attempting traceroute...")
-            try:
-                self.interface.sendTraceRoute(dest=node_num, hopLimit=5, channelIndex=0)
-                if self.welcome_message is not None:
-                    logging.info(f"Sending welcome message to {node_num}")
-                    self.__reply__(
-                        text=self.welcome_message,
-                        destinationId=node_num)
-                self.__load_local_nodes__(force=True)
-            except self.interface.MeshInterfaceError as e:
-                logging.error(f"Failed to send traceroute to {node_num}: {e}")
+            if self.welcome_message is not None:
+                logging.info(f"Sending welcome message to {node_num}")
+                self.__reply__(
+                    text=self.welcome_message,
+                    destinationId=node_num)
+            self.__load_local_nodes__(force=True)
 
     def __on_receive__(self, packet: dict) -> None:
         try:
