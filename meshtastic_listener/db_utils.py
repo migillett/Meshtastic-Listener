@@ -281,7 +281,6 @@ class ListenerDb:
             (node_num, last_heard, latitude, longitude, altitude, precision_bits,)
         )
         self.conn.commit()
-        logger.info(f'Position updated for node {node_num}')
 
     def insert_message_history(self, packet: dict) -> None:
         self.cursor.execute(

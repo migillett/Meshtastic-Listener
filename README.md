@@ -8,6 +8,11 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 - `!clear` - soft deletes all messages from the BBS. Only available when a node id matches the admin id set in the env vars.
 
 ## To Do
+- Create BaseModel for all packets we receive for data validation and type hinting.
+    ~~- TEXT_MESSAGE_APP~~
+    - NODEINFO_APP
+    - TRACEROUTE_APP
+    - POSITION_APP
 
 ## Installation
 ```bash
