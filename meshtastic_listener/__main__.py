@@ -70,7 +70,7 @@ class MeshtasticListener:
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         if self.debug:
-            logging.debug("Debug mode enabled. Skipping node refresh.")
+            logging.info("Debug mode enabled. Skipping node refresh.")
             return
         now = time.time()
         if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
@@ -145,6 +145,18 @@ class MeshtasticListener:
             direct_connection=direct_connection,
         )
 
+    def __handle_position__(self, packet: dict) -> None:
+        logging.debug(f"Received position packet: {packet}")
+        position = packet.get('decoded', {}).get('position', {})
+        self.db.upsert_position(
+            node_num=packet['from'],
+            last_heard=position.get('time'),
+            latitude=position.get('latitude'),
+            longitude=position.get('longitude'),
+            altitude=position.get('altitude'),
+            precision_bits=position.get('precisionBits')
+        )
+
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.check_node_exists(node_num) and not self.debug:
             if self.welcome_message is not None:
@@ -170,7 +182,7 @@ class MeshtasticListener:
                 case "TRACEROUTE_APP":
                     self.__handle_traceroute__(packet)
                 case "POSITION_APP":
-                    pass
+                    self.__handle_position__(packet)
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:
