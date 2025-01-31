@@ -28,7 +28,7 @@ logging.basicConfig(
         logging.FileHandler(path.join(data_dir, 'listener.log')),
         logging.StreamHandler(sys.stdout)
     ],
-    datefmt='%Y-%m-%d %H:%M:%S %Z'
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 
 
