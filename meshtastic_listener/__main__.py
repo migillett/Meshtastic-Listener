@@ -21,9 +21,11 @@ data_dir = path.join(abs_path, '..', 'data')
 if not path.exists(data_dir):
     mkdir(data_dir)
 
+enable_debug: bool = environ.get('ENABLE_DEBUG', 'false').lower() == 'true'
+
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.DEBUG if enable_debug else logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(filename)s: %(message)s',
     handlers=[
         logging.FileHandler(path.join(data_dir, 'listener.log')),
         logging.StreamHandler(sys.stdout)

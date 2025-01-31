@@ -34,6 +34,8 @@ poetry install
 
 `ADMIN_NODE_ID` - (optional str, default disabled) An admin role that allows you to `!clear` the BBS messages.
 
+`ENABLE_DEBUG` - (optional, default `False`) Sets the logger to debug mode if set to `True`.
+
 ## Running Locally
 ```bash
 poetry run python -m meshtastic_listener

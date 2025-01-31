@@ -153,7 +153,7 @@ class ListenerDb:
             (look_back,)
         )
         results = self.cursor.fetchall()        
-        logger.info(f'Successfully fetched {len(results)} annoucements')
+        logger.info(f'Fetched {len(results)} annoucements')
         self.mark_annoucement_read([str(x[0]) for x in results])
         return results
     
