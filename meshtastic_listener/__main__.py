@@ -186,7 +186,11 @@ class MeshtasticListener:
     def __on_receive__(self, packet: dict) -> None:
         try:
             self.__handle_new_node__(packet['from'])
-            self.db.insert_message_history(packet)
+            try:
+                self.db.insert_message_history(packet)
+            except KeyError as e:
+                logging.error(f"{e}: Failed to insert message history for packet: {packet}")
+
             portnum = packet['decoded']['portnum']
             match portnum:
                 case 'TEXT_MESSAGE_APP':
