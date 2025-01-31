@@ -189,7 +189,7 @@ class MeshtasticListener:
             try:
                 self.db.insert_message_history(packet)
             except KeyError as e:
-                logging.error(f"{e}: Failed to insert message history for packet: {packet}")
+                logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
             portnum = packet['decoded']['portnum']
             match portnum:
