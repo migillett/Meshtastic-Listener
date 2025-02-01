@@ -53,13 +53,13 @@ class Position(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
-class DeviceMetrics(BaseModel):
+class DevicePayload(BaseModel):
     batteryLevel: Optional[int] = None
     voltage: Optional[float] = None
     channelUtilization: Optional[float] = None
     uptimeSeconds: Optional[int] = None
 
-class TransmissionMetrics(BaseModel):
+class TransmissionPayload(BaseModel):
     airUtilTx: Optional[float] = None
     numPacketsTx: Optional[int] = None
     numPacketsRx: Optional[int] = None
@@ -70,7 +70,7 @@ class TransmissionMetrics(BaseModel):
     numTxRelay: Optional[int] = None
     numTxRelayCanceled: Optional[int] = None
 
-class EnvironmentMetrics(BaseModel):
+class EnvironmentPayload(BaseModel):
     temperature: Optional[float] = None
     relativeHumidity: Optional[float] = None
     barometricPressure: Optional[float] = None
@@ -83,6 +83,6 @@ class NodeBase(BaseModel):
     position: Optional[Position] = None
     snr: Optional[float] = None
     lastHeard: Optional[int] = None
-    deviceMetrics: Optional[DeviceMetrics] = None
+    deviceMetrics: Optional[DevicePayload] = None
     isFavorite: Optional[bool] = None
     hopsAway: Optional[int] = None

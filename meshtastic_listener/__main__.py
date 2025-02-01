@@ -9,7 +9,7 @@ from meshtastic_listener.db_utils import ListenerDb
 from meshtastic_listener.cmd_handler import CommandHandler
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase,
-    DeviceMetrics, TransmissionMetrics, EnvironmentMetrics
+    DevicePayload, TransmissionPayload, EnvironmentPayload
 )
 
 from pubsub import pub
@@ -142,13 +142,13 @@ class MeshtasticListener:
         self.__print_packet_received__('telemetry', packet['from'], telemetry)
 
         if 'deviceMetrics' in telemetry:
-            metrics = DeviceMetrics(**telemetry['deviceMetrics'])
+            metrics = DevicePayload(**telemetry['deviceMetrics'])
             self.db.insert_device_metrics(packet['from'], metrics)
         elif 'localStats' in telemetry:
-            metrics = TransmissionMetrics(**telemetry['localStats'])
+            metrics = TransmissionPayload(**telemetry['localStats'])
             self.db.insert_transmission_metrics(packet['from'], metrics)
         elif 'environmentMetrics' in telemetry:
-            metrics = EnvironmentMetrics(**telemetry['environmentMetrics'])
+            metrics = EnvironmentPayload(**telemetry['environmentMetrics'])
             self.db.insert_environment_metrics(packet['from'], metrics)
         else:
             logging.error(f"Unknown telemetry type: {telemetry}")

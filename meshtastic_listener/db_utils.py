@@ -2,7 +2,9 @@ import logging
 from time import time
 import json
 
-from meshtastic_listener.data_structures import NodeBase, DeviceMetrics
+from meshtastic_listener.data_structures import (
+    NodeBase, DevicePayload, TransmissionPayload, EnvironmentPayload
+)
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -241,7 +243,7 @@ class ListenerDb:
             return str(node_num)
         return node.shortName
     
-    def insert_device_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
+    def insert_device_metrics(self, node_num: int, metrics: DevicePayload) -> None:
         with self.session() as session:
             session.add(DeviceMetrics(
                 nodeNum=node_num,
@@ -253,7 +255,7 @@ class ListenerDb:
             ))
             session.commit()
 
-    def insert_transmission_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
+    def insert_transmission_metrics(self, node_num: int, metrics: TransmissionPayload) -> None:
         with self.session() as session:
             session.add(TransmissionMetrics(
                 nodeNum=node_num,
@@ -270,7 +272,7 @@ class ListenerDb:
             ))
             session.commit()
     
-    def insert_environment_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
+    def insert_environment_metrics(self, node_num: int, metrics: EnvironmentMetrics) -> None:
         with self.session() as session:
             session.add(EnvironmentMetrics(
                 nodeNum=node_num,
