@@ -245,6 +245,7 @@ class ListenerDb:
         with self.session() as session:
             session.add(DeviceMetrics(
                 nodeNum=node_num,
+                rxTime=int(time()),
                 batteryLevel=metrics.batteryLevel,
                 voltage=metrics.voltage,
                 channelUtilization=metrics.channelUtilization,
@@ -279,27 +280,6 @@ class ListenerDb:
                 barometricPressure=metrics.barometricPressure,
                 gasResistance=metrics.gasResistance,
                 iaq=metrics.iaq,
-            ))
-            session.commit()
-
-    def insert_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
-        with self.session() as session:
-            session.add(Metric(
-                nodeNum=node_num,
-                rxTime=int(time()),
-                batteryLevel=metrics.batteryLevel,
-                voltage=metrics.voltage,
-                channelUtilization=metrics.channelUtilization,
-                airUtilTx=metrics.airUtilTx,
-                uptimeSeconds=metrics.uptimeSeconds,
-                numPacketsTx=metrics.numPacketsTx,
-                numPacketsRx=metrics.numPacketsRx,
-                numPacketsRxBad=metrics.numPacketsRxBad,
-                numOnlineNodes=metrics.numOnlineNodes,
-                numTotalNodes=metrics.numTotalNodes,
-                numRxDupe=metrics.numRxDupe,
-                numTxRelay=metrics.numTxRelay,
-                numTxRelayCanceled=metrics.numTxRelayCanceled,
             ))
             session.commit()
 
