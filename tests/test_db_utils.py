@@ -28,7 +28,7 @@ def test_db_functions():
 
     # insert test message spoofed as 8 days in the past
     message['rxTime'] = int(time()) - (8 * 24 * 3600)
-    message['message'] = 'Hello, World! 25 hours ago'
+    message['message'] = 'Hello, World! 8 days ago'
     db.insert_annoucement(message)
     annoucements = db.get_annoucements()
     assert len(annoucements) == 1

@@ -135,12 +135,12 @@ class ListenerDb:
         returns a list of tuples containing:
             1. the announcement id
             2. the author fromName (shortname)
-            3. message of annoucements from the past n hours
+            3. message of annoucements from the past n days
         example:
         [(1, 'NAME', 'Hello, World!'), (2, 'NAME', 'Hello, World 2!')]
         '''
         look_back = int(time()) - (days_past * 24 * 3600)
-        logger.info(f'Fetching annoucements from db for the last {days_past} hours')
+        logger.info(f'Fetching annoucements from db for the last {days_past} days')
         logger.debug(f'Lookback time: rxTime > {look_back}')
         self.cursor.execute(
             """
@@ -153,7 +153,7 @@ class ListenerDb:
             (look_back,)
         )
         results = self.cursor.fetchall()        
-        logger.info(f'Successfully fetched {len(results)} annoucements')
+        logger.info(f'Fetched {len(results)} annoucements')
         self.mark_annoucement_read([str(x[0]) for x in results])
         return results
     
@@ -281,7 +281,6 @@ class ListenerDb:
             (node_num, last_heard, latitude, longitude, altitude, precision_bits,)
         )
         self.conn.commit()
-        logger.info(f'Position updated for node {node_num}')
 
     def insert_message_history(self, packet: dict) -> None:
         self.cursor.execute(

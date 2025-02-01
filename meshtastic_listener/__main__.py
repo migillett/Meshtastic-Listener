@@ -21,9 +21,11 @@ data_dir = path.join(abs_path, '..', 'data')
 if not path.exists(data_dir):
     mkdir(data_dir)
 
+enable_debug: bool = environ.get('ENABLE_DEBUG', 'false').lower() == 'true'
+
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.DEBUG if enable_debug else logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(filename)s: %(message)s',
     handlers=[
         logging.FileHandler(path.join(data_dir, 'listener.log')),
         logging.StreamHandler(sys.stdout)
@@ -97,6 +99,22 @@ class MeshtasticListener:
                 text=message,
                 destinationId=destinationId,
                 channelIndex=0)
+            
+    def __print_packet_received__(self, msg_type: str, node_num: int, packet: dict) -> None:
+        if 'raw' in packet:
+            packet.pop('raw')
+
+        shortname = self.db.get_node_shortname(node_num)
+        if str(shortname) == str(node_num):
+            log_insert = f"node {node_num}"
+        else:
+            log_insert = f"{shortname} ({node_num})"
+
+        msg = f"Received {msg_type} payload from {log_insert}: {packet}"
+        if int(node_num) == int(self.interface.localNode.nodeNum):
+            logging.debug(msg)
+        else:
+            logging.info(msg)
     
     def __handle_text_message__(self, packet: dict) -> None:
         # remap keys to match the MessageReceived model
@@ -105,7 +123,8 @@ class MeshtasticListener:
         sender = self.db.get_node_shortname(packet['fromId'])
         payload = MessageReceived(fromName=sender, **packet)
 
-        logging.info(f"Message Received: {payload.fromName} - {payload.decoded.payload}")
+        self.__print_packet_received__('text message', packet['from'], payload.decoded.model_dump())
+
         if self.cmd_handler is not None:
             response = self.cmd_handler.handle_command(context=payload)
             if response is not None:
@@ -115,23 +134,21 @@ class MeshtasticListener:
             logging.error("Command Handler not initialized. Cannot reply to message.")
 
     def __handle_telemetry__(self, packet: dict) -> None:
-        node_num = packet.get('from', None)
-        if node_num is None:
-            logging.error(f"Telemetry packet missing 'from' field: {packet}")
-            return
-
         telemetry = packet.get('decoded', {}).get('telemetry', {})
+
+        self.__print_packet_received__('telemetry', packet['from'], telemetry)
+
         metrics = telemetry.get('deviceMetrics', {})
         local_stats = telemetry.get('localStats', {})
 
         combined_metrics = DeviceMetrics(**metrics, **local_stats)
-        logging.debug(f"Telemetry received from {node_num}: {combined_metrics}")
-        self.db.insert_metrics(node_num, combined_metrics)
+        self.db.insert_metrics(packet['from'], combined_metrics)
 
     def __handle_traceroute__(self, packet: dict) -> None:
-        logging.debug(f"Received traceroute packet: {packet}")
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})
         traceroute_details.pop('raw', None)
+        
+        self.__print_packet_received__('traceroute', packet['from'], traceroute_details)
 
         direct_connection = 'route' not in traceroute_details or 'routeBack' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
@@ -146,8 +163,8 @@ class MeshtasticListener:
         )
 
     def __handle_position__(self, packet: dict) -> None:
-        logging.debug(f"Received position packet: {packet}")
         position = packet.get('decoded', {}).get('position', {})
+        self.__print_packet_received__('position', packet['from'], position)
         self.db.upsert_position(
             node_num=packet['from'],
             last_heard=position.get('time'),
@@ -169,7 +186,11 @@ class MeshtasticListener:
     def __on_receive__(self, packet: dict) -> None:
         try:
             self.__handle_new_node__(packet['from'])
-            self.db.insert_message_history(packet)
+            try:
+                self.db.insert_message_history(packet)
+            except KeyError as e:
+                logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
+
             portnum = packet['decoded']['portnum']
             match portnum:
                 case 'TEXT_MESSAGE_APP':

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "meshtatic_listener"
-version = "0.7.0"
+version = "0.8.2"
 description = "A server for connecting to a Meshtastic device and responding to commands."
 authors = ["Michael Gillett <51103663+migillett@users.noreply.github.com>"]
 readme = "README.md"
@@ -13,10 +13,10 @@ meshtastic_listener = "meshtastic_listener.__main__:main"
 python = ">=3.12,<3.14"
 pubsub = "^0.1.2"
 requests = "^2.32.3"
-meshtastic = "^2.5.10"
 pydantic = "^2.10.5"
 toml = "^0.10.2"
 pytest = "^8.3.4"
+meshtastic = {git = "https://github.com/migillett/meshtastic-python.git", rev = "bug/sender-unknown-pubsub"}
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

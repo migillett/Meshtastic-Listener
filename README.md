@@ -4,10 +4,15 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 - `!help` - prints the list of commands
 - `!reply` - replies to the sender with transmission details
 - `!post <message>` - posts a message to the board
-- `!read` - get all posts to the message board from the past n hours.
+- `!read` - get all posts to the message board from the past n days.
 - `!clear` - soft deletes all messages from the BBS. Only available when a node id matches the admin id set in the env vars.
 
 ## To Do
+- Create BaseModel for all packets we receive for data validation and type hinting.
+    ~~- TEXT_MESSAGE_APP~~
+    - NODEINFO_APP
+    - TRACEROUTE_APP
+    - POSITION_APP
 
 ## Installation
 ```bash
@@ -33,6 +38,8 @@ poetry install
 `BBS_DAYS` - (optional int, default `7`) The number of days the server will look back for bulletin board service (BBS) messages. Only BBS messages posted within that window will return when someone runs `!read`.
 
 `ADMIN_NODE_ID` - (optional str, default disabled) An admin role that allows you to `!clear` the BBS messages.
+
+`ENABLE_DEBUG` - (optional, default `False`) Sets the logger to debug mode if set to `True`.
 
 ## Running Locally
 ```bash

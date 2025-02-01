@@ -67,7 +67,6 @@ class DeviceMetrics(BaseModel):
     numRxDupe: Optional[int] = None
     numTxRelay: Optional[int] = None
     numTxRelayCanceled: Optional[int] = None
-    
 
 class NodeBase(BaseModel):
     num: int
