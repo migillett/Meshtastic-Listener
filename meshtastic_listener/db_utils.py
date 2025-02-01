@@ -4,7 +4,7 @@ import json
 
 from meshtastic_listener.data_structures import NodeBase, DeviceMetrics
 
-import sqlalchemy
+from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 
@@ -16,18 +16,18 @@ Base = declarative_base()
 class Annoucement(Base):
     __tablename__ = 'annoucements'
 
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
-    rxTime = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    fromId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    toId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    fromName = sqlalchemy.Column(sqlalchemy.String, default=None)
-    message = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    rxSnr = sqlalchemy.Column(sqlalchemy.Float, nullable=False)
-    rxRssi = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    hopStart = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    hopLimit = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    readCount = sqlalchemy.Column(sqlalchemy.Integer, default=0)
-    isDeleted = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, nullable=False)
+    fromId = Column(Integer, nullable=False)
+    toId = Column(Integer, nullable=False)
+    fromName = Column(String, default=None)
+    message = Column(String, nullable=False)
+    rxSnr = Column(Float, nullable=False)
+    rxRssi = Column(Integer, nullable=False)
+    hopStart = Column(Integer, nullable=False)
+    hopLimit = Column(Integer, nullable=False)
+    readCount = Column(Integer, default=0)
+    isDeleted = Column(Integer, default=0)
 
     def __repr__(self):
         return f'<Annoucement(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, fromName={self.fromName}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
@@ -36,15 +36,15 @@ class Annoucement(Base):
 class Node(Base):
     __tablename__ = 'nodes'
 
-    num = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-    longName = sqlalchemy.Column(sqlalchemy.String, default=None)
-    shortName = sqlalchemy.Column(sqlalchemy.String, default=None)
-    macaddr = sqlalchemy.Column(sqlalchemy.String, default=None)
-    hwModel = sqlalchemy.Column(sqlalchemy.String, default=None)
-    publicKey = sqlalchemy.Column(sqlalchemy.String, default=None)
-    role = sqlalchemy.Column(sqlalchemy.String, default=None)
-    lastHeard = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    hopsAway = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    num = Column(Integer, primary_key=True)
+    longName = Column(String, default=None)
+    shortName = Column(String, default=None)
+    macaddr = Column(String, default=None)
+    hwModel = Column(String, default=None)
+    publicKey = Column(String, default=None)
+    role = Column(String, default=None)
+    lastHeard = Column(Integer, default=None)
+    hopsAway = Column(Integer, default=None)
 
     def __repr__(self):
         return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, hopsAway={self.hopsAway})>'
@@ -52,22 +52,22 @@ class Node(Base):
 
 class Metric(Base):
     __tablename__ = 'metrics'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
-    rxTime = sqlalchemy.Column(sqlalchemy.Integer, default=int(time()))
-    nodeNum = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    batteryLevel = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    voltage = sqlalchemy.Column(sqlalchemy.Float, default=None)
-    channelUtilization = sqlalchemy.Column(sqlalchemy.Float, default=None)
-    airUtilTx = sqlalchemy.Column(sqlalchemy.Float, default=None)
-    uptimeSeconds = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    numPacketsTx = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    numPacketsRx = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    numPacketsRxBad = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    numOnlineNodes = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    numTotalNodes = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    numRxDupe = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    numTxRelay = sqlalchemy.Column(sqlalchemy.Integer, default=None)
-    numTxRelayCanceled = sqlalchemy.Column(sqlalchemy.Integer, default=None)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, default=int(time()))
+    nodeNum = Column(Integer, nullable=False)
+    batteryLevel = Column(Integer, default=None)
+    voltage = Column(Float, default=None)
+    channelUtilization = Column(Float, default=None)
+    airUtilTx = Column(Float, default=None)
+    uptimeSeconds = Column(Integer, default=None)
+    numPacketsTx = Column(Integer, default=None)
+    numPacketsRx = Column(Integer, default=None)
+    numPacketsRxBad = Column(Integer, default=None)
+    numOnlineNodes = Column(Integer, default=None)
+    numTotalNodes = Column(Integer, default=None)
+    numRxDupe = Column(Integer, default=None)
+    numTxRelay = Column(Integer, default=None)
+    numTxRelayCanceled = Column(Integer, default=None)
     
     def __repr__(self):
         return f'<Metric(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, batteryLevel={self.batteryLevel}, voltage={self.voltage}, channelUtilization={self.channelUtilization}, airUtilTx={self.airUtilTx}, uptimeSeconds={self.uptimeSeconds}, numPacketsTx={self.numPacketsTx}, numPacketsRx={self.numPacketsRx}, numPacketsRxBad={self.numPacketsRxBad}, numOnlineNodes={self.numOnlineNodes}, numTotalNodes={self.numTotalNodes}, numRxDupe={self.numRxDupe}, numTxRelay={self.numTxRelay}, numTxRelayCanceled={self.numTxRelayCanceled})>'
@@ -75,13 +75,13 @@ class Metric(Base):
 
 class Traceroute(Base):
     __tablename__ = 'traceroutes'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
-    rxTime = sqlalchemy.Column(sqlalchemy.Integer, default=int(time()))
-    fromId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    toId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    tracerouteDetails = sqlalchemy.Column(sqlalchemy.String, default=None)
-    snrAvg = sqlalchemy.Column(sqlalchemy.Float, default=None)
-    directConnection = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, default=int(time()))
+    fromId = Column(Integer, nullable=False)
+    toId = Column(Integer, nullable=False)
+    tracerouteDetails = Column(String, default=None)
+    snrAvg = Column(Float, default=None)
+    directConnection = Column(Boolean, default=False)
 
     def __repr__(self):
         return f'<Traceroute(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, tracerouteDetails={self.tracerouteDetails}, snrAvg={self.snrAvg}, directConnection={self.directConnection})>'
@@ -89,12 +89,12 @@ class Traceroute(Base):
 
 class MessageHistory(Base):
     __tablename__ = 'message_history'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
-    rxTime = sqlalchemy.Column(sqlalchemy.Integer, default=int(time()))
-    fromId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    toId = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
-    portnum = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    decoded = sqlalchemy.Column(sqlalchemy.String, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, default=int(time()))
+    fromId = Column(Integer, nullable=False)
+    toId = Column(Integer, nullable=False)
+    portnum = Column(String, nullable=False)
+    decoded = Column(String, nullable=False)
 
     def __repr__(self):
         return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, decoded={self.decoded})>'
@@ -103,7 +103,7 @@ class MessageHistory(Base):
 class ListenerDb:
     def __init__(self, db_path: str = ':memory:') -> None:
         self.db_path = db_path
-        self.engine = sqlalchemy.create_engine(f'sqlite:///{self.db_path}')
+        self.engine = create_engine(f'sqlite:///{self.db_path}')
         self.session = sessionmaker(bind=self.engine)
         self.create_tables()
 

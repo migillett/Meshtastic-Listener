@@ -34,6 +34,10 @@ logging.basicConfig(
 )
 
 
+class EnvironmentError(Exception):
+    pass
+
+
 class MeshtasticListener:
     def __init__(
             self,
@@ -244,9 +248,9 @@ if __name__ == "__main__":
     db_path = environ.get("DB_NAME", ':memory:')
     if db_path != ':memory:':
         if not db_path.endswith('.db'):
-            raise ValueError("DB_NAME must be a .db file")
+            raise EnvironmentError("DB_NAME must be a .db file")
         if '/' in db_path or '\\' in db_path:
-            raise ValueError("DB_NAME must be a filename only")
+            raise EnvironmentError("DB_NAME must be a filename only")
         
     char_limit = int(environ.get("RESPONSE_CHAR_LIMIT", 200))
 
