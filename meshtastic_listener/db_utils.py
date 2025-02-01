@@ -162,24 +162,23 @@ class ListenerDb:
                     publicKey=node.user.publicKey,
                     role=node.user.role,
                     hopsAway=node.hopsAway,
-                )
-                
-                stmt.on_conflict_do_update(
+                ).on_conflict_do_update(
                     index_elements=['num'],
                     set_={
-                        'longName': stmt.excluded.longName,
-                        'shortName': stmt.excluded.shortName,
-                        'macaddr': stmt.excluded.macaddr,
-                        'hwModel': stmt.excluded.hwModel,
-                        'publicKey': stmt.excluded.publicKey,
-                        'role': stmt.excluded.role,
-                        'hopsAway': stmt.excluded.hopsAway,
+                        'longName': node.user.longName,
+                        'shortName': node.user.shortName,
+                        'macaddr': node.user.macaddr,
+                        'hwModel': node.user.hwModel,
+                        'publicKey': node.user.publicKey,
+                        'role': node.user.role,
+                        'hopsAway': node.hopsAway,
                     }
                 )
                 
                 session.execute(stmt)
 
             session.commit()
+            logger.debug(f'Successfully upserted {len(nodes)} nodes into db')
 
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
