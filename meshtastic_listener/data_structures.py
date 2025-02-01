@@ -24,8 +24,8 @@ class MessageReceived(BaseModel):
 
     def db_payload(self) -> dict:
         return {
-            'fromId': self.fromId,
-            'toId': self.toId,
+            'from': self.fromId,
+            'to': self.toId,
             'fromName': self.fromName,
             'message': self.decoded.text,
             'rxTime': self.rxTime,

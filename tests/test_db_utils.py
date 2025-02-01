@@ -7,15 +7,23 @@ def test_db_functions():
     db = ListenerDb(':memory:')
 
     message = {
-        'fromId': 1,
-        'toId': 2,
-        'fromName': 'TEST',
-        'message': 'Hello, World!',
-        'rxTime': int(time()),
-        'rxSnr': 10.0,
-        'rxRssi': -50,
-        'hopStart': 1,
-        'hopLimit': 2,
+        "from": 1128078592,
+        "to": 1129957512,
+        "decoded": {
+            "portnum": "TEXT_MESSAGE_APP",
+            "payload": "b'!reply'",
+            "bitfield": 0,
+            "text": "!reply"
+        },
+        "id": 675300350,
+        "rxTime": 1738378320,
+        "rxSnr": 6.0,
+        "hopLimit": 5,
+        "wantAck": True,
+        "rxRssi": -58,
+        "hopStart": 5,
+        "publicKey": "asdfasdfasdfasdfasdfasdf=",
+        "pkiEncrypted": True,
     }
 
     # Insert a message
@@ -25,9 +33,9 @@ def test_db_functions():
     # make sure the response matches up
     assert len(annoucements) == 1
 
-    assert annoucements[0].fromId == message['fromId']
-    assert annoucements[0].toId == message['toId']
-    assert annoucements[0].message == message['message']
+    assert annoucements[0].fromId == message['from']
+    assert annoucements[0].toId == message['to']
+    assert annoucements[0].message == message['decoded']['text']
 
     # insert test message spoofed as 8 days in the past
     message['rxTime'] = int(time()) - (8 * 24 * 3600)

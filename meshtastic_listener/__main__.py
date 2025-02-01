@@ -12,6 +12,7 @@ from meshtastic_listener.data_structures import MessageReceived, NodeBase, Devic
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
+from meshtastic.mesh_interface import MeshInterface
 import toml
 
 
@@ -182,7 +183,7 @@ class MeshtasticListener:
                     destinationId=node_num)
             self.__load_local_nodes__(force=True)
 
-    def __on_receive__(self, packet: dict) -> None:
+    def __on_receive__(self, packet: dict, interface: MeshInterface | None = None, node_list: list = []) -> None:
         try:
             self.__handle_new_node__(packet['from'])
             try:

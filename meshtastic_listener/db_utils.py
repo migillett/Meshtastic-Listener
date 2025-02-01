@@ -21,7 +21,6 @@ class Annoucement(Base):
     rxTime = Column(Integer, nullable=False)
     fromId = Column(Integer, nullable=False)
     toId = Column(Integer, nullable=False)
-    fromName = Column(String, default=None)
     message = Column(String, nullable=False)
     rxSnr = Column(Float, nullable=False)
     rxRssi = Column(Integer, nullable=False)
@@ -121,8 +120,7 @@ class ListenerDb:
             rxTime=payload['rxTime'],
             fromId=payload['from'],
             toId=payload['to'],
-            fromName=payload['fromName'],
-            message=payload['message'],
+            message=payload.get('decoded', {}).get('text', ''),
             rxSnr=payload['rxSnr'],
             rxRssi=payload['rxRssi'],
             hopStart=payload['hopStart'],
