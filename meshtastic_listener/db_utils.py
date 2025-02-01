@@ -55,30 +55,6 @@ class Node(Base):
     def __repr__(self):
         return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, hopsAway={self.hopsAway})>'
 
-
-class Metric(Base):
-    __tablename__ = 'metrics'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    nodeNum = Column(Integer, nullable=False)
-    batteryLevel = Column(Integer, default=None)
-    voltage = Column(Float, default=None)
-    channelUtilization = Column(Float, default=None)
-    airUtilTx = Column(Float, default=None)
-    uptimeSeconds = Column(Integer, default=None)
-    numPacketsTx = Column(Integer, default=None)
-    numPacketsRx = Column(Integer, default=None)
-    numPacketsRxBad = Column(Integer, default=None)
-    numOnlineNodes = Column(Integer, default=None)
-    numTotalNodes = Column(Integer, default=None)
-    numRxDupe = Column(Integer, default=None)
-    numTxRelay = Column(Integer, default=None)
-    numTxRelayCanceled = Column(Integer, default=None)
-    
-    def __repr__(self):
-        return f'<Metric(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, batteryLevel={self.batteryLevel}, voltage={self.voltage}, channelUtilization={self.channelUtilization}, airUtilTx={self.airUtilTx}, uptimeSeconds={self.uptimeSeconds}, numPacketsTx={self.numPacketsTx}, numPacketsRx={self.numPacketsRx}, numPacketsRxBad={self.numPacketsRxBad}, numOnlineNodes={self.numOnlineNodes}, numTotalNodes={self.numTotalNodes}, numRxDupe={self.numRxDupe}, numTxRelay={self.numTxRelay}, numTxRelayCanceled={self.numTxRelayCanceled})>'
-
-
 class DeviceMetrics(Base):
     __tablename__ = 'device_metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
