@@ -94,10 +94,10 @@ class MessageHistory(Base):
     fromId = Column(Integer, nullable=False)
     toId = Column(Integer, nullable=False)
     portnum = Column(String, nullable=False)
-    decoded = Column(String, nullable=False)
+    packetRaw = Column(String, nullable=False)
 
     def __repr__(self):
-        return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, decoded={self.decoded})>'
+        return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, packetRaw={self.packetRaw})>'
 
 
 class ListenerDb:
@@ -229,6 +229,6 @@ class ListenerDb:
                 fromId=packet['fromId'],
                 toId=packet['toId'],
                 portnum=packet['decoded']['portnum'],
-                decoded=json.dumps(packet['decoded'], default=str, indent=2),
+                packetRaw=json.dumps(packet, default=str, indent=2)
             ))
             session.commit()
