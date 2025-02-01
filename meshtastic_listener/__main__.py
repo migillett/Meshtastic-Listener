@@ -191,7 +191,7 @@ class MeshtasticListener:
             except KeyError as e:
                 logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
-            portnum = packet['decoded']['portnum']
+            portnum = packet.get('decoded', {}).get('portnum', None)
             match portnum:
                 case 'TEXT_MESSAGE_APP':
                     self.__handle_text_message__(packet)
