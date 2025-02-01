@@ -250,7 +250,7 @@ class ListenerDb:
                 rxTime=packet['rxTime'],
                 fromId=packet['from'],
                 toId=packet['to'],
-                portnum=packet['decoded']['portnum'],
+                portnum=packet.get('decoded', {}).get('portnum', 'UNKNOWN'),
                 packetRaw=json.dumps(packet, default=str, indent=2)
             ))
             session.commit()
