@@ -201,6 +201,10 @@ class MeshtasticListener:
             except KeyError as e:
                 logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
+            if 'encrypted' in packet:
+                logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
+                return
+
             portnum = packet.get('decoded', {}).get('portnum', None)
             match portnum:
                 case 'TEXT_MESSAGE_APP':
