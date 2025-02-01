@@ -6,6 +6,7 @@ from meshtastic_listener.data_structures import NodeBase, DeviceMetrics
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.dialects.sqlite import insert
 
 
 logger = logging.getLogger(__name__)
@@ -152,7 +153,7 @@ class ListenerDb:
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         with self.session() as session:
             for node in nodes:
-                session.add(Node(
+                stmt = insert(Node).values(
                     num=node.num,
                     longName=node.user.longName,
                     shortName=node.user.shortName,
@@ -160,9 +161,24 @@ class ListenerDb:
                     hwModel=node.user.hwModel,
                     publicKey=node.user.publicKey,
                     role=node.user.role,
-                    lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
-                ))
+                )
+                
+                stmt.on_conflict_do_update(
+                    index_elements=['num'],
+                    set_={
+                        'longName': stmt.excluded.longName,
+                        'shortName': stmt.excluded.shortName,
+                        'macaddr': stmt.excluded.macaddr,
+                        'hwModel': stmt.excluded.hwModel,
+                        'publicKey': stmt.excluded.publicKey,
+                        'role': stmt.excluded.role,
+                        'hopsAway': stmt.excluded.hopsAway,
+                    }
+                )
+                
+                session.execute(stmt)
+
             session.commit()
 
     def get_node(self, node_num: int) -> Node:
