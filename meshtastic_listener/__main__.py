@@ -7,7 +7,10 @@ import signal
 
 from meshtastic_listener.db_utils import ListenerDb
 from meshtastic_listener.cmd_handler import CommandHandler
-from meshtastic_listener.data_structures import MessageReceived, NodeBase, DeviceMetrics
+from meshtastic_listener.data_structures import (
+    MessageReceived, NodeBase,
+    DeviceMetrics, TransmissionMetrics, EnvironmentMetrics
+)
 
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
@@ -138,11 +141,18 @@ class MeshtasticListener:
 
         self.__print_packet_received__('telemetry', packet['from'], telemetry)
 
-        metrics = telemetry.get('deviceMetrics', {})
-        local_stats = telemetry.get('localStats', {})
-
-        combined_metrics = DeviceMetrics(**metrics, **local_stats)
-        self.db.insert_metrics(packet['from'], combined_metrics)
+        if 'deviceMetrics' in telemetry:
+            metrics = DeviceMetrics(**telemetry['deviceMetrics'])
+            self.db.insert_device_metrics(packet['from'], metrics)
+        elif 'localStats' in telemetry:
+            metrics = TransmissionMetrics(**telemetry['localStats'])
+            self.db.insert_transmission_metrics(packet['from'], metrics)
+        elif 'environmentMetrics' in telemetry:
+            metrics = EnvironmentMetrics(**telemetry['environmentMetrics'])
+            self.db.insert_environment_metrics(packet['from'], metrics)
+        else:
+            logging.error(f"Unknown telemetry type: {telemetry}")
+            return
 
     def __handle_traceroute__(self, packet: dict) -> None:
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})

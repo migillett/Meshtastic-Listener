@@ -57,8 +57,10 @@ class DeviceMetrics(BaseModel):
     batteryLevel: Optional[int] = None
     voltage: Optional[float] = None
     channelUtilization: Optional[float] = None
-    airUtilTx: Optional[float] = None
     uptimeSeconds: Optional[int] = None
+
+class TransmissionMetrics(BaseModel):
+    airUtilTx: Optional[float] = None
     numPacketsTx: Optional[int] = None
     numPacketsRx: Optional[int] = None
     numPacketsRxBad: Optional[int] = None
@@ -67,6 +69,13 @@ class DeviceMetrics(BaseModel):
     numRxDupe: Optional[int] = None
     numTxRelay: Optional[int] = None
     numTxRelayCanceled: Optional[int] = None
+
+class EnvironmentMetrics(BaseModel):
+    temperature: Optional[float] = None
+    relativeHumidity: Optional[float] = None
+    barometricPressure: Optional[float] = None
+    gasResistance: Optional[float] = None
+    iaq: Optional[int] = None
 
 class NodeBase(BaseModel):
     num: int

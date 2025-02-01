@@ -77,6 +77,53 @@ class Metric(Base):
         return f'<Metric(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, batteryLevel={self.batteryLevel}, voltage={self.voltage}, channelUtilization={self.channelUtilization}, airUtilTx={self.airUtilTx}, uptimeSeconds={self.uptimeSeconds}, numPacketsTx={self.numPacketsTx}, numPacketsRx={self.numPacketsRx}, numPacketsRxBad={self.numPacketsRxBad}, numOnlineNodes={self.numOnlineNodes}, numTotalNodes={self.numTotalNodes}, numRxDupe={self.numRxDupe}, numTxRelay={self.numTxRelay}, numTxRelayCanceled={self.numTxRelayCanceled})>'
 
 
+class DeviceMetrics(Base):
+    __tablename__ = 'device_metrics'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, default=int(time()))
+    nodeNum = Column(Integer, nullable=False)
+    batteryLevel = Column(Integer, default=None)
+    voltage = Column(Float, default=None)
+    channelUtilization = Column(Float, default=None)
+    uptimeSeconds = Column(Integer, default=None)
+
+    def __repr__(self):
+        return f'<DeviceMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, batteryLevel={self.batteryLevel}, voltage={self.voltage}, channelUtilization={self.channelUtilization}, uptimeSeconds={self.uptimeSeconds})>'
+    
+class TransmissionMetrics(Base):
+    __tablename__ = 'transmission_metrics'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, default=int(time()))
+    nodeNum = Column(Integer, nullable=False)
+    airUtilTx = Column(Float, default=None)
+    numPacketsTx = Column(Integer, default=None)
+    numPacketsRx = Column(Integer, default=None)
+    numPacketsRxBad = Column(Integer, default=None)
+    numOnlineNodes = Column(Integer, default=None)
+    numTotalNodes = Column(Integer, default=None)
+    numRxDupe = Column(Integer, default=None)
+    numTxRelay = Column(Integer, default=None)
+    numTxRelayCanceled = Column(Integer, default=None)
+
+    def __repr__(self):
+        return f'<TransmissionMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, airUtilTx={self.airUtilTx}, numPacketsTx={self.numPacketsTx}, numPacketsRx={self.numPacketsRx}, numPacketsRxBad={self.numPacketsRxBad}, numOnlineNodes={self.numOnlineNodes}, numTotalNodes={self.numTotalNodes}, numRxDupe={self.numRxDupe}, numTxRelay={self.numTxRelay}, numTxRelayCanceled={self.numTxRelayCanceled})>'
+
+
+class EnvironmentMetrics(Base):
+    __tablename__ = 'environment_metrics'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, default=int(time()))
+    nodeNum = Column(Integer, nullable=False)
+    temperature = Column(Float, default=None)
+    relativeHumidity = Column(Float, default=None)
+    barometricPressure = Column(Float, default=None)
+    gasResistance = Column(Float, default=None)
+    iaq = Column(Integer, default=None)
+
+    def __repr__(self):
+        return f'<EnvironmentMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, temperature={self.temperature}, relativeHumidity={self.relativeHumidity}, barometricPressure={self.barometricPressure}, gasResistance={self.gasResistance}, iaq={self.iaq})>'
+
+
 class Traceroute(Base):
     __tablename__ = 'traceroutes'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -194,6 +241,45 @@ class ListenerDb:
             return str(node_num)
         return node.shortName
     
+    def insert_device_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
+        with self.session() as session:
+            session.add(DeviceMetrics(
+                nodeNum=node_num,
+                batteryLevel=metrics.batteryLevel,
+                voltage=metrics.voltage,
+                channelUtilization=metrics.channelUtilization,
+                uptimeSeconds=metrics.uptimeSeconds,
+            ))
+            session.commit()
+
+    def insert_transmission_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
+        with self.session() as session:
+            session.add(TransmissionMetrics(
+                nodeNum=node_num,
+                airUtilTx=metrics.airUtilTx,
+                numPacketsTx=metrics.numPacketsTx,
+                numPacketsRx=metrics.numPacketsRx,
+                numPacketsRxBad=metrics.numPacketsRxBad,
+                numOnlineNodes=metrics.numOnlineNodes,
+                numTotalNodes=metrics.numTotalNodes,
+                numRxDupe=metrics.numRxDupe,
+                numTxRelay=metrics.numTxRelay,
+                numTxRelayCanceled=metrics.numTxRelayCanceled,
+            ))
+            session.commit()
+    
+    def insert_environment_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
+        with self.session() as session:
+            session.add(EnvironmentMetrics(
+                nodeNum=node_num,
+                temperature=metrics.temperature,
+                relativeHumidity=metrics.relativeHumidity,
+                barometricPressure=metrics.barometricPressure,
+                gasResistance=metrics.gasResistance,
+                iaq=metrics.iaq,
+            ))
+            session.commit()
+
     def insert_metrics(self, node_num: int, metrics: DeviceMetrics) -> None:
         with self.session() as session:
             session.add(Metric(
