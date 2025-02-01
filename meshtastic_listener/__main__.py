@@ -193,7 +193,7 @@ class MeshtasticListener:
                     destinationId=node_num)
             self.__load_local_nodes__(force=True)
 
-    def __on_receive__(self, packet: dict, interface: MeshInterface | None = None, node_list: list = []) -> None:
+    def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:
             self.__handle_new_node__(packet['from'])
             try:
