@@ -15,8 +15,8 @@ class MessageReceived(BaseModel):
     id: int
     rxSnr: float = 0.0 # Signal to Noise Ratio. The higher the better
     rxRssi: int = 0 # Received Signal Strength Indicator. The higher the better
-    hopLimit: int # Maximum number of hops
-    hopStart: int
+    hopLimit: Optional[int] = None # Maximum number of hops
+    hopStart: Optional[int] = None
     rxTime: Optional[int] = None
     wantAck: Optional[bool] = None
     publicKey: Optional[str] = None
