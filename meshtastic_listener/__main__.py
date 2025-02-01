@@ -50,8 +50,7 @@ class MeshtasticListener:
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
             response_char_limit: int = 200,
-            welcome_message: str | None = None,
-            debug: bool = False,
+            welcome_message: str | None = None
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
