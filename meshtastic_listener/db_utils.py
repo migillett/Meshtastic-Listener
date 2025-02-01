@@ -57,7 +57,7 @@ class Node(Base):
 class Metric(Base):
     __tablename__ = 'metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, default=int(time()))
+    rxTime = Column(Integer, nullable=False)
     nodeNum = Column(Integer, nullable=False)
     batteryLevel = Column(Integer, default=None)
     voltage = Column(Float, default=None)
@@ -80,7 +80,7 @@ class Metric(Base):
 class DeviceMetrics(Base):
     __tablename__ = 'device_metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, default=int(time()))
+    rxTime = Column(Integer, nullable=False)
     nodeNum = Column(Integer, nullable=False)
     batteryLevel = Column(Integer, default=None)
     voltage = Column(Float, default=None)
@@ -93,7 +93,7 @@ class DeviceMetrics(Base):
 class TransmissionMetrics(Base):
     __tablename__ = 'transmission_metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, default=int(time()))
+    rxTime = Column(Integer, nullable=False)
     nodeNum = Column(Integer, nullable=False)
     airUtilTx = Column(Float, default=None)
     numPacketsTx = Column(Integer, default=None)
@@ -112,7 +112,7 @@ class TransmissionMetrics(Base):
 class EnvironmentMetrics(Base):
     __tablename__ = 'environment_metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, default=int(time()))
+    rxTime = Column(Integer, nullable=False)
     nodeNum = Column(Integer, nullable=False)
     temperature = Column(Float, default=None)
     relativeHumidity = Column(Float, default=None)
@@ -127,7 +127,7 @@ class EnvironmentMetrics(Base):
 class Traceroute(Base):
     __tablename__ = 'traceroutes'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, default=int(time()))
+    rxTime = Column(Integer, nullable=False)
     fromId = Column(Integer, nullable=False)
     toId = Column(Integer, nullable=False)
     tracerouteDetails = Column(String, default=None)
@@ -141,7 +141,7 @@ class Traceroute(Base):
 class MessageHistory(Base):
     __tablename__ = 'message_history'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, default=int(time()))
+    rxTime = Column(Integer, nullable=False)
     fromId = Column(Integer, nullable=False)
     toId = Column(Integer, nullable=False)
     portnum = Column(String, nullable=False)
@@ -256,6 +256,7 @@ class ListenerDb:
         with self.session() as session:
             session.add(TransmissionMetrics(
                 nodeNum=node_num,
+                rxTime=int(time()),
                 airUtilTx=metrics.airUtilTx,
                 numPacketsTx=metrics.numPacketsTx,
                 numPacketsRx=metrics.numPacketsRx,
@@ -272,6 +273,7 @@ class ListenerDb:
         with self.session() as session:
             session.add(EnvironmentMetrics(
                 nodeNum=node_num,
+                rxTime=int(time()),
                 temperature=metrics.temperature,
                 relativeHumidity=metrics.relativeHumidity,
                 barometricPressure=metrics.barometricPressure,
@@ -284,6 +286,7 @@ class ListenerDb:
         with self.session() as session:
             session.add(Metric(
                 nodeNum=node_num,
+                rxTime=int(time()),
                 batteryLevel=metrics.batteryLevel,
                 voltage=metrics.voltage,
                 channelUtilization=metrics.channelUtilization,
@@ -309,6 +312,7 @@ class ListenerDb:
             direct_connection: bool) -> None:
         with self.session() as session:
             session.add(Traceroute(
+                rxTime=int(time()),
                 fromId=fromId,
                 toId=toId,
                 tracerouteDetails=json.dumps(traceroute_dict, default=str, indent=2),
