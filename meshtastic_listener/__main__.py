@@ -7,11 +7,15 @@ import signal
 
 from meshtastic_listener.db_utils import ListenerDb
 from meshtastic_listener.cmd_handler import CommandHandler
-from meshtastic_listener.data_structures import MessageReceived, NodeBase, DeviceMetrics
+from meshtastic_listener.data_structures import (
+    MessageReceived, NodeBase,
+    DeviceMetrics, TransmissionMetrics, EnvironmentMetrics
+)
 
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
+from meshtastic.mesh_interface import MeshInterface
 import toml
 
 
@@ -34,6 +38,10 @@ logging.basicConfig(
 )
 
 
+class EnvironmentError(Exception):
+    pass
+
+
 class MeshtasticListener:
     def __init__(
             self,
@@ -52,14 +60,13 @@ class MeshtasticListener:
         self.interface = interface
         self.db = db_object
         self.cmd_handler = cmd_handler
-        self.debug = debug
         self.char_limit = response_char_limit
         self.welcome_message = welcome_message
         self.node_refresh_ts: float = time.time()
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
 
         # logging device connection and db initialization
-        logging.info(f'Connected to {self.interface.__class__.__name__} device')
+        logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'ListenerDb initialized with db_path: {self.db.db_path}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
         if self.cmd_handler.admin_node_id is not None:
@@ -71,12 +78,8 @@ class MeshtasticListener:
 
 
     def __load_local_nodes__(self, force: bool = False) -> None:
-        if self.debug:
-            logging.info("Debug mode enabled. Skipping node refresh.")
-            return
         now = time.time()
         if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
-            logging.debug("Refreshing Node details")
             nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
@@ -104,7 +107,7 @@ class MeshtasticListener:
         if 'raw' in packet:
             packet.pop('raw')
 
-        shortname = self.db.get_node_shortname(node_num)
+        shortname = self.db.get_shortname(node_num)
         if str(shortname) == str(node_num):
             log_insert = f"node {node_num}"
         else:
@@ -120,7 +123,7 @@ class MeshtasticListener:
         # remap keys to match the MessageReceived model
         packet['fromId'] = packet['from']
         packet['toId'] = packet['to']
-        sender = self.db.get_node_shortname(packet['fromId'])
+        sender = self.db.get_shortname(packet['fromId'])
         payload = MessageReceived(fromName=sender, **packet)
 
         self.__print_packet_received__('text message', packet['from'], payload.decoded.model_dump())
@@ -138,11 +141,18 @@ class MeshtasticListener:
 
         self.__print_packet_received__('telemetry', packet['from'], telemetry)
 
-        metrics = telemetry.get('deviceMetrics', {})
-        local_stats = telemetry.get('localStats', {})
-
-        combined_metrics = DeviceMetrics(**metrics, **local_stats)
-        self.db.insert_metrics(packet['from'], combined_metrics)
+        if 'deviceMetrics' in telemetry:
+            metrics = DeviceMetrics(**telemetry['deviceMetrics'])
+            self.db.insert_device_metrics(packet['from'], metrics)
+        elif 'localStats' in telemetry:
+            metrics = TransmissionMetrics(**telemetry['localStats'])
+            self.db.insert_transmission_metrics(packet['from'], metrics)
+        elif 'environmentMetrics' in telemetry:
+            metrics = EnvironmentMetrics(**telemetry['environmentMetrics'])
+            self.db.insert_environment_metrics(packet['from'], metrics)
+        else:
+            logging.error(f"Unknown telemetry type: {telemetry}")
+            return
 
     def __handle_traceroute__(self, packet: dict) -> None:
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})
@@ -167,7 +177,7 @@ class MeshtasticListener:
         self.__print_packet_received__('position', packet['from'], position)
         self.db.upsert_position(
             node_num=packet['from'],
-            last_heard=position.get('time'),
+            last_heard=position.get('time', int(time.time())),
             latitude=position.get('latitude'),
             longitude=position.get('longitude'),
             altitude=position.get('altitude'),
@@ -175,7 +185,7 @@ class MeshtasticListener:
         )
 
     def __handle_new_node__(self, node_num: int) -> None:
-        if not self.db.check_node_exists(node_num) and not self.debug:
+        if not self.db.get_node(node_num):
             if self.welcome_message is not None:
                 logging.info(f"Sending welcome message to {node_num}")
                 self.__reply__(
@@ -183,7 +193,7 @@ class MeshtasticListener:
                     destinationId=node_num)
             self.__load_local_nodes__(force=True)
 
-    def __on_receive__(self, packet: dict) -> None:
+    def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:
             self.__handle_new_node__(packet['from'])
             try:
@@ -191,7 +201,7 @@ class MeshtasticListener:
             except KeyError as e:
                 logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
-            portnum = packet['decoded']['portnum']
+            portnum = packet.get('decoded', {}).get('portnum', None)
             match portnum:
                 case 'TEXT_MESSAGE_APP':
                     self.__handle_text_message__(packet)
@@ -248,9 +258,9 @@ if __name__ == "__main__":
     db_path = environ.get("DB_NAME", ':memory:')
     if db_path != ':memory:':
         if not db_path.endswith('.db'):
-            raise ValueError("DB_NAME must be a .db file")
+            raise EnvironmentError("DB_NAME must be a .db file")
         if '/' in db_path or '\\' in db_path:
-            raise ValueError("DB_NAME must be a filename only")
+            raise EnvironmentError("DB_NAME must be a filename only")
         
     char_limit = int(environ.get("RESPONSE_CHAR_LIMIT", 200))
 

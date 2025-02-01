@@ -15,8 +15,8 @@ class MessageReceived(BaseModel):
     id: int
     rxSnr: float = 0.0 # Signal to Noise Ratio. The higher the better
     rxRssi: int = 0 # Received Signal Strength Indicator. The higher the better
-    hopLimit: int # Maximum number of hops
-    hopStart: int
+    hopLimit: Optional[int] = None # Maximum number of hops
+    hopStart: Optional[int] = None
     rxTime: Optional[int] = None
     wantAck: Optional[bool] = None
     publicKey: Optional[str] = None
@@ -24,8 +24,8 @@ class MessageReceived(BaseModel):
 
     def db_payload(self) -> dict:
         return {
-            'fromId': self.fromId,
-            'toId': self.toId,
+            'from': self.fromId,
+            'to': self.toId,
             'fromName': self.fromName,
             'message': self.decoded.text,
             'rxTime': self.rxTime,
@@ -57,8 +57,10 @@ class DeviceMetrics(BaseModel):
     batteryLevel: Optional[int] = None
     voltage: Optional[float] = None
     channelUtilization: Optional[float] = None
-    airUtilTx: Optional[float] = None
     uptimeSeconds: Optional[int] = None
+
+class TransmissionMetrics(BaseModel):
+    airUtilTx: Optional[float] = None
     numPacketsTx: Optional[int] = None
     numPacketsRx: Optional[int] = None
     numPacketsRxBad: Optional[int] = None
@@ -67,6 +69,13 @@ class DeviceMetrics(BaseModel):
     numRxDupe: Optional[int] = None
     numTxRelay: Optional[int] = None
     numTxRelayCanceled: Optional[int] = None
+
+class EnvironmentMetrics(BaseModel):
+    temperature: Optional[float] = None
+    relativeHumidity: Optional[float] = None
+    barometricPressure: Optional[float] = None
+    gasResistance: Optional[float] = None
+    iaq: Optional[int] = None
 
 class NodeBase(BaseModel):
     num: int
