@@ -62,7 +62,7 @@ class MeshtasticListener:
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
 
         # logging device connection and db initialization
-        logging.info(f'Connected to {self.interface.__class__.__name__} device')
+        logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'ListenerDb initialized with db_path: {self.db.db_path}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
         if self.cmd_handler.admin_node_id is not None:
@@ -76,7 +76,6 @@ class MeshtasticListener:
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
         if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
-            logging.debug("Refreshing Node details")
             nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
@@ -167,7 +166,7 @@ class MeshtasticListener:
         self.__print_packet_received__('position', packet['from'], position)
         self.db.upsert_position(
             node_num=packet['from'],
-            last_heard=position.get('time'),
+            last_heard=position.get('time', int(time.time())),
             latitude=position.get('latitude'),
             longitude=position.get('longitude'),
             altitude=position.get('altitude'),

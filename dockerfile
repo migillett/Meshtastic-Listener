@@ -11,6 +11,8 @@ COPY ./pyproject.toml .
 # where we store the database file and logs
 RUN mkdir ./data
 
-RUN pip3 install poetry && poetry install --no-root
+RUN pip3 install --upgrade pip && \
+    pip3 install poetry --root-user-action && \
+    poetry install --no-root
 
 ENTRYPOINT [ "poetry", "run", "python", "-m", "meshtastic_listener" ]

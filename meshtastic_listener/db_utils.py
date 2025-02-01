@@ -45,6 +45,10 @@ class Node(Base):
     publicKey = Column(String, default=None)
     role = Column(String, default=None)
     lastHeard = Column(Integer, default=None)
+    latitude = Column(Float, default=None)
+    longitude = Column(Float, default=None)
+    altitude = Column(Float, default=None)
+    precisionBits = Column(Integer, default=None)
     hopsAway = Column(Integer, default=None)
 
     def __repr__(self):
@@ -115,8 +119,8 @@ class ListenerDb:
         session = self.session()
         session.add(Annoucement(
             rxTime=payload['rxTime'],
-            fromId=payload['fromId'],
-            toId=payload['toId'],
+            fromId=payload['from'],
+            toId=payload['to'],
             fromName=payload['fromName'],
             message=payload['message'],
             rxSnr=payload['rxSnr'],
@@ -161,6 +165,7 @@ class ListenerDb:
                     hwModel=node.user.hwModel,
                     publicKey=node.user.publicKey,
                     role=node.user.role,
+                    lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
                 ).on_conflict_do_update(
                     index_elements=['num'],
@@ -171,6 +176,7 @@ class ListenerDb:
                         'hwModel': node.user.hwModel,
                         'publicKey': node.user.publicKey,
                         'role': node.user.role,
+                        'lastHeard': node.lastHeard,
                         'hopsAway': node.hopsAway,
                     }
                 )
@@ -230,6 +236,9 @@ class ListenerDb:
     def upsert_position(self, node_num: int, last_heard: int, latitude: float, longitude: float, altitude: float, precision_bits: int) -> None:
         with self.session() as session:
             node = self.get_node(node_num)
+            if not node:
+                logger.error(f'Node {node_num} not found in db. Unable to update position.')
+                return
             node.lastHeard = last_heard
             node.latitude = latitude
             node.longitude = longitude
@@ -241,8 +250,8 @@ class ListenerDb:
         with self.session() as session:
             session.add(MessageHistory(
                 rxTime=packet['rxTime'],
-                fromId=packet['fromId'],
-                toId=packet['toId'],
+                fromId=packet['from'],
+                toId=packet['to'],
                 portnum=packet['decoded']['portnum'],
                 packetRaw=json.dumps(packet, default=str, indent=2)
             ))
