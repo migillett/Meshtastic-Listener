@@ -142,13 +142,13 @@ class MeshtasticListener:
 
         if 'deviceMetrics' in telemetry:
             metrics = DevicePayload(**telemetry['deviceMetrics'])
-            self.db.insert_device_metrics(packet['from'], metrics)
+            self.db.insert_device_metrics(packet['from'], packet['rxTime'], metrics)
         elif 'localStats' in telemetry:
             metrics = TransmissionPayload(**telemetry['localStats'])
-            self.db.insert_transmission_metrics(packet['from'], metrics)
+            self.db.insert_transmission_metrics(packet['from'], packet['rxTime'], metrics)
         elif 'environmentMetrics' in telemetry:
             metrics = EnvironmentPayload(**telemetry['environmentMetrics'])
-            self.db.insert_environment_metrics(packet['from'], metrics)
+            self.db.insert_environment_metrics(packet['from'], packet['rxTime'], metrics)
         else:
             logging.error(f"Unknown telemetry type: {telemetry}")
             return
@@ -166,6 +166,7 @@ class MeshtasticListener:
         self.db.insert_traceroute(
             fromId=packet['from'],
             toId=packet['to'],
+            rxTime=packet['rxTime'],
             traceroute_dict=traceroute_details,
             snr_avg=snr_avg,
             direct_connection=direct_connection,
@@ -190,7 +191,8 @@ class MeshtasticListener:
             self.db.insert_neighbor(
                 source_node_id=packet['from'],
                 neighbor_id=neighbor['nodeId'],
-                snr=neighbor['snr']
+                snr=neighbor['snr'],
+                rx_time=int(time.time())
             )
 
     def __handle_new_node__(self, node_num: int) -> None:
@@ -204,17 +206,24 @@ class MeshtasticListener:
 
     def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:
-            self.__handle_new_node__(packet['from'])
-            try:
-                self.db.insert_message_history(packet)
-            except KeyError as e:
-                logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
-
             if 'encrypted' in packet:
                 logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
                 return
-
+            
+            self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
+            
+            try:
+                self.db.insert_message_history(
+                    rx_time=int(time.time()),
+                    from_id=packet['from'],
+                    to_id=packet['to'],
+                    portnum=portnum,
+                    packet_raw=packet
+                )
+            except KeyError as e:
+                logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
+
             match portnum:
                 case 'TEXT_MESSAGE_APP':
                     self.__handle_text_message__(packet)

@@ -3,7 +3,7 @@ from time import time
 import json
 
 from meshtastic_listener.data_structures import (
-    NodeBase, DevicePayload, TransmissionPayload, EnvironmentPayload
+    NodeBase, DevicePayload, TransmissionPayload, EnvironmentPayload, MessageReceived
 )
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine
@@ -32,8 +32,7 @@ class Annoucement(Base):
     isDeleted = Column(Integer, default=0)
 
     def __repr__(self):
-        return f'<Annoucement(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, fromName={self.fromName}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
-
+        return f'<Annoucement(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
 
 class Node(Base):
     __tablename__ = 'nodes'
@@ -148,17 +147,17 @@ class ListenerDb:
     def create_tables(self) -> None:
         Base.metadata.create_all(self.engine)
 
-    def insert_annoucement(self, payload: dict) -> None:
+    def insert_annoucement(self, payload: MessageReceived) -> None:
         session = self.session()
         session.add(Annoucement(
-            rxTime=payload['rxTime'],
-            fromId=payload['from'],
-            toId=payload['to'],
-            message=payload.get('decoded', {}).get('text', ''),
-            rxSnr=payload['rxSnr'],
-            rxRssi=payload['rxRssi'],
-            hopStart=payload['hopStart'],
-            hopLimit=payload['hopLimit'],
+            rxTime=payload.rxTime,
+            fromId=payload.fromId,
+            toId=payload.toId,
+            message=payload.decoded.text,
+            rxSnr=payload.rxSnr,
+            rxRssi=payload.rxRssi,
+            hopStart=payload.hopStart,
+            hopLimit=payload.hopLimit,
         ))
         session.commit()
         session.close()
@@ -174,8 +173,12 @@ class ListenerDb:
 
     def get_annoucements(self, days_past: int = 7) -> list[Annoucement]:
         with self.session() as session:
-            look_back = int(time()) - (days_past * 24 * 3600)
-            results = session.query(Annoucement).filter(Annoucement.rxTime > look_back).all()
+            look_back = int(time() - (days_past * 24 * 3600))
+            results = session.query(Annoucement).filter(
+                Annoucement.rxTime > look_back,
+                Annoucement.isDeleted == 0
+            ).all()
+            logger.info(f'Found {len(results)} annoucements in the last {days_past} days: {results}')
             [self.mark_annoucement_read([result.id]) for result in results]
             return results
             
@@ -228,11 +231,11 @@ class ListenerDb:
             return str(node_num)
         return node.shortName
     
-    def insert_device_metrics(self, node_num: int, metrics: DevicePayload) -> None:
+    def insert_device_metrics(self, node_num: int, rxTime: int, metrics: DevicePayload) -> None:
         with self.session() as session:
             session.add(DeviceMetrics(
                 nodeNum=node_num,
-                rxTime=int(time()),
+                rxTime=rxTime,
                 batteryLevel=metrics.batteryLevel,
                 voltage=metrics.voltage,
                 channelUtilization=metrics.channelUtilization,
@@ -240,11 +243,11 @@ class ListenerDb:
             ))
             session.commit()
 
-    def insert_transmission_metrics(self, node_num: int, metrics: TransmissionPayload) -> None:
+    def insert_transmission_metrics(self, node_num: int, rxTime: int, metrics: TransmissionPayload) -> None:
         with self.session() as session:
             session.add(TransmissionMetrics(
                 nodeNum=node_num,
-                rxTime=int(time()),
+                rxTime=rxTime,
                 airUtilTx=metrics.airUtilTx,
                 numPacketsTx=metrics.numPacketsTx,
                 numPacketsRx=metrics.numPacketsRx,
@@ -257,11 +260,11 @@ class ListenerDb:
             ))
             session.commit()
     
-    def insert_environment_metrics(self, node_num: int, metrics: EnvironmentMetrics) -> None:
+    def insert_environment_metrics(self, node_num: int, rxTime: int, metrics: EnvironmentPayload) -> None:
         with self.session() as session:
             session.add(EnvironmentMetrics(
                 nodeNum=node_num,
-                rxTime=int(time()),
+                rxTime=rxTime,
                 temperature=metrics.temperature,
                 relativeHumidity=metrics.relativeHumidity,
                 barometricPressure=metrics.barometricPressure,
@@ -274,12 +277,13 @@ class ListenerDb:
             self,
             fromId: str,
             toId: str,
+            rxTime: int,
             traceroute_dict: dict,
             snr_avg: float,
             direct_connection: bool) -> None:
         with self.session() as session:
             session.add(Traceroute(
-                rxTime=int(time()),
+                rxTime=rxTime,
                 fromId=fromId,
                 toId=toId,
                 tracerouteDetails=json.dumps(traceroute_dict, default=str, indent=2),
@@ -288,7 +292,14 @@ class ListenerDb:
             ))
             session.commit()
 
-    def upsert_position(self, node_num: int, last_heard: int, latitude: float, longitude: float, altitude: float, precision_bits: int) -> None:
+    def upsert_position(
+            self,
+            node_num: int,
+            last_heard: int,
+            latitude: float,
+            longitude: float,
+            altitude: float,
+            precision_bits: int) -> None:
         with self.session() as session:
             node = self.get_node(node_num)
             if not node:
@@ -301,23 +312,23 @@ class ListenerDb:
             node.precisionBits = precision_bits
             session.commit()
 
-    def insert_message_history(self, packet: dict) -> None:
+    def insert_message_history(self, rx_time: int, from_id: int, to_id: int, portnum: str, packet_raw: dict) -> None:
         with self.session() as session:
             session.add(MessageHistory(
-                rxTime=int(time()),
-                fromId=packet['from'],
-                toId=packet['to'],
-                portnum=packet.get('decoded', {}).get('portnum', 'UNKNOWN'),
-                packetRaw=json.dumps(packet, default=str, indent=2)
+                rxTime=rx_time,
+                fromId=from_id,
+                toId=to_id,
+                portnum=portnum,
+                packetRaw=json.dumps(packet_raw, default=str, indent=2)
             ))
             session.commit()
 
-    def insert_neighbor(self, source_node_id: int, neighbor_id: str, snr: float) -> None:
+    def insert_neighbor(self, source_node_id: int, neighbor_id: str, snr: float, rx_time: int) -> None:
         with self.session() as session:
             session.add(Neighbor(
-                rxTime=int(time()),
                 sourceNodeId=source_node_id,
                 neighborNodeId=neighbor_id,
                 snr=snr,
+                rxTime=rx_time,
             ))
             session.commit()

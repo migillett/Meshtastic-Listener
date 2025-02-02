@@ -22,19 +22,6 @@ class MessageReceived(BaseModel):
     publicKey: Optional[str] = None
     pkiEncrypted: Optional[bool] = None
 
-    def db_payload(self) -> dict:
-        return {
-            'from': self.fromId,
-            'to': self.toId,
-            'fromName': self.fromName,
-            'message': self.decoded.text,
-            'rxTime': self.rxTime,
-            'rxSnr': self.rxSnr,
-            'rxRssi': self.rxRssi,
-            'hopStart': self.hopStart,
-            'hopLimit': self.hopLimit,
-        }
-
 class User(BaseModel):
     id: str
     longName: Optional[str] = None

@@ -51,7 +51,7 @@ class CommandHandler:
             return f'Message too long. Max {self.char_limit} characters'
         elif len(context.decoded.text) == 0:
             return 'Message is empty'
-        self.db.insert_annoucement(context.db_payload())
+        self.db.insert_annoucement(context)
         return 'message received'
     
     def cmd_read(self) -> str:
@@ -61,6 +61,7 @@ class CommandHandler:
         response_str = 'BBS:\n'
         annoucements = self.db.get_annoucements(days_past=self.bbs_lookback)
         if len(annoucements) > 0:
+            logger.info(f'{len(annoucements)} BBS messages found: {annoucements}')
             for i, annoucement in enumerate(annoucements):
                 shortname = self.db.get_shortname(annoucement.fromId)
                 response_str += f'{i+1}. {shortname}: {annoucement.message}\n'
