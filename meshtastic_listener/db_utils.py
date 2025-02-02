@@ -129,6 +129,15 @@ class MessageHistory(Base):
         return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, packetRaw={self.packetRaw})>'
 
 
+class Neighbor(Base):
+    __tablename__ = 'neighbors'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, nullable=False)
+    sourceNodeId = Column(Integer, nullable=False)
+    neighborNodeId = Column(Integer, nullable=False)
+    snr = Column(Float, nullable=False)
+
+
 class ListenerDb:
     def __init__(self, db_path: str = ':memory:') -> None:
         self.db_path = db_path
@@ -295,10 +304,20 @@ class ListenerDb:
     def insert_message_history(self, packet: dict) -> None:
         with self.session() as session:
             session.add(MessageHistory(
-                rxTime=packet['rxTime'],
+                rxTime=int(time()),
                 fromId=packet['from'],
                 toId=packet['to'],
                 portnum=packet.get('decoded', {}).get('portnum', 'UNKNOWN'),
                 packetRaw=json.dumps(packet, default=str, indent=2)
+            ))
+            session.commit()
+
+    def insert_neighbor(self, source_node_id: int, neighbor_id: str, snr: float) -> None:
+        with self.session() as session:
+            session.add(Neighbor(
+                rxTime=int(time()),
+                sourceNodeId=source_node_id,
+                neighborNodeId=neighbor_id,
+                snr=snr,
             ))
             session.commit()
