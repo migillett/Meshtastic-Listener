@@ -161,7 +161,6 @@ class ListenerDb:
         ))
         session.commit()
         session.close()
-        logging.info(f'Annoucement inserted into db: {payload}')
 
     def mark_annoucement_read(self, annoucement_ids: list[int]) -> None:
         with self.session() as session:
@@ -178,7 +177,7 @@ class ListenerDb:
                 Annoucement.rxTime > look_back,
                 Annoucement.isDeleted == 0
             ).all()
-            logger.info(f'Found {len(results)} annoucements in the last {days_past} days: {results}')
+            logger.info(f'Found {len(results)} annoucements from the last {days_past} days')
             [self.mark_annoucement_read([result.id]) for result in results]
             return results
             
