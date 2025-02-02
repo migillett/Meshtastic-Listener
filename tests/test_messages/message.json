@@ -1,0 +1,18 @@
+{
+    "from": 1234567890,
+    "to": 1234567890,
+    "decoded": {
+        "portnum": "TEXT_MESSAGE_APP",
+        "payload": "b'Copy'",
+        "bitfield": 0,
+        "text": "Copy"
+    },
+    "id": 1234567890,
+    "rxTime": 1738440974,
+    "rxSnr": -20.0,
+    "hopLimit": 1,
+    "rxRssi": -128,
+    "hopStart": 7,
+    "fromId": null,
+    "toId": "^all"
+}

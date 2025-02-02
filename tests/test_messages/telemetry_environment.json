@@ -1,0 +1,26 @@
+{
+    "from": 1234567890,
+    "to": 1234567890,
+    "decoded": {
+        "portnum": "TELEMETRY_APP",
+        "bitfield": 0,
+        "telemetry": {
+            "time": 1738445816,
+            "environmentMetrics": {
+                "temperature": 16.321527,
+                "relativeHumidity": 60.608673,
+                "barometricPressure": 995.9971,
+                "gasResistance": 1206.1206,
+                "iaq": 146
+            }
+        }
+    },
+    "id": 1234567890,
+    "rxTime": 1738445824,
+    "rxSnr": -21.0,
+    "hopLimit": 1,
+    "rxRssi": -128,
+    "hopStart": 3,
+    "fromId": "!12345678",
+    "toId": "^all"
+}

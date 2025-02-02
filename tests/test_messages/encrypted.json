@@ -1,0 +1,14 @@
+{
+    "from": 1234567890,
+    "to": 1234567890,
+    "channel": 127,
+    "encrypted": "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf",
+    "id": 1234567890,
+    "rxTime": 1738449892,
+    "rxSnr": -20.5,
+    "hopLimit": 1,
+    "rxRssi": -128,
+    "hopStart": 3,
+    "fromId": null,
+    "toId": "^all"
+}

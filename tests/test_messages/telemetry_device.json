@@ -1,0 +1,23 @@
+{
+    "from": 1234567890,
+    "to": 1234567890,
+    "decoded": {
+        "portnum": "TELEMETRY_APP",
+        "telemetry": {
+            "time": 1738448947,
+            "deviceMetrics": {
+                "batteryLevel": 80,
+                "voltage": 3.993,
+                "channelUtilization": 0.0,
+                "airUtilTx": 1.4925277,
+                "uptimeSeconds": 33738
+            }
+        }
+    },
+    "id": 1234567890,
+    "rxTime": 1738448947,
+    "hopLimit": 5,
+    "priority": "BACKGROUND",
+    "fromId": "!12345678",
+    "toId": "^all"
+}

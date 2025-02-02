@@ -1,0 +1,29 @@
+{
+    "from": 1234567890,
+    "to": 1234567890,
+    "decoded": {
+        "portnum": "TELEMETRY_APP",
+        "telemetry": {
+            "time": 1738447746,
+            "localStats": {
+                "uptimeSeconds": 32537,
+                "channelUtilization": 4.923333,
+                "airUtilTx": 2.029972,
+                "numPacketsTx": 1315,
+                "numPacketsRx": 2761,
+                "numPacketsRxBad": 746,
+                "numOnlineNodes": 49,
+                "numTotalNodes": 100,
+                "numRxDupe": 173,
+                "numTxRelay": 1288,
+                "numTxRelayCanceled": 78
+            }
+        }
+    },
+    "id": 1234567890,
+    "rxTime": 1738447746,
+    "hopLimit": 5,
+    "priority": "BACKGROUND",
+    "fromId": "!12345678",
+    "toId": "^all"
+}

@@ -1,0 +1,45 @@
+{
+    "from": 1234567890,
+    "to": 1,
+    "decoded": {
+        "portnum": "NEIGHBORINFO_APP",
+        "bitfield": 0,
+        "neighborinfo": {
+            "nodeId": 1234567890,
+            "lastSentById": 1234567890,
+            "nodeBroadcastIntervalSecs": 21600,
+            "neighbors": [
+                {
+                    "nodeId": 1111111111,
+                    "snr": 6.5
+                },
+                {
+                    "nodeId": 2222222222,
+                    "snr": -13.5
+                },
+                {
+                    "nodeId": 3333333333,
+                    "snr": -19.0
+                },
+                {
+                    "nodeId": 4444444444,
+                    "snr": -19.5
+                },
+                {
+                    "nodeId": 5555555555,
+                    "snr": -20.0
+                }
+            ],
+            "id": 1234567890,
+            "rxTime": 1738458411,
+            "hopLimit": 5,
+            "priority": "BACKGROUND",
+            "hopStart": 5,
+            "raw": {
+                "from": 1234567890,
+                "fromId": "!12345678",
+                "toId": null
+            }
+        }
+    }
+}

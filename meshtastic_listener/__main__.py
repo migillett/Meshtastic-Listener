@@ -50,8 +50,7 @@ class MeshtasticListener:
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
             response_char_limit: int = 200,
-            welcome_message: str | None = None,
-            debug: bool = False,
+            welcome_message: str | None = None
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -131,7 +130,7 @@ class MeshtasticListener:
         if self.cmd_handler is not None:
             response = self.cmd_handler.handle_command(context=payload)
             if response is not None:
-                logging.info(f'Replying to {payload.fromId}: {response}')
+                logging.info(f'Replying to {sender}: {response}')
                 self.__reply__(text=response, destinationId=payload.fromId)
         else:
             logging.error("Command Handler not initialized. Cannot reply to message.")
@@ -143,13 +142,13 @@ class MeshtasticListener:
 
         if 'deviceMetrics' in telemetry:
             metrics = DevicePayload(**telemetry['deviceMetrics'])
-            self.db.insert_device_metrics(packet['from'], metrics)
+            self.db.insert_device_metrics(packet['from'], packet['rxTime'], metrics)
         elif 'localStats' in telemetry:
             metrics = TransmissionPayload(**telemetry['localStats'])
-            self.db.insert_transmission_metrics(packet['from'], metrics)
+            self.db.insert_transmission_metrics(packet['from'], packet['rxTime'], metrics)
         elif 'environmentMetrics' in telemetry:
             metrics = EnvironmentPayload(**telemetry['environmentMetrics'])
-            self.db.insert_environment_metrics(packet['from'], metrics)
+            self.db.insert_environment_metrics(packet['from'], packet['rxTime'], metrics)
         else:
             logging.error(f"Unknown telemetry type: {telemetry}")
             return
@@ -167,6 +166,7 @@ class MeshtasticListener:
         self.db.insert_traceroute(
             fromId=packet['from'],
             toId=packet['to'],
+            rxTime=packet['rxTime'],
             traceroute_dict=traceroute_details,
             snr_avg=snr_avg,
             direct_connection=direct_connection,
@@ -184,6 +184,17 @@ class MeshtasticListener:
             precision_bits=position.get('precisionBits')
         )
 
+    def __handle_neighbor_update__(self, packet: dict) -> None:
+        neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
+        self.__print_packet_received__('neighbor info', packet['from'], neighbor_info)
+        for neighbor in neighbor_info.get('neighbors', []):
+            self.db.insert_neighbor(
+                source_node_id=packet['from'],
+                neighbor_id=neighbor['nodeId'],
+                snr=neighbor['snr'],
+                rx_time=int(time.time())
+            )
+
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.get_node(node_num):
             if self.welcome_message is not None:
@@ -195,13 +206,24 @@ class MeshtasticListener:
 
     def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:
+            if 'encrypted' in packet:
+                logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
+                return
+            
             self.__handle_new_node__(packet['from'])
+            portnum = packet.get('decoded', {}).get('portnum', None)
+            
             try:
-                self.db.insert_message_history(packet)
+                self.db.insert_message_history(
+                    rx_time=int(time.time()),
+                    from_id=packet['from'],
+                    to_id=packet['to'],
+                    portnum=portnum,
+                    packet_raw=packet
+                )
             except KeyError as e:
                 logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
-            portnum = packet.get('decoded', {}).get('portnum', None)
             match portnum:
                 case 'TEXT_MESSAGE_APP':
                     self.__handle_text_message__(packet)
@@ -214,6 +236,8 @@ class MeshtasticListener:
                     self.__handle_traceroute__(packet)
                 case "POSITION_APP":
                     self.__handle_position__(packet)
+                case "NEIGHBORINFO_APP":
+                    self.__handle_neighbor_update__(packet)
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:
