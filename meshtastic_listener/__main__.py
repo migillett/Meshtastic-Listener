@@ -130,7 +130,7 @@ class MeshtasticListener:
         if self.cmd_handler is not None:
             response = self.cmd_handler.handle_command(context=payload)
             if response is not None:
-                logging.info(f'Replying to {payload.fromId}: {response}')
+                logging.info(f'Replying to {sender}: {response}')
                 self.__reply__(text=response, destinationId=payload.fromId)
         else:
             logging.error("Command Handler not initialized. Cannot reply to message.")
