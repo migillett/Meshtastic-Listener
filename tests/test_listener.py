@@ -1,3 +1,6 @@
+from os import path, listdir
+import json
+
 from meshtastic_listener.__main__ import MeshtasticListener
 from meshtastic_listener.cmd_handler import CommandHandler
 from meshtastic_listener.db_utils import ListenerDb
@@ -45,7 +48,7 @@ def test_listener():
         db_object=handler_db
     )
     
-    test_messages = [
+    test_commands = [
         b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world', b'!clear'
     ]
 
@@ -71,28 +74,16 @@ def test_listener():
         "toId": "!12345678"
     }
 
-    for message in test_messages:
+    for message in test_commands:
         print(f'Sending message: {message}')
         message_received['decoded']['payload'] = message
         message_received['decoded']['text'] = message.decode()
         listener.__on_receive__(packet=message_received)
     
-    print('Sending position message')
-    message_received['decoded'] = {
-        "portnum": "POSITION_APP",
-        "bitfield": 1,
-        "position": {
-            "latitudeI": 341,
-            "longitudeI": -844,
-            "altitude": 300,
-            "time": 1738256931,
-            "locationSource": "LOC_EXTERNAL",
-            "groundSpeed": 0,
-            "groundTrack": 0,
-            "precisionBits": 13,
-            "latitude": 34.1,
-            "longitude": -84.4
-        }
-    }
-
-    listener.__on_receive__(packet=message_received)
+    json_dir = path.join(path.dirname(path.abspath(__file__)), 'test_messages')
+    for file in listdir(json_dir):
+        if file.endswith(".json"):
+            with open(path.join(json_dir, file), 'rb') as json_file:
+                print(f'testing file: {file}')
+                message_received = json.load(json_file)
+                listener.__on_receive__(packet=message_received)

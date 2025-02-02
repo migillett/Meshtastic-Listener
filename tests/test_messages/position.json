@@ -1,0 +1,30 @@
+{
+    "from": 1234567890,
+    "to": 1234567890,
+    "decoded": {
+        "portnum": "POSITION_APP",
+        "bitfield": 1,
+        "position": {
+            "latitudeI": 340000000,
+            "longitudeI": -840000000,
+            "altitude": 100,
+            "time": 1738449055,
+            "locationSource": "LOC_EXTERNAL",
+            "timestamp": 1738377682,
+            "groundSpeed": 0,
+            "groundTrack": 0,
+            "satsInView": 0,
+            "precisionBits": 13,
+            "latitude": 34.0000000,
+            "longitude": -84.0000000
+        }
+    },
+    "id": 1234567890,
+    "rxTime": 1738449063,
+    "rxSnr": -18.5,
+    "hopLimit": 5,
+    "rxRssi": -128,
+    "hopStart": 7,
+    "fromId": "!12345678",
+    "toId": "^all"
+}

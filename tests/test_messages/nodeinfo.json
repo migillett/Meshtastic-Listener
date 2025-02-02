@@ -1,0 +1,25 @@
+{
+    "from": 1234567890,
+    "to": 1234567890,
+    "decoded": {
+        "portnum": "NODEINFO_APP",
+        "wantResponse": true,
+        "bitfield": 3,
+        "user": {
+            "id": "!12345678",
+            "longName": "asdf",
+            "shortName": "asdf",
+            "macaddr": "asdf",
+            "hwModel": "TLORA_T3_S3",
+            "publicKey": "asdfasdfasdfasdfasdfasdfasdfsa="
+        }
+    },
+    "id": 123456789,
+    "rxTime": 1738442048,
+    "rxSnr": -18.75,
+    "hopLimit": 2,
+    "rxRssi": -128,
+    "hopStart": 5,
+    "fromId": null,
+    "toId": "!12345678"
+}
