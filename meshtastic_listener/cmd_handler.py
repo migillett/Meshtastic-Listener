@@ -62,7 +62,8 @@ class CommandHandler:
         annoucements = self.db.get_annoucements(days_past=self.bbs_lookback)
         if len(annoucements) > 0:
             for i, annoucement in enumerate(annoucements):
-                response_str += f'{i+1}. {annoucement[1]}: {annoucement[2]}\n'
+                shortname = self.db.get_shortname(annoucement.fromId)
+                response_str += f'{i+1}. {shortname}: {annoucement.message}\n'
             return response_str.strip('\n')
         else:
             return f'No BBS messages posted in the last {self.bbs_lookback} days'

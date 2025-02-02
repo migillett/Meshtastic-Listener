@@ -1,5 +1,6 @@
 from os import path, listdir
 import json
+from time import time
 
 from meshtastic_listener.__main__ import MeshtasticListener
 from meshtastic_listener.cmd_handler import CommandHandler
@@ -62,7 +63,7 @@ def test_listener():
             "text": ""
         },
         "id": 1234567890,
-        "rxTime": 1737489128,
+        "rxTime": 0,
         "rxSnr": 6.75,
         "hopLimit": 7,
         "wantAck": True,
@@ -76,6 +77,7 @@ def test_listener():
 
     for message in test_commands:
         print(f'Sending message: {message}')
+        message_received['rxTime'] = int(time())
         message_received['decoded']['payload'] = message
         message_received['decoded']['text'] = message.decode()
         listener.__on_receive__(packet=message_received)
