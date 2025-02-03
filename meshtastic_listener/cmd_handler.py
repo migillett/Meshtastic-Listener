@@ -89,7 +89,6 @@ class CommandHandler:
             logging.error('Unable to find any nodes with calculated positions')
             return 'No nodes with calculated positions found'
         
-        logger.info(f'Closest nodes: {nodes}')
         response_str = 'Closest nodes:\n'
         for i, node in enumerate(nodes):
             response_str += f'{i+1}. {node.shortName} - {meters_to_miles(node.distance)} miles\n'
