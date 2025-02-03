@@ -31,10 +31,8 @@ def meters_to_miles(meters: float) -> float:
 
 if __name__ == "__main__":
     # Example usage
-    lat1 = 37.7749
-    lon1 = -122.4194
-    lat2 = 34.0522
-    lon2 = -118.2437
+    lat1, lon1 = 37.7749, -122.4194
+    lat2, lon2 = 34.0522, -118.2437
 
     # verified from https://www.omnicalculator.com/other/latitude-longitude-distance
     distance = calculate_distance(lat1, lon1, lat2, lon2)
