@@ -93,7 +93,7 @@ class CommandHandler:
         response_str = 'Closest nodes:\n'
         for i, node in enumerate(nodes):
             response_str += f'{i+1}. {node.shortName} - {meters_to_miles(node.distance)} miles\n'
-        return response_str
+        return response_str.strip('\n')
 
     def cmd_help(self) -> str:
         '''
