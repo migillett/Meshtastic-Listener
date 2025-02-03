@@ -82,7 +82,7 @@ class CommandHandler:
         
     def cmd_closest(self, n_nodes: int = 5) -> str:
         '''
-        !closest - (admins only) Find the closest n nodes
+        !closest - Report the closest nodes to server
         '''
         nodes = self.db.get_closest_nodes(n_nodes=n_nodes)
         if len(nodes) == 0:

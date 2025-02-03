@@ -227,7 +227,8 @@ class ListenerDb:
         
     def get_closest_nodes(self, n_nodes: int = 5) -> list[Node]:
         with self.session() as session:
-            return session.query(Node).filter(Node.distance.isnot(None)).order_by(Node.distance).limit(n_nodes).all()
+            nodes = session.query(Node).filter(Node.distance.isnot(None), Node.distance > 0).order_by(Node.distance).limit(n_nodes).all()
+            return nodes
 
     def get_shortname(self, node_num: int) -> str:
         node = self.get_node(node_num)
