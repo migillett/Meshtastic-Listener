@@ -8,7 +8,7 @@ import signal
 from meshtastic_listener.db_utils import ListenerDb
 from meshtastic_listener.cmd_handler import CommandHandler
 from meshtastic_listener.data_structures import (
-    MessageReceived, NodeBase, User,
+    MessageReceived, NodeBase,
     DevicePayload, TransmissionPayload, EnvironmentPayload
 )
 from meshtastic_listener.position_utils import calculate_distance
