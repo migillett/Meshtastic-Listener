@@ -19,9 +19,17 @@ class TestInterface(MeshInterface):
                     'id': '1234567890',
                     'shortName': 'TEST',
                     'longName': 'TEST'
+                }, 
+                'position': {
+                    'latitude': 33.745037,
+                    'longitude': -84.390113,
+                    'altitude': 0.0
                 }
             }
         }
+
+    def getMyNodeInfo(self):
+        return self.nodes['1234567890']
 
     def close(self) -> None:
         pass

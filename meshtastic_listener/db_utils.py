@@ -47,6 +47,7 @@ class Node(Base):
     lastHeard = Column(Integer, default=None)
     latitude = Column(Float, default=None)
     longitude = Column(Float, default=None)
+    distance = Column(Float, default=None)
     altitude = Column(Float, default=None)
     precisionBits = Column(Integer, default=None)
     hopsAway = Column(Integer, default=None)
@@ -298,6 +299,7 @@ class ListenerDb:
             latitude: float,
             longitude: float,
             altitude: float,
+            distance: float,
             precision_bits: int) -> None:
         with self.session() as session:
             node = self.get_node(node_num)
@@ -309,6 +311,7 @@ class ListenerDb:
             node.longitude = longitude
             node.altitude = altitude
             node.precisionBits = precision_bits
+            node.distance = distance
             session.add(node)
             session.commit()
 
