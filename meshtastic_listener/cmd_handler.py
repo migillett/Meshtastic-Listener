@@ -3,6 +3,7 @@ import inspect
 
 from meshtastic_listener.data_structures import MessageReceived
 from meshtastic_listener.db_utils import ListenerDb
+from meshtastic_listener.position_utils import meters_to_miles
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,21 @@ class CommandHandler:
         else:
             self.db.soft_delete_annoucements()
             return 'BBS Cleared'
+        
+    def cmd_closest(self, n_nodes: int = 5) -> str:
+        '''
+        !closest - (admins only) Find the closest n nodes
+        '''
+        nodes = self.db.get_closest_nodes(n_nodes=n_nodes)
+        if len(nodes) == 0:
+            logging.error('Unable to find any nodes with calculated positions')
+            return 'No nodes with calculated positions found'
+        
+        logger.info(f'Closest nodes: {nodes}')
+        response_str = 'Closest nodes:\n'
+        for i, node in enumerate(nodes):
+            response_str += f'{i+1}. {node.shortName} - {meters_to_miles(node.distance)} miles\n'
+        return response_str
 
     def cmd_help(self) -> str:
         '''
@@ -110,6 +126,9 @@ class CommandHandler:
                 
                 case 'clear':
                     return self.cmd_clear(context)
+                
+                case 'closest':
+                    return self.cmd_closest()
 
                 case _:
                     logger.error(f'Unknown command: {command}')

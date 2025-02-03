@@ -26,7 +26,7 @@ def meters_to_miles(meters: float) -> float:
     """
     Convert meters to miles.
     """
-    return round(meters / 1609.34, 4)
+    return round(meters / 1609.34, 2)
 
 
 if __name__ == "__main__":
