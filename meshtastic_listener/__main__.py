@@ -183,6 +183,7 @@ class MeshtasticListener:
             altitude=position.get('altitude'),
             precision_bits=position.get('precisionBits')
         )
+        logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
 
     def __handle_neighbor_update__(self, packet: dict) -> None:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})

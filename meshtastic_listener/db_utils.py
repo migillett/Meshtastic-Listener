@@ -52,7 +52,7 @@ class Node(Base):
     hopsAway = Column(Integer, default=None)
 
     def __repr__(self):
-        return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, hopsAway={self.hopsAway})>'
+        return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
 
 class DeviceMetrics(Base):
     __tablename__ = 'device_metrics'
@@ -309,6 +309,7 @@ class ListenerDb:
             node.longitude = longitude
             node.altitude = altitude
             node.precisionBits = precision_bits
+            session.add(node)
             session.commit()
 
     def insert_message_history(self, rx_time: int, from_id: int, to_id: int, portnum: str, packet_raw: dict) -> None:
