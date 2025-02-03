@@ -58,7 +58,7 @@ def test_listener():
     )
     
     test_commands = [
-        b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world', b'!clear'
+        b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world', b'!clear', b'!closest'
     ]
 
     message_received = {
