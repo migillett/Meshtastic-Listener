@@ -11,4 +11,6 @@ services:
       - DB_NAME=listener.db
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
+    group_add:
+      - dialout
     restart: unless-stopped
