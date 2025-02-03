@@ -19,14 +19,14 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     # Calculate the distance between the two points
     a = math.sin(delta_lat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return EARTH_RADIUS * c
+    return round(EARTH_RADIUS * c, 4)
 
 
 def meters_to_miles(meters: float) -> float:
     """
     Convert meters to miles.
     """
-    return meters / 1609.34
+    return round(meters / 1609.34, 4)
 
 
 if __name__ == "__main__":
