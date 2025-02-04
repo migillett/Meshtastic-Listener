@@ -110,6 +110,7 @@ class CommandHandler:
     def handle_command(self, context: MessageReceived) -> str | None:
         if context.decoded.text.startswith(self.prefix):
             command = context.decoded.text[1:].lower().split(' ')[0]
+            logging.info(f'Command received {command} from {context.fromId}')
             match command:
                 case 'help':
                     return self.cmd_help()
