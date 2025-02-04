@@ -186,7 +186,7 @@ class MeshtasticListener:
                 position.get('latitude'),
                 position.get('longitude')
             )
-            logging.info(f"Distance to {packet['from']}: {distance:.2f} meters")
+            logging.info(f"Distance to {packet['from']}: {distance:,.2f} meters")
         except Exception as e:
             logging.error(f"{e}: Unable to calculate distance from base node to {packet['from']}. Base node position not configured.")
             distance = None
