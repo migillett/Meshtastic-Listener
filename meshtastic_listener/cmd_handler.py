@@ -82,18 +82,17 @@ class CommandHandler:
         
     def cmd_closest(self, n_nodes: int = 5) -> str:
         '''
-        !closest - (admins only) Find the closest n nodes
+        !closest - Report the closest nodes to server
         '''
         nodes = self.db.get_closest_nodes(n_nodes=n_nodes)
         if len(nodes) == 0:
             logging.error('Unable to find any nodes with calculated positions')
             return 'No nodes with calculated positions found'
         
-        logger.info(f'Closest nodes: {nodes}')
         response_str = 'Closest nodes:\n'
         for i, node in enumerate(nodes):
             response_str += f'{i+1}. {node.shortName} - {meters_to_miles(node.distance)} miles\n'
-        return response_str
+        return response_str.strip('\n')
 
     def cmd_help(self) -> str:
         '''

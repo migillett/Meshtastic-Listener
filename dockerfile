@@ -1,17 +1,37 @@
 FROM python:3.13-bookworm
 
-WORKDIR /home/meshtastic
-
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# where we store the database file and logs
-RUN mkdir ./data
+# Security updates
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY ./pyproject.toml .
-RUN pip3 install poetry && \
-    poetry install --no-root
+# run the container as a non-root user
+ARG UID=1000
+ARG GID=1000
 
-COPY ./meshtastic_listener ./meshtastic_listener
+# Create a non-root user
+RUN groupadd -g $GID meshtastic && \
+    useradd -u $UID -m -g meshtastic meshtastic
 
+USER meshtastic
+ENV PATH="/home/meshtastic/.local/bin:${PATH}"
+WORKDIR /home/meshtastic
+
+# Copy over project files
+COPY --chown=meshtastic:meshtastic ./pyproject.toml .
+COPY --chown=meshtastic:meshtastic ./meshtastic_listener ./meshtastic_listener
+RUN mkdir ./data && chown -R meshtastic:meshtastic /home/meshtastic/data
+
+# install depdendencies
+RUN pip3 install --user poetry && poetry install
+
+# make sure we're not running as root
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD [ "$(id -u)" -ne 0 ] || exit 1
+
+# run the listener
 ENTRYPOINT [ "poetry", "run", "python", "-m", "meshtastic_listener" ]

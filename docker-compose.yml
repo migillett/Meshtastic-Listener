@@ -6,8 +6,11 @@ services:
     container_name: meshtastic_listener
     volumes:
       - ./data:/home/meshtastic/data
+    user: "1000:1000"
     environment:
       - DB_NAME=listener.db
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
+    group_add:
+      - dialout
     restart: unless-stopped
