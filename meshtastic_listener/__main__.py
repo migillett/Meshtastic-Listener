@@ -11,6 +11,7 @@ from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase,
     DevicePayload, TransmissionPayload, EnvironmentPayload
 )
+from meshtastic_listener.position_utils import calculate_distance
 
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
@@ -175,14 +176,31 @@ class MeshtasticListener:
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
         self.__print_packet_received__('position', packet['from'], position)
+
+        try:
+            node_details = self.interface.getMyNodeInfo()
+            node = NodeBase(**node_details)
+            distance = calculate_distance(
+                node.position.latitude,
+                node.position.longitude,
+                position.get('latitude'),
+                position.get('longitude')
+            )
+            logging.info(f"Distance to {packet['from']}: {distance:,.2f} meters")
+        except Exception as e:
+            logging.error(f"{e}: Unable to calculate distance from base node to {packet['from']}. Base node position not configured.")
+            distance = None
+
         self.db.upsert_position(
             node_num=packet['from'],
             last_heard=position.get('time', int(time.time())),
             latitude=position.get('latitude'),
             longitude=position.get('longitude'),
             altitude=position.get('altitude'),
+            distance=distance,
             precision_bits=position.get('precisionBits')
         )
+        logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
 
     def __handle_neighbor_update__(self, packet: dict) -> None:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
@@ -230,7 +248,7 @@ class MeshtasticListener:
                 case "TELEMETRY_APP":
                     self.__handle_telemetry__(packet)
                 case "NODEINFO_APP":
-                    logging.info('NODEINFO_APP packet received. Refreshing local nodes...')
+                    logging.info(f'NODEINFO_APP packet received from {packet['from']}. Refreshing local nodes...')
                     self.__load_local_nodes__(force=True)
                 case "TRACEROUTE_APP":
                     self.__handle_traceroute__(packet)

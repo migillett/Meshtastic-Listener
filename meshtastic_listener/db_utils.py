@@ -47,12 +47,13 @@ class Node(Base):
     lastHeard = Column(Integer, default=None)
     latitude = Column(Float, default=None)
     longitude = Column(Float, default=None)
+    distance = Column(Float, default=None)
     altitude = Column(Float, default=None)
     precisionBits = Column(Integer, default=None)
     hopsAway = Column(Integer, default=None)
 
     def __repr__(self):
-        return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, hopsAway={self.hopsAway})>'
+        return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
 
 class DeviceMetrics(Base):
     __tablename__ = 'device_metrics'
@@ -224,6 +225,11 @@ class ListenerDb:
         with self.session() as session:
             return session.query(Node).filter(Node.num == node_num).first()
         
+    def get_closest_nodes(self, n_nodes: int = 5) -> list[Node]:
+        with self.session() as session:
+            nodes = session.query(Node).filter(Node.distance.isnot(None), Node.distance > 0).order_by(Node.distance).limit(n_nodes).all()
+            return nodes
+
     def get_shortname(self, node_num: int) -> str:
         node = self.get_node(node_num)
         if not node:
@@ -298,6 +304,7 @@ class ListenerDb:
             latitude: float,
             longitude: float,
             altitude: float,
+            distance: float,
             precision_bits: int) -> None:
         with self.session() as session:
             node = self.get_node(node_num)
@@ -309,6 +316,8 @@ class ListenerDb:
             node.longitude = longitude
             node.altitude = altitude
             node.precisionBits = precision_bits
+            node.distance = distance
+            session.add(node)
             session.commit()
 
     def insert_message_history(self, rx_time: int, from_id: int, to_id: int, portnum: str, packet_raw: dict) -> None:
