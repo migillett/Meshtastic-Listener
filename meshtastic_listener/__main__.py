@@ -185,7 +185,7 @@ class MeshtasticListener:
         direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
-        hops = len(snr_values) - 1
+        hops = len(snr_values)
 
         self.db.insert_traceroute(
             fromId=packet['from'],
