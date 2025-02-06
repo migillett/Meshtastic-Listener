@@ -71,10 +71,13 @@ class MeshtasticListener:
 
         self.traceroute_interval = timedelta(hours=traceroute_interval)
         self.traceroute_ts: float = time.time() - self.traceroute_interval.total_seconds()
-        self.traceroute_node = traceroute_node
+
+        # node values can be integers or strings that start with "!"
+        # all env vars are strings, so we need to check for both types
+        self.traceroute_node = self.__check_node_id__(traceroute_node)
 
         # where to send notification messages
-        self.notify_node = notify_node
+        self.notify_node = self.__check_node_id__(notify_node)
 
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
@@ -89,6 +92,12 @@ class MeshtasticListener:
             logging.info(f'Traceroute node set to: {self.traceroute_node} with interval: {self.traceroute_interval}')
 
         self.__load_local_nodes__(force=True)
+
+    def __check_node_id__(self, node_id: str | None) -> str | int | None:
+        if node_id is not None:
+            if not node_id.startswith('!'):
+                return int(node_id)
+        return node_id
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
@@ -188,8 +197,10 @@ class MeshtasticListener:
         )
 
         if self.notify_node:
+            logging.info(f"Sending traceroute notification to {self.notify_node}")
             self.interface.sendText(
                 text=f'Traceroute from {packet["from"]}. Average SNR: {snr_avg} dB. Hops: {hops}',
+                destinationId=self.notify_node,
             )
 
     def __handle_position__(self, packet: dict) -> None:
