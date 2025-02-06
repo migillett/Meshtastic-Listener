@@ -221,7 +221,7 @@ class MeshtasticListener:
             else:
                 try:
                     logging.info(f"Attempting traceroute to node: {self.traceroute_node}")
-                    self.interface.sendTraceRoute(self.traceroute_node, hopLimit=7)
+                    self.interface.sendTraceRoute(self.traceroute_node, hopLimit=5)
                 except MeshInterface.MeshInterfaceError as e:
                     logging.error(f"Failed to send traceroute to {self.traceroute_node}: {e}")
             self.traceroute_ts = now
