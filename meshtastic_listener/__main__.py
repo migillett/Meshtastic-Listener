@@ -185,7 +185,7 @@ class MeshtasticListener:
         direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
-        hops = len(snr_values)
+        hops = len(snr_values) - 1
 
         self.db.insert_traceroute(
             fromId=packet['from'],
@@ -199,7 +199,7 @@ class MeshtasticListener:
         if self.notify_node:
             logging.info(f"Sending traceroute notification to {self.notify_node}")
             self.interface.sendText(
-                text=f'Traceroute from {packet["from"]}. Average SNR: {snr_avg} dB. Hops: {hops}',
+                text=f'Received traceroute. SRC: {self.db.get_shortname(packet["fromId"])} SNR: {snr_avg} dB. HOPS: {hops}',
                 destinationId=self.notify_node,
             )
 
