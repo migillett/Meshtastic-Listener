@@ -54,6 +54,7 @@ class MeshtasticListener:
             welcome_message: str | None = None,
             traceroute_interval: int = 24,
             traceroute_node: str | None = None,
+            notify_node: str | None = None
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -71,6 +72,9 @@ class MeshtasticListener:
         self.traceroute_interval = timedelta(hours=traceroute_interval)
         self.traceroute_ts: float = time.time() - self.traceroute_interval.total_seconds()
         self.traceroute_node = traceroute_node
+
+        # where to send notification messages
+        self.notify_node = notify_node
 
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
@@ -169,9 +173,10 @@ class MeshtasticListener:
         
         self.__print_packet_received__('traceroute', packet['from'], traceroute_details)
 
-        direct_connection = 'route' not in traceroute_details or 'routeBack' not in traceroute_details
+        direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
+        hops = len(snr_values)
 
         self.db.insert_traceroute(
             fromId=packet['from'],
@@ -181,6 +186,11 @@ class MeshtasticListener:
             snr_avg=snr_avg,
             direct_connection=direct_connection,
         )
+
+        if self.notify_node:
+            self.interface.sendText(
+                text=f'Traceroute from {packet["from"]}. Average SNR: {snr_avg} dB. Hops: {hops}',
+            )
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
@@ -351,7 +361,8 @@ if __name__ == "__main__":
         response_char_limit=char_limit,
         welcome_message=environ.get("WELCOME_MESSAGE"),
         traceroute_interval=int(environ.get("TRACEROUTE_INTERVAL", 24)),
-        traceroute_node=environ.get("TRACEROUTE_NODE")
+        traceroute_node=environ.get("TRACEROUTE_NODE"),
+        notify_node=environ.get("ADMIN_NODE_ID")
     )
     
     listener.run()
