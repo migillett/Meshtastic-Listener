@@ -51,7 +51,9 @@ class MeshtasticListener:
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
             response_char_limit: int = 200,
-            welcome_message: str | None = None
+            welcome_message: str | None = None,
+            traceroute_interval: int = 24,
+            traceroute_node: str | None = None,
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -62,8 +64,13 @@ class MeshtasticListener:
         self.cmd_handler = cmd_handler
         self.char_limit = response_char_limit
         self.welcome_message = welcome_message
+
         self.node_refresh_ts: float = time.time()
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
+
+        self.traceroute_interval = timedelta(hours=traceroute_interval)
+        self.traceroute_ts: float = time.time() - self.traceroute_interval.total_seconds()
+        self.traceroute_node = traceroute_node
 
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
@@ -74,8 +81,10 @@ class MeshtasticListener:
         else:
             logging.info('Admin node ID not set. Admin commands will not be available.')
 
-        self.__load_local_nodes__(force=True)
+        if self.traceroute_node is not None:
+            logging.info(f'Traceroute node set to: {self.traceroute_node} with interval: {self.traceroute_interval}')
 
+        self.__load_local_nodes__(force=True)
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
@@ -201,6 +210,22 @@ class MeshtasticListener:
         )
         logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
 
+    def __connect_upstream__(self) -> None:
+        '''
+        runs a traceroute every n hours to a specific infrastructure node that the user defines
+        '''
+        now = time.time()
+        if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
+            if not self.traceroute_node:
+                logging.info("Traceroute node was not defined. Skipping traceroute.")
+            else:
+                try:
+                    logging.info(f"Attempting traceroute to node: {self.traceroute_node}")
+                    self.interface.sendTraceRoute(self.traceroute_node, hopLimit=7)
+                except MeshInterface.MeshInterfaceError as e:
+                    logging.error(f"Failed to send traceroute to {self.traceroute_node}: {e}")
+            self.traceroute_ts = now
+
     def __handle_neighbor_update__(self, packet: dict) -> None:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
         self.__print_packet_received__('neighbor info', packet['from'], neighbor_info)
@@ -277,6 +302,7 @@ class MeshtasticListener:
             try:
                 sys.stdout.flush()
                 self.__load_local_nodes__()
+                self.__connect_upstream__()
                 time.sleep(1)
             except Exception as e:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
@@ -323,7 +349,9 @@ if __name__ == "__main__":
         cmd_handler=cmd_handler,
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
         response_char_limit=char_limit,
-        welcome_message=environ.get("WELCOME_MESSAGE")
+        welcome_message=environ.get("WELCOME_MESSAGE"),
+        traceroute_interval=int(environ.get("TRACEROUTE_INTERVAL", 24)),
+        traceroute_node=environ.get("TRACEROUTE_NODE")
     )
     
     listener.run()

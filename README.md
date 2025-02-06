@@ -36,6 +36,10 @@ poetry install
 
 `ENABLE_DEBUG` - (optional, default `False`) Sets the logger to debug mode if set to `True`.
 
+`TRACEROUTE_NODE` - (optional, default `None`) The node to traceroute to every n hours (see `TRACEROUTE_INTERVAL`). This is useful for keeping track of the network topology.
+
+`TRACEROUTE_INTERVAL` - (optional, default 24) The interval (in hours) that the host node will traceroute the `TRACEROUTE_NODE`. This is useful for keeping track of the network topology.
+
 ## Running Locally
 ```bash
 poetry run python -m meshtastic_listener
