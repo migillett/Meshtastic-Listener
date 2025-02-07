@@ -303,7 +303,7 @@ class MeshtasticListener:
             request_id = decoded.get('requestId', None)
             if request_id is not None:
                 self.db.mark_notification_received(notif_tx_id=request_id)
-                logging.info(f"Notification received by admin node: {packet['from']}")
+                logging.info(f"Notification message with id {request_id} confirmed by admin node: {packet['from']}")
             else:
                 logging.warning(f"Received ROUTER_APP packet from {packet['from']} without a request_id: {decoded}")
 
