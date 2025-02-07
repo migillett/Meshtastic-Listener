@@ -145,7 +145,7 @@ class OutgoingNotifications(Base):
     toId = Column(Integer, nullable=False)
     message = Column(String, nullable=False)
     received = Column(Boolean, default=False)
-    retries = Column(Integer, default=0)
+    attempts = Column(Integer, default=0)
     txId = Column(Integer, default=None) # id of the notification message sent to the node
 
 
@@ -361,19 +361,24 @@ class ListenerDb:
             ))
             session.commit()
 
-    def get_pending_notifications(self, max_retries: int = 5) -> list[OutgoingNotifications]:
+    def get_pending_notifications(self, max_attempts: int = 5) -> list[OutgoingNotifications]:
         with self.session() as session:
-            return session.query(OutgoingNotifications).filter(not OutgoingNotifications.received, OutgoingNotifications.retries < max_retries).all()
+            return session.query(OutgoingNotifications).filter(OutgoingNotifications.received == 0, OutgoingNotifications.attempts < max_attempts).all()
 
-    def increment_notification_retries(self, notification_id: int, notif_tx_id: int) -> None:
+    def increment_notification_attempts(self, notification_id: int, notif_tx_id: int) -> None:
+        """
+        notification_id: the unique, auto-incremented value of the notificaiton in the db
+        notif_tx_id: the unique message ID of the most recent notification message sent to the node
+        """
         with self.session() as session:
             notif = session.query(OutgoingNotifications).filter(OutgoingNotifications.id == notification_id).first()
             if notif:
                 notif.txId = notif_tx_id
-                notif.retries = notif.retries + 1
+                notif.attempts = notif.attempts + 1
+                session.add(notif)
                 session.commit()
             else:
-                logger.error(f'Notification with id {notification_id} not found in db')
+                logger.error(f'Unable to increment notification send attempt. Notification with id {notification_id} not found in db')
 
     def mark_notification_received(self, notif_tx_id: int) -> None:
         '''
@@ -383,6 +388,7 @@ class ListenerDb:
             notification = session.query(OutgoingNotifications).filter(OutgoingNotifications.txId == notif_tx_id).first()
             if notification:
                 notification.received = True
+                session.add(notification)
                 session.commit()
             else:
-                logger.warning(f'Notification with txId {notif_tx_id} not found in db')
+                logger.warning(f'Unable to mark notification delivered. Notification with txId {notif_tx_id} not found in db')

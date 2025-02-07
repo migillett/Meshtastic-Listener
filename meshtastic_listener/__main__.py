@@ -77,7 +77,10 @@ class MeshtasticListener:
         self.traceroute_node = self.__check_node_id__(traceroute_node)
 
         # where to send notification messages
-        self.notify_node = notify_node
+        self.notify_node: int | None = None
+        if notify_node is not None:
+            self.notify_node = int(notify_node)
+        self.notification_ts = time.time()
 
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
@@ -279,29 +282,31 @@ class MeshtasticListener:
             message_metadata = self.interface.sendText(
                 text=notif.message,
                 destinationId=self.notify_node,
-                wantAck=True)
+                wantAck=True
+            )
 
             # log the request_id for the notification so we can track if it was received
             # whenever we receive an ROUTER_APP packet from the notify_node
             # we check for the request_id in the notifications table
-            self.db.increment_notification_retries(
-                notification_id=notif.toId,
-                notif_tx_id=message_metadata.get('decoded', {}).get('request_id', None))
+            self.db.increment_notification_attempts(
+                notification_id=notif.id,
+                notif_tx_id=int(message_metadata.id)
+            )
             
-        logging.info(f'Sent {len(notifications)} notifications to admin node {self.notify_node}')
+        logging.info(f'Sent {len(notifications)} notifications to admin node: {self.notify_node}')
     
-    def __sender_is_notify_node__(self, packet: dict) -> bool:
+    def __sender_is_notify_node__(self, node_id: int) -> bool:
         if self.notify_node is not None:
-            return self.notify_node == int(packet.get('from'))
+            return int(self.notify_node) == int(node_id)
         return False
 
     def __check_notification_received__(self, packet: dict) -> None:
-        if self.__sender_is_notify_node__(packet):
+        if self.__sender_is_notify_node__(packet['from']):
             decoded = packet.get('decoded', {})
             request_id = decoded.get('requestId', None)
             if request_id is not None:
                 self.db.mark_notification_received(notif_tx_id=request_id)
-                logging.info(f"Notification received by {packet['from']}")
+                logging.info(f"Notification received by admin node: {packet['from']}")
             else:
                 logging.warning(f"Received ROUTER_APP packet from {packet['from']} without a request_id: {decoded}")
 
@@ -314,8 +319,11 @@ class MeshtasticListener:
             self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
 
-            if self.__sender_is_notify_node__(packet) and portnum != 'ROUTING_APP':
+            if self.__sender_is_notify_node__(packet['from']) and self.notification_ts < time.time():
+                # don't spam notifications otherwise the return packet acknowledgement won't work
+                logging.info(f'Packet received from notify_node {self.notify_node}. Triggering notifications...')
                 self.__trigger_notifications_to_admin__()
+                self.notification_ts = time.time() + timedelta(minutes=5).total_seconds()
             
             try:
                 self.db.insert_message_history(
@@ -389,10 +397,11 @@ if __name__ == "__main__":
         exit(1)
 
     admin_node = environ.get("ADMIN_NODE_ID")
-    if admin_node:
-        if not admin_node.isdigit():
-            logging.warning("ADMIN_NODE_ID must be an integer")
-            raise EnvironmentError("ADMIN_NODE_ID must be an integer")
+    if admin_node is not None:
+        try:
+            admin_node = int(admin_node)
+        except ValueError:
+            raise EnvironmentError("Invalid value for ADMIN_NODE_ID: must be an integer")
 
     # sanitizing the db_path
     db_path = environ.get("DB_NAME", ':memory:')
