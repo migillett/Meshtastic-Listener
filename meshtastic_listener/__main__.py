@@ -51,7 +51,10 @@ class MeshtasticListener:
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
             response_char_limit: int = 200,
-            welcome_message: str | None = None
+            welcome_message: str | None = None,
+            traceroute_interval: int = 24,
+            traceroute_node: str | None = None,
+            notify_node: str | None = None
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -62,8 +65,19 @@ class MeshtasticListener:
         self.cmd_handler = cmd_handler
         self.char_limit = response_char_limit
         self.welcome_message = welcome_message
+
         self.node_refresh_ts: float = time.time()
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
+
+        self.traceroute_interval = timedelta(hours=traceroute_interval)
+        self.traceroute_ts: float = time.time() - self.traceroute_interval.total_seconds()
+
+        # node values can be integers or strings that start with "!"
+        # all env vars are strings, so we need to check for both types
+        self.traceroute_node = self.__check_node_id__(traceroute_node)
+
+        # where to send notification messages
+        self.notify_node = self.__check_node_id__(notify_node)
 
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
@@ -74,8 +88,16 @@ class MeshtasticListener:
         else:
             logging.info('Admin node ID not set. Admin commands will not be available.')
 
+        if self.traceroute_node is not None:
+            logging.info(f'Traceroute node set to: {self.traceroute_node} with interval: {self.traceroute_interval}')
+
         self.__load_local_nodes__(force=True)
 
+    def __check_node_id__(self, node_id: str | None) -> str | int | None:
+        if node_id is not None:
+            if not node_id.startswith('!'):
+                return int(node_id)
+        return node_id
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
@@ -160,9 +182,10 @@ class MeshtasticListener:
         
         self.__print_packet_received__('traceroute', packet['from'], traceroute_details)
 
-        direct_connection = 'route' not in traceroute_details or 'routeBack' not in traceroute_details
+        direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
+        hops = len(snr_values)
 
         self.db.insert_traceroute(
             fromId=packet['from'],
@@ -172,6 +195,13 @@ class MeshtasticListener:
             snr_avg=snr_avg,
             direct_connection=direct_connection,
         )
+
+        if self.notify_node:
+            logging.info(f"Sending traceroute notification to {self.notify_node}")
+            self.interface.sendText(
+                text=f'Received traceroute:\nSRC: {self.db.get_shortname(packet["from"])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {hops}',
+                destinationId=self.notify_node,
+            )
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
@@ -186,7 +216,6 @@ class MeshtasticListener:
                 position.get('latitude'),
                 position.get('longitude')
             )
-            logging.info(f"Distance to {packet['from']}: {distance:,.2f} meters")
         except Exception as e:
             logging.error(f"{e}: Unable to calculate distance from base node to {packet['from']}. Base node position not configured.")
             distance = None
@@ -201,6 +230,22 @@ class MeshtasticListener:
             precision_bits=position.get('precisionBits')
         )
         logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
+
+    def __connect_upstream__(self) -> None:
+        '''
+        runs a traceroute every n hours to a specific infrastructure node that the user defines
+        '''
+        now = time.time()
+        if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
+            if not self.traceroute_node:
+                logging.info("Traceroute node was not defined. Skipping traceroute.")
+            else:
+                try:
+                    logging.info(f"Attempting traceroute to node: {self.traceroute_node}")
+                    self.interface.sendTraceRoute(self.traceroute_node, hopLimit=5)
+                except MeshInterface.MeshInterfaceError as e:
+                    logging.error(f"Failed to send traceroute to {self.traceroute_node}: {e}")
+            self.traceroute_ts = now
 
     def __handle_neighbor_update__(self, packet: dict) -> None:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
@@ -256,6 +301,8 @@ class MeshtasticListener:
                     self.__handle_position__(packet)
                 case "NEIGHBORINFO_APP":
                     self.__handle_neighbor_update__(packet)
+                case "STORE_FORWARD_APP":
+                    pass
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:
@@ -278,6 +325,7 @@ class MeshtasticListener:
             try:
                 sys.stdout.flush()
                 self.__load_local_nodes__()
+                self.__connect_upstream__()
                 time.sleep(1)
             except Exception as e:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
@@ -324,7 +372,10 @@ if __name__ == "__main__":
         cmd_handler=cmd_handler,
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
         response_char_limit=char_limit,
-        welcome_message=environ.get("WELCOME_MESSAGE")
+        welcome_message=environ.get("WELCOME_MESSAGE"),
+        traceroute_interval=int(environ.get("TRACEROUTE_INTERVAL", 24)),
+        traceroute_node=environ.get("TRACEROUTE_NODE"),
+        notify_node=environ.get("ADMIN_NODE_ID")
     )
     
     listener.run()
