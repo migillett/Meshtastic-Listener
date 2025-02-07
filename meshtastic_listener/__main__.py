@@ -200,7 +200,7 @@ class MeshtasticListener:
             self.db.insert_notification(
                 to_id=self.notify_node,
                 message=f"Received traceroute from {packet['from']}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
-            logging.info(f'Queued traceroute notification for node: {self.notify_node}')
+            logging.info(f'Queued traceroute notification delivery for node: {self.notify_node}')
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
@@ -285,7 +285,7 @@ class MeshtasticListener:
             # whenever we receive an ROUTER_APP packet from the notify_node
             # we check for the request_id in the notifications table
             self.db.increment_notification_retries(
-                notification_id=notif.id,
+                notification_id=notif.toId,
                 notif_tx_id=message_metadata.get('decoded', {}).get('request_id', None))
             logging.info(f"Notification sent to admin node {self.notify_node}: {notif.message}")
     
