@@ -27,7 +27,7 @@ COPY --chown=meshtastic:meshtastic ./meshtastic_listener ./meshtastic_listener
 RUN mkdir ./data && chown -R meshtastic:meshtastic /home/meshtastic/data
 
 # install depdendencies
-RUN pip3 install --user poetry && poetry install
+RUN pip3 install --user poetry && poetry install --only main
 
 # make sure we're not running as root
 HEALTHCHECK --interval=30s --timeout=3s \
