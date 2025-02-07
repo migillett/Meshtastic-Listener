@@ -292,7 +292,7 @@ class MeshtasticListener:
     
     def __sender_is_notify_node__(self, packet: dict) -> bool:
         if self.notify_node is not None:
-            return self.notify_node in [packet.get('from'), packet.get('fromId')]
+            return self.notify_node == int(packet.get('from'))
         return False
 
     def __check_notification_received__(self, packet: dict) -> None:
