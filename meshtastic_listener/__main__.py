@@ -273,8 +273,10 @@ class MeshtasticListener:
         '''
         notifications = self.db.get_pending_notifications()
         if len(notifications) == 0:
+            logging.debug("No notifications to send to admin node.")
             return
         
+        logging.info(f"Sending {len(notifications)} notifications to admin node: {self.notify_node}")
         for notif in notifications:
             message_metadata = self.interface.sendText(
                 text=notif.message,
@@ -289,8 +291,6 @@ class MeshtasticListener:
                 notification_id=notif.id,
                 notif_tx_id=int(message_metadata.id)
             )
-            
-        logging.info(f'Sent {len(notifications)} notifications to admin node: {self.notify_node}')
     
     def __sender_is_notify_node__(self, node_id: int) -> bool:
         if self.notify_node is not None:
@@ -318,7 +318,7 @@ class MeshtasticListener:
 
             if self.__sender_is_notify_node__(packet['from']) and self.notification_ts < time.time():
                 # don't spam notifications otherwise the return packet acknowledgement won't work
-                logging.info(f'Packet received from notify_node {self.notify_node}. Triggering notifications...')
+                logging.debug(f'Packet received from notify_node {self.notify_node}. Triggering notifications...')
                 self.__trigger_notifications_to_admin__()
                 self.notification_ts = time.time() + timedelta(minutes=5).total_seconds()
             
