@@ -287,7 +287,8 @@ class MeshtasticListener:
             self.db.increment_notification_retries(
                 notification_id=notif.toId,
                 notif_tx_id=message_metadata.get('decoded', {}).get('request_id', None))
-            logging.info(f"Notification sent to admin node {self.notify_node}: {notif.message}")
+            
+        logging.info(f'Sent {len(notifications)} notifications to admin node {self.notify_node}')
     
     def __sender_is_notify_node__(self, packet: dict) -> bool:
         if self.notify_node is not None:
