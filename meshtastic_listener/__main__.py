@@ -109,7 +109,7 @@ class MeshtasticListener:
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
 
-    def __reconnect__(self) -> None:
+    def __reconnect__(self, payload: dict | None = None, interface: MeshInterface | None = None) -> None:
         logging.error("Connection lost with node. Attempting to reconnect...")
         self.interface.close()
         self.interface.connect()
@@ -138,11 +138,8 @@ class MeshtasticListener:
         else:
             log_insert = f"{shortname} ({node_num})"
 
-        msg = f"Received {msg_type} payload from {log_insert}: {packet}"
-        if int(node_num) == int(self.interface.localNode.nodeNum):
-            logging.debug(msg)
-        else:
-            logging.info(msg)
+        logging.debug(f"Received {msg_type} payload from {log_insert}: {packet}")
+
     
     def __handle_text_message__(self, packet: dict) -> None:
         # remap keys to match the MessageReceived model
