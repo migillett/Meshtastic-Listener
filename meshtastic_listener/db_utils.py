@@ -138,6 +138,17 @@ class Neighbor(Base):
     snr = Column(Float, nullable=False)
 
 
+class OutgoingNotifications(Base):
+    __tablename__ = 'outgoing_notifications'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(Integer, nullable=False)
+    toId = Column(Integer, nullable=False)
+    message = Column(String, nullable=False)
+    received = Column(Boolean, default=False)
+    retries = Column(Integer, default=0)
+    txId = Column(Integer, default=None) # id of the notification message sent to the node
+
+
 class ListenerDb:
     def __init__(self, db_path: str = ':memory:') -> None:
         self.db_path = db_path
@@ -340,3 +351,38 @@ class ListenerDb:
                 rxTime=rx_time,
             ))
             session.commit()
+
+    def insert_notification(self, to_id: int, message: str) -> None:
+        with self.session() as session:
+            session.add(OutgoingNotifications(
+                toId=to_id,
+                message=message,
+                timestamp=int(time()),
+            ))
+            session.commit()
+
+    def get_pending_notifications(self, max_retries: int = 5) -> list[OutgoingNotifications]:
+        with self.session() as session:
+            return session.query(OutgoingNotifications).filter(not OutgoingNotifications.received, OutgoingNotifications.retries < max_retries).all()
+
+    def increment_notification_retries(self, notification_id: int, notif_tx_id: int) -> None:
+        with self.session() as session:
+            notif = session.query(OutgoingNotifications).filter(OutgoingNotifications.id == notification_id).first()
+            if notif:
+                notif.txId = notif_tx_id
+                notif.retries = notif.retries + 1
+                session.commit()
+            else:
+                logger.error(f'Notification with id {notification_id} not found in db')
+
+    def mark_notification_received(self, notif_tx_id: int) -> None:
+        '''
+        Takes the request_id from the packet and marks it as received by the end-user
+        '''
+        with self.session() as session:
+            notification = session.query(OutgoingNotifications).filter(OutgoingNotifications.txId == notif_tx_id).first()
+            if notification:
+                notification.received = True
+                session.commit()
+            else:
+                logger.warning(f'Notification with txId {notif_tx_id} not found in db')
