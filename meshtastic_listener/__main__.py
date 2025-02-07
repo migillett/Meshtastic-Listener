@@ -109,7 +109,7 @@ class MeshtasticListener:
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
 
-    def __reconnect__(self, payload: dict | None = None, interface: MeshInterface | None = None) -> None:
+    def __reconnect__(self, *args) -> None:
         logging.error("Connection lost with node. Attempting to reconnect...")
         self.interface.close()
         self.interface.connect()
