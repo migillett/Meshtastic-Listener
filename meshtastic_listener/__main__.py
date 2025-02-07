@@ -199,7 +199,7 @@ class MeshtasticListener:
         if self.notify_node:
             logging.info(f"Sending traceroute notification to {self.notify_node}")
             self.interface.sendText(
-                text=f'Received traceroute:\nSRC: {self.db.get_shortname(packet["fromId"])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {hops}',
+                text=f'Received traceroute:\nSRC: {self.db.get_shortname(packet["from"])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {hops}',
                 destinationId=self.notify_node,
             )
 
