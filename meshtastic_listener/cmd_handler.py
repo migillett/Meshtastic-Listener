@@ -40,7 +40,6 @@ class CommandHandler:
         '''
         !reply - Reply with the current hop count and signal strength
         '''
-        logger.info('Reply command received')
         return f'hops: {context.hopStart} / {context.hopLimit}\nrxSnr: {context.rxSnr}\nrxRssi: {context.rxRssi}'
 
     def cmd_post(self, context: MessageReceived) -> str:
@@ -110,7 +109,7 @@ class CommandHandler:
     def handle_command(self, context: MessageReceived) -> str | None:
         if context.decoded.text.startswith(self.prefix):
             command = context.decoded.text[1:].lower().split(' ')[0]
-            logging.info(f'Command received {command} from {context.fromId}')
+            logging.info(f'Command received: {command} From: {context.fromId}')
             match command:
                 case 'help':
                     return self.cmd_help()
