@@ -17,6 +17,7 @@ from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
 from meshtastic.mesh_interface import MeshInterface
+from tenacity import retry, stop_after_attempt, wait_fixed
 import toml
 
 
@@ -109,7 +110,8 @@ class MeshtasticListener:
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
 
-    def __reconnect__(self, *args) -> None:
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    def __reconnect__(self, **kwargs) -> None:
         logging.error("Connection lost with node. Attempting to reconnect...")
         self.interface.close()
         self.interface.connect()
