@@ -307,7 +307,7 @@ class MeshtasticListener:
         return False
 
     def __check_notification_received__(self, packet: dict) -> None:
-        if self.__sender_is_notify_node__(packet['from']):
+        if self.__sender_is_notify_node__(packet['from']) and self.db.check_pending_notifications():
             decoded = packet.get('decoded', {})
             try:
                 request_id = decoded['requestId'] # throws KeyError if not found
@@ -315,8 +315,6 @@ class MeshtasticListener:
                 logging.info(f"Notification message with id {request_id} confirmed by admin node: {packet['from']}")
             except KeyError:
                 logging.warning(f"Received ROUTER_APP packet from {packet['from']} without a request_id: {decoded}")
-            except ItemNotFound as e:
-                logging.warning(e)
 
     def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:

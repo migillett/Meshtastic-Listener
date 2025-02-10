@@ -382,6 +382,19 @@ class ListenerDb:
                 session.commit()
             else:
                 raise ItemNotFound(f'Notification with id {notification_id} not found in db')
+            
+    def check_pending_notifications(self) -> bool:
+        '''
+        checks for any notifications that have been sent but not confirmed received by the end-user
+
+        Returns True if there are pending notifications, False otherwise
+        '''
+        with self.session() as session:
+            # check if received == 0 AND notif_xt_id is not None
+            return session.query(OutgoingNotifications).filter(
+                OutgoingNotifications.received == 0,
+                OutgoingNotifications.txId.isnot(None)
+            ).count() > 0
 
     def mark_notification_received(self, notif_tx_id: int) -> None:
         '''
@@ -393,5 +406,3 @@ class ListenerDb:
                 notification.received = True
                 session.add(notification)
                 session.commit()
-            else:
-                raise ItemNotFound(f'Notification with txId {notif_tx_id} not found in db')
