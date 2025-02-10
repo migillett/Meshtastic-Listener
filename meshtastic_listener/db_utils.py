@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
+class ItemNotFound(Exception):
+    pass
+
 
 class Annoucement(Base):
     __tablename__ = 'annoucements'
@@ -372,13 +375,13 @@ class ListenerDb:
         """
         with self.session() as session:
             notif = session.query(OutgoingNotifications).filter(OutgoingNotifications.id == notification_id).first()
-            if notif:
+            if notif is not None:
                 notif.txId = notif_tx_id
                 notif.attempts = notif.attempts + 1
                 session.add(notif)
                 session.commit()
             else:
-                logger.error(f'Unable to increment notification send attempt. Notification with id {notification_id} not found in db')
+                raise ItemNotFound(f'Notification with id {notification_id} not found in db')
 
     def mark_notification_received(self, notif_tx_id: int) -> None:
         '''
@@ -391,4 +394,4 @@ class ListenerDb:
                 session.add(notification)
                 session.commit()
             else:
-                logger.warning(f'Unable to mark notification delivered. Notification with txId {notif_tx_id} not found in db')
+                raise ItemNotFound(f'Notification with txId {notif_tx_id} not found in db')

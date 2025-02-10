@@ -5,7 +5,7 @@ from datetime import timedelta
 import logging
 import signal
 
-from meshtastic_listener.db_utils import ListenerDb
+from meshtastic_listener.db_utils import ListenerDb, ItemNotFound
 from meshtastic_listener.cmd_handler import CommandHandler
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase,
@@ -291,10 +291,13 @@ class MeshtasticListener:
             # log the request_id for the notification so we can track if it was received
             # whenever we receive an ROUTER_APP packet from the notify_node
             # we check for the request_id in the notifications table
-            self.db.increment_notification_attempts(
-                notification_id=notif.id,
-                notif_tx_id=int(message_metadata.id)
-            )
+            try:
+                self.db.increment_notification_attempts(
+                    notification_id=notif.id,
+                    notif_tx_id=int(message_metadata.id)
+                )
+            except ItemNotFound as e:
+                logging.warning(e)
     
     def __sender_is_notify_node__(self, node_id: int) -> bool:
         if self.notify_node is not None:
@@ -304,12 +307,14 @@ class MeshtasticListener:
     def __check_notification_received__(self, packet: dict) -> None:
         if self.__sender_is_notify_node__(packet['from']):
             decoded = packet.get('decoded', {})
-            request_id = decoded.get('requestId', None)
-            if request_id is not None:
+            try:
+                request_id = decoded.get['requestId'] # throws KeyError if not found
                 self.db.mark_notification_received(notif_tx_id=request_id)
                 logging.info(f"Notification message with id {request_id} confirmed by admin node: {packet['from']}")
-            else:
+            except KeyError:
                 logging.warning(f"Received ROUTER_APP packet from {packet['from']} without a request_id: {decoded}")
+            except ItemNotFound as e:
+                logging.warning(e)
 
     def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:
@@ -371,7 +376,10 @@ class MeshtasticListener:
         signal.signal(signal.SIGTERM, handle_shutdown_signal)
 
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
-        pub.subscribe(self.__reconnect__, "meshtastic.connection.lost")
+        # TODO: disabling temporarly for now due to error:
+        # pubsub.core.topicargspec.SenderUnknownMsgDataError:
+            # Some optional args unknown in call to sendMessage('('meshtastic', 'connection', 'lost')', interface): interface
+        # pub.subscribe(self.__reconnect__, "meshtastic.connection.lost")
         logging.info("Subscribed to meshtastic.receive")
         
         while True:
