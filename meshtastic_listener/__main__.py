@@ -140,7 +140,7 @@ class MeshtasticListener:
         else:
             log_insert = f"{shortname} ({node_num})"
 
-        logging.debug(f"Received {msg_type} payload from {log_insert}: {packet}")
+        logging.info(f"Received {msg_type} payload from {log_insert}: {packet}")
 
     
     def __handle_text_message__(self, packet: dict) -> None:
@@ -199,12 +199,12 @@ class MeshtasticListener:
         )
 
         if self.notify_node is not None:
+            # add a slight delay to give time for the db to update
+            self.notification_ts = time.time() + timedelta(seconds=30).total_seconds()
             self.db.insert_notification(
                 to_id=self.notify_node,
                 message=f"Received traceroute from {packet['from']}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
             logging.info(f'Queued traceroute notification delivery for node: {self.notify_node}')
-            # add a slight delay to give time for the db to update
-            self.notification_ts = time.time() + timedelta(seconds=5).total_seconds()
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
