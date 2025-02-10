@@ -308,7 +308,7 @@ class MeshtasticListener:
         if self.__sender_is_notify_node__(packet['from']):
             decoded = packet.get('decoded', {})
             try:
-                request_id = decoded.get['requestId'] # throws KeyError if not found
+                request_id = decoded['requestId'] # throws KeyError if not found
                 self.db.mark_notification_received(notif_tx_id=request_id)
                 logging.info(f"Notification message with id {request_id} confirmed by admin node: {packet['from']}")
             except KeyError:
