@@ -131,6 +131,8 @@ class MeshtasticListener:
                 channelIndex=0)
             
     def __print_packet_received__(self, msg_type: str, node_num: int, packet: dict) -> None:
+        if int(node_num) == int(self.interface.localNode.nodeNum):
+            return
         if 'raw' in packet:
             packet.pop('raw')
 
