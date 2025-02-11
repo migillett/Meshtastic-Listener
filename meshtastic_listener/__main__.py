@@ -146,18 +146,13 @@ class MeshtasticListener:
 
     
     def __handle_text_message__(self, packet: dict) -> None:
-        # remap keys to match the MessageReceived model
-        packet['fromId'] = packet['from']
-        packet['toId'] = packet['to']
-        sender = self.db.get_shortname(packet['fromId'])
-        payload = MessageReceived(fromName=sender, **packet)
-
-        self.__print_packet_received__('text message', packet['from'], payload.decoded.model_dump())
+        self.__print_packet_received__('text message', packet['from'], packet.get('decoded', {}))
 
         if self.cmd_handler is not None:
+            payload = MessageReceived(**packet)
             response = self.cmd_handler.handle_command(context=payload)
             if response is not None:
-                logging.info(f'Replying to {sender}: {response}')
+                logging.info(f'Replying to {payload.fromId}: {response}')
                 self.__reply__(text=response, destinationId=payload.fromId)
         else:
             logging.error("Command Handler not initialized. Cannot reply to message.")
