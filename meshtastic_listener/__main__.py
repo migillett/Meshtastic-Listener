@@ -198,9 +198,10 @@ class MeshtasticListener:
         if self.notify_node is not None:
             # add a slight delay to give time for the db to update
             self.notification_ts = time.time() + timedelta(seconds=30).total_seconds()
+            from_shortname = self.db.get_shortname(packet['from'])
             self.db.insert_notification(
                 to_id=self.notify_node,
-                message=f"Received traceroute from {packet['from']}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
+                message=f"Received traceroute from {from_shortname}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
             logging.info(f'Queued traceroute notification delivery for node: {self.notify_node}')
 
     def __handle_position__(self, packet: dict) -> None:
