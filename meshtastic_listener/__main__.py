@@ -6,7 +6,7 @@ import logging
 import signal
 
 from meshtastic_listener.db_utils import ListenerDb, ItemNotFound
-from meshtastic_listener.cmd_handler import CommandHandler
+from meshtastic_listener.cmd_handler import CommandHandler, UnauthorizedError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase,
     DevicePayload, TransmissionPayload, EnvironmentPayload
@@ -116,7 +116,7 @@ class MeshtasticListener:
         self.interface.close()
         self.interface.connect()
 
-    def __reply__(self, text: str, destinationId: int) -> None:
+    def __send_messages__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
         # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
         # round down to 200 to account for the message header and pagination footer
@@ -143,17 +143,28 @@ class MeshtasticListener:
             log_insert = f"{shortname} ({node_num})"
 
         logging.info(f"Received {msg_type} payload from {log_insert}: {packet}")
-
     
     def __handle_text_message__(self, packet: dict) -> None:
         self.__print_packet_received__('text message', packet['from'], packet.get('decoded', {}))
 
         if self.cmd_handler is not None:
             payload = MessageReceived(**packet)
-            response = self.cmd_handler.handle_command(context=payload)
+            try:
+                response = self.cmd_handler.handle_command(context=payload)
+            except UnauthorizedError as e:
+                logging.error(f'User unauthorized to execute command: {e}')
+                if self.notify_node is not None:
+                    self.db.insert_notification(
+                        to_id=self.notify_node,
+                        message=f"Unauthorized command execution attempt from {payload.fromId}: {e}")
+                self.db.increment_failed_attempts(payload.fromId)
+                return 'You are not authorized to run this command.'
+
             if response is not None:
                 logging.info(f'Replying to {payload.fromId}: {response}')
-                self.__reply__(text=response, destinationId=payload.fromId)
+                self.__send_messages__(text=response, destinationId=payload.fromId)
+            else:
+                self.__forward_direct_messages__(packet)
         else:
             logging.error("Command Handler not initialized. Cannot reply to message.")
 
@@ -203,6 +214,16 @@ class MeshtasticListener:
                 to_id=self.notify_node,
                 message=f"Received traceroute from {from_shortname}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
             logging.info(f'Queued traceroute notification delivery for node: {self.notify_node}')
+
+    def __forward_direct_messages__(self, packet: dict) -> None:
+        '''
+        Forwards messages sent directly to the server node (assumed headless) to the notify/admin node
+        '''
+        if self.notify_node is not None:
+            message = packet.get('decoded', {}).get('text', None)
+            if int(packet['to']) == int(self.interface.localNode.nodeNum) and message is not None:
+                logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.notify_node}')
+                self.__send_messages__(text=f'FWD from {packet["to"]}: {message}', destinationId=self.notify_node)
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
@@ -263,7 +284,7 @@ class MeshtasticListener:
         if not self.db.get_node(node_num):
             if self.welcome_message is not None:
                 logging.info(f"Sending welcome message to {node_num}")
-                self.__reply__(
+                self.__send_messages__(
                     text=self.welcome_message,
                     destinationId=node_num)
             self.__load_local_nodes__(force=True)
@@ -316,6 +337,10 @@ class MeshtasticListener:
         try:
             if 'encrypted' in packet:
                 logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
+                return
+            
+            if self.db.check_node_lockout(packet['from']):
+                logging.info(f"Node {packet['from']} is locked out due to too many malicious requests. Ignoring packet.")
                 return
             
             self.__handle_new_node__(packet['from'])

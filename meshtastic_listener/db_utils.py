@@ -152,6 +152,13 @@ class OutgoingNotifications(Base):
     txId = Column(Integer, default=None) # id of the notification message sent to the node
 
 
+class Lockout(Base):
+    __tablename__ = 'node_lockout'
+    nodeNum = Column(Integer, primary_key=True)
+    failedAttempts = Column(Integer, default=0)
+    lastFailedAttempt = Column(Integer, default=0)
+    locked = Column(Boolean, default=False)
+
 class ListenerDb:
     def __init__(self, db_path: str = ':memory:') -> None:
         self.db_path = db_path
@@ -405,4 +412,26 @@ class ListenerDb:
             if notification:
                 notification.received = True
                 session.add(notification)
+                session.commit()
+
+    def check_node_lockout(self, node_num: int) -> bool:
+        with self.session() as session:
+            lockout = session.query(Lockout).filter(Lockout.nodeNum == node_num).first()
+            if lockout:
+                return lockout.locked
+            return False
+        
+    def increment_failed_attempts(self, node_num: int, lockout_n: int = 3) -> None:
+        with self.session() as session:
+            lockout = session.query(Lockout).filter(Lockout.nodeNum == node_num).first()
+            if lockout:
+                lockout.failedAttempts += 1
+                lockout.lastFailedAttempt = int(time())
+                if lockout.failedAttempts >= lockout_n:
+                    logger.info(f'Node {node_num} has reached the failed attempt threshold. Locking out node.')
+                    lockout.locked = True
+                session.add(lockout)
+                session.commit()
+            else:
+                session.add(Lockout(nodeNum=node_num, failedAttempts=1, lastFailedAttempt=int(time())))
                 session.commit()

@@ -7,6 +7,9 @@ from meshtastic_listener.position_utils import meters_to_miles
 
 logger = logging.getLogger(__name__)
 
+class UnauthorizedError(Exception):
+    pass
+
 class CommandHandler:
     # all command functions need to start with cmd_ to be recognized as commands
     # all command functions need to have a docstring to be recognized as a command
@@ -25,16 +28,14 @@ class CommandHandler:
         self.admin_node_id = admin_node_id
         self.char_limit = character_limit
 
-    def __is_admin__(self, node_id: str) -> bool:
+    def __is_admin__(self, node_id: str) -> None:
         if self.admin_node_id is None:
             logger.error('Admin node not set. Cannot check if node is an admin.')
-            return False
+            raise UnauthorizedError('Admin node not set. Cannot check if node is an admin.')
         elif str(node_id) != str(self.admin_node_id):
-            logger.warning(f'{node_id} is not authorized')
-            return False
+            raise UnauthorizedError(f'{node_id} is not authorized as admin')
         else:
             logger.info(f'{node_id} authenticated as admin')
-            return True
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''
@@ -73,11 +74,8 @@ class CommandHandler:
         '''
         !clear - (admins only) Clear the BBS
         '''
-        if self.__is_admin__(context.fromId) is False:
-            return 'You are not authorized to clear the BBS'
-        else:
-            self.db.soft_delete_annoucements()
-            return 'BBS Cleared'
+        self.__is_admin__(context.fromId) # raises UnauthorizedError if not admin
+        self.db.soft_delete_annoucements()
         
     def cmd_closest(self, n_nodes: int = 5) -> str:
         '''
