@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
+class ItemNotFound(Exception):
+    pass
+
 
 class Annoucement(Base):
     __tablename__ = 'annoucements'
@@ -136,6 +139,17 @@ class Neighbor(Base):
     sourceNodeId = Column(Integer, nullable=False)
     neighborNodeId = Column(Integer, nullable=False)
     snr = Column(Float, nullable=False)
+
+
+class OutgoingNotifications(Base):
+    __tablename__ = 'outgoing_notifications'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(Integer, nullable=False)
+    toId = Column(Integer, nullable=False)
+    message = Column(String, nullable=False)
+    received = Column(Boolean, default=False)
+    attempts = Column(Integer, default=0)
+    txId = Column(Integer, default=None) # id of the notification message sent to the node
 
 
 class ListenerDb:
@@ -340,3 +354,55 @@ class ListenerDb:
                 rxTime=rx_time,
             ))
             session.commit()
+
+    def insert_notification(self, to_id: int, message: str) -> None:
+        with self.session() as session:
+            session.add(OutgoingNotifications(
+                toId=to_id,
+                message=message,
+                timestamp=int(time()),
+            ))
+            session.commit()
+
+    def get_pending_notifications(self, max_attempts: int = 5) -> list[OutgoingNotifications]:
+        with self.session() as session:
+            return session.query(OutgoingNotifications).filter(OutgoingNotifications.received == 0, OutgoingNotifications.attempts < max_attempts).all()
+
+    def increment_notification_attempts(self, notification_id: int, notif_tx_id: int) -> None:
+        """
+        notification_id: the unique, auto-incremented value of the notificaiton in the db
+        notif_tx_id: the unique message ID of the most recent notification message sent to the node
+        """
+        with self.session() as session:
+            notif = session.query(OutgoingNotifications).filter(OutgoingNotifications.id == notification_id).first()
+            if notif is not None:
+                notif.txId = notif_tx_id
+                notif.attempts = notif.attempts + 1
+                session.add(notif)
+                session.commit()
+            else:
+                raise ItemNotFound(f'Notification with id {notification_id} not found in db')
+            
+    def check_pending_notifications(self) -> bool:
+        '''
+        checks for any notifications that have been sent but not confirmed received by the end-user
+
+        Returns True if there are pending notifications, False otherwise
+        '''
+        with self.session() as session:
+            # check if received == 0 AND notif_xt_id is not None
+            return session.query(OutgoingNotifications).filter(
+                OutgoingNotifications.received == 0,
+                OutgoingNotifications.txId.isnot(None)
+            ).count() > 0
+
+    def mark_notification_received(self, notif_tx_id: int) -> None:
+        '''
+        Takes the request_id from the packet and marks it as received by the end-user
+        '''
+        with self.session() as session:
+            notification = session.query(OutgoingNotifications).filter(OutgoingNotifications.txId == notif_tx_id).first()
+            if notification:
+                notification.received = True
+                session.add(notification)
+                session.commit()

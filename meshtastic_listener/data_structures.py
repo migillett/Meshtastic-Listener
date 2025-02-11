@@ -10,7 +10,6 @@ class Decoded(BaseModel):
 class MessageReceived(BaseModel):
     fromId: int
     toId: int
-    fromName: Optional[str] = None
     decoded: Decoded
     id: int
     rxSnr: float = 0.0 # Signal to Noise Ratio. The higher the better
@@ -21,6 +20,11 @@ class MessageReceived(BaseModel):
     wantAck: Optional[bool] = None
     publicKey: Optional[str] = None
     pkiEncrypted: Optional[bool] = None
+
+    def __init__(self, **data):
+        data['fromId'] = data.pop('from')
+        data['toId'] = data.pop('to')
+        super().__init__(**data)
 
 class User(BaseModel):
     id: str

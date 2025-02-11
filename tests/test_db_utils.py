@@ -8,8 +8,8 @@ def test_db_functions():
     db = ListenerDb(':memory:')
 
     message = {
-        "fromId": 1128078592,
-        "toId": 129957512,
+        "from": 1128078592,
+        "to": 129957512,
         "decoded": {
             "portnum": "TEXT_MESSAGE_APP",
             "payload": "b'!reply'",
@@ -17,7 +17,7 @@ def test_db_functions():
             "text": "!reply"
         },
         "id": 675300350,
-        "rxTime": 1738378320,
+        "rxTime": int(time()),  # current time
         "rxSnr": 6.0,
         "hopLimit": 5,
         "wantAck": True,
