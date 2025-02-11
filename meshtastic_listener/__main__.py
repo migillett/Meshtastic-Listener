@@ -163,7 +163,7 @@ class MeshtasticListener:
             if response is not None:
                 logging.info(f'Replying to {payload.fromId}: {response}')
                 self.__send_messages__(text=response, destinationId=payload.fromId)
-            else:
+            elif self.notify_node is not None:
                 self.__forward_direct_messages__(packet)
         else:
             logging.error("Command Handler not initialized. Cannot reply to message.")
@@ -219,11 +219,10 @@ class MeshtasticListener:
         '''
         Forwards messages sent directly to the server node (assumed headless) to the notify/admin node
         '''
-        if self.notify_node is not None:
-            message = packet.get('decoded', {}).get('text', None)
-            if int(packet['to']) == int(self.interface.localNode.nodeNum) and message is not None:
-                logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.notify_node}')
-                self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.notify_node)
+        message = packet.get('decoded', {}).get('text', None)
+        if int(packet['to']) == int(self.interface.localNode.nodeNum) and message is not None:
+            logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.notify_node}')
+            self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.notify_node)
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
