@@ -447,8 +447,9 @@ if __name__ == "__main__":
     )
 
     cmd_handler = CommandHandler(
-        prefix=environ.get("CMD_PREFIX", '!'),
         cmd_db=db_object,
+        server_node_id=int(interface.localNode.nodeNum),
+        prefix=environ.get("CMD_PREFIX", '!'),
         bbs_lookback=int(environ.get("BBS_DAYS", 7)),
         admin_node_id=admin_node,
         character_limit=char_limit

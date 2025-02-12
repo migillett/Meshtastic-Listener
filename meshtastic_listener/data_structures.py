@@ -77,3 +77,7 @@ class NodeBase(BaseModel):
     deviceMetrics: Optional[DevicePayload] = None
     isFavorite: Optional[bool] = None
     hopsAway: Optional[int] = None
+
+class NeighborSnr(BaseModel):
+    shortName: str
+    snr: float

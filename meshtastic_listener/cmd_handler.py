@@ -16,6 +16,7 @@ class CommandHandler:
     def __init__(
             self,
             cmd_db: ListenerDb,
+            server_node_id: int,
             prefix: str = '!',
             bbs_lookback: int = 7,
             admin_node_id: str | None = None,
@@ -25,6 +26,7 @@ class CommandHandler:
         self.prefix = prefix
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
+        self.server_node_id = server_node_id
         self.admin_node_id = admin_node_id
         self.char_limit = character_limit
 
@@ -76,19 +78,22 @@ class CommandHandler:
         '''
         self.__is_admin__(context.fromId) # raises UnauthorizedError if not admin
         self.db.soft_delete_annoucements()
-        
-    def cmd_closest(self, n_nodes: int = 5) -> str:
+    
+    def cmd_uplink(self) -> str:
         '''
-        !closest - Report the closest nodes to server
+        !uplink - List the neighbors of the server by average SNR
         '''
-        nodes = self.db.get_closest_nodes(n_nodes=n_nodes)
-        if len(nodes) == 0:
-            logging.error('Unable to find any nodes with calculated positions')
-            return 'No nodes with calculated positions found'
+        neighbors = self.db.get_neighbors(
+            source_node_id=self.server_node_id,
+            lookback_hours=72
+        )
+        if len(neighbors) == 0:
+            logging.error('Unable to find any neighbors')
+            return 'No neighbors found'
         
-        response_str = 'Closest nodes:\n'
-        for i, node in enumerate(nodes):
-            response_str += f'{i+1}. {node.shortName} - {meters_to_miles(node.distance)} miles\n'
+        response_str = 'Uplink Neighbors:\n'
+        for i, neighbor in enumerate(neighbors):
+            response_str += f'{i+1}. {neighbor.shortName}: {neighbor.snr} dB\n'
         return response_str.strip('\n')
 
     def cmd_help(self) -> str:
@@ -124,8 +129,8 @@ class CommandHandler:
                 case 'clear':
                     return self.cmd_clear(context)
                 
-                case 'closest':
-                    return self.cmd_closest()
+                case 'uplink':
+                    return self.cmd_uplink()
 
                 case _:
                     logger.error(f'Unknown command: {command}')

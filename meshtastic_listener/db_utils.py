@@ -3,10 +3,11 @@ from time import time
 import json
 
 from meshtastic_listener.data_structures import (
-    NodeBase, DevicePayload, TransmissionPayload, EnvironmentPayload, MessageReceived
+    NodeBase, DevicePayload, TransmissionPayload,
+    EnvironmentPayload, MessageReceived, NeighborSnr
 )
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine
+from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine, func
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.dialects.sqlite import insert
 
@@ -435,3 +436,25 @@ class ListenerDb:
             else:
                 session.add(Lockout(nodeNum=node_num, failedAttempts=1, lastFailedAttempt=int(time())))
                 session.commit()
+
+    def get_neighbors(self, source_node_id: int, lookback_hours: int) -> list[NeighborSnr]:
+        with self.session() as session:
+            lookback = int(time() - (lookback_hours * 3600))
+
+            response = (
+                session.query(
+                    Neighbor.neighborNodeId,
+                    func.round(func.avg(Neighbor.snr), 2).label('average_snr')
+                )
+                .filter(Neighbor.sourceNodeId == int(source_node_id), Neighbor.rxTime > lookback)
+                .group_by(Neighbor.neighborNodeId)
+                .order_by(func.avg(Neighbor.snr).desc())
+            ).all()
+
+            return [
+                NeighborSnr(
+                    shortName=self.get_shortname(neighbor.neighborNodeId),
+                    snr=neighbor.average_snr
+                )
+                for neighbor in response
+            ]
