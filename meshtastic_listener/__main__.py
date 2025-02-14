@@ -175,13 +175,25 @@ class MeshtasticListener:
 
         if 'deviceMetrics' in telemetry:
             metrics = DevicePayload(**telemetry['deviceMetrics'])
-            self.db.insert_device_metrics(packet['from'], packet['rxTime'], metrics)
+            self.db.insert_device_metrics(
+                packet['from'],
+                packet.get('rxTime', int(time.time())),
+                metrics
+            )
         elif 'localStats' in telemetry:
             metrics = TransmissionPayload(**telemetry['localStats'])
-            self.db.insert_transmission_metrics(packet['from'], packet['rxTime'], metrics)
+            self.db.insert_transmission_metrics(
+                packet['from'],
+                packet.get('rxTime', int(time.time())),
+                metrics
+            )
         elif 'environmentMetrics' in telemetry:
             metrics = EnvironmentPayload(**telemetry['environmentMetrics'])
-            self.db.insert_environment_metrics(packet['from'], packet['rxTime'], metrics)
+            self.db.insert_environment_metrics(
+                packet['from'],
+                packet.get('rxTime', int(time.time())),
+                metrics
+            )
         else:
             logging.error(f"Unknown telemetry type: {telemetry}")
             return
