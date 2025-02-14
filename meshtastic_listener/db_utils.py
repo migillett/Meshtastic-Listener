@@ -143,6 +143,9 @@ class Neighbor(Base):
     neighborNodeId = Column(Integer, nullable=False)
     snr = Column(Float, nullable=False)
 
+    def __repr__(self):
+        return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
+
 
 class OutgoingNotifications(Base):
     __tablename__ = 'outgoing_notifications'
@@ -154,6 +157,9 @@ class OutgoingNotifications(Base):
     attempts = Column(Integer, default=0)
     txId = Column(Integer, default=None) # id of the notification message sent to the node
 
+    def __repr__(self):
+        return f'<OutgoingNotifications(id={self.id}, timestamp={self.timestamp}, toId={self.toId}, message={self.message}, received={self.received}, attempts={self.attempts})>'
+
 
 class Lockout(Base):
     __tablename__ = 'node_lockout'
@@ -162,15 +168,21 @@ class Lockout(Base):
     lastFailedAttempt = Column(Integer, default=0)
     locked = Column(Boolean, default=False)
 
+    def __repr__(self):
+        return f'<Lockout(nodeNum={self.nodeNum}, failedAttempts={self.failedAttempts}, lastFailedAttempt={self.lastFailedAttempt}, locked={self.locked})>'
+
 
 class Waypoints(Base):
     __tablename__ = 'waypoints'
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     description = Column(String, default=None)
     icon = Column(Integer, nullable=False)
     latitudeI = Column(Integer, default=None)
     longitudeI = Column(Integer, default=None)
+
+    def __repr__(self):
+        return f'<Waypoints(id={self.id}, name={self.name}, description={self.description}, icon={self.icon}, latitudeI={self.latitudeI}, longitudeI={self.longitudeI})>'
 
 
 class ListenerDb:
@@ -474,13 +486,24 @@ class ListenerDb:
         
     def insert_waypoint(self, waypoint: WaypointPayload) -> None:
         with self.session() as session:
-            session.add(Waypoints(
+            stmt = insert(Waypoints).values(
+                id=waypoint.id,
                 name=waypoint.name,
                 description=waypoint.description,
                 icon=waypoint.icon,
                 latitudeI=waypoint.latitudeI,
                 longitudeI=waypoint.longitudeI,
-            ))
+            ).on_conflict_do_update(
+                index_elements=['id'],
+                set_={
+                    'name': waypoint.name,
+                    'description': waypoint.description,
+                    'icon': waypoint.icon,
+                    'latitudeI': waypoint.latitudeI,
+                    'longitudeI': waypoint.longitudeI,
+                }
+            )
+            session.execute(stmt)
             session.commit()
 
     def get_waypoint_categories(self) -> list[str]:

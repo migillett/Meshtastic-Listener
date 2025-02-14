@@ -5,13 +5,13 @@ from datetime import timedelta
 import logging
 import signal
 
-from meshtastic_listener.db_utils import ListenerDb, ItemNotFound, Waypoints
+from meshtastic_listener.db_utils import ListenerDb, ItemNotFound
 from meshtastic_listener.cmd_handler import CommandHandler, UnauthorizedError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload
 )
-from meshtastic_listener.position_utils import calculate_distance
+from meshtastic_listener.position_utils import calculate_distance, coords_int_to_float
 
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
@@ -164,21 +164,26 @@ class MeshtasticListener:
                 logging.info(f'Replying to {payload.fromId}: {response}')
                 self.__send_messages__(text=response, destinationId=payload.fromId)
 
-            elif type(response) is list[Waypoints]:
+            elif type(response) is list:
                 logging.info(f'Sending waypoint to {payload.fromId}: {response}')
-                expiration_ts = int(time.time() + timedelta(days=3).total_seconds())
+                expiration_ts = int(time.time() + timedelta(days=7).total_seconds())
                 for waypoint in response:
                     self.interface.sendWaypoint(
                         name=waypoint.name,
                         expire=expiration_ts,
-                        description=waypoint.description,
-                        latitude=float(waypoint.latitudeI / 100),
-                        longitude=float(waypoint.longitudeI / 100),
+                        description=waypoint.description or '',
+                        latitude=coords_int_to_float(waypoint.latitudeI),
+                        longitude=coords_int_to_float(waypoint.longitudeI),
                         destinationId=payload.fromId,
                         wantAck=False,
                         wantResponse=False
                     )
+                    
                 logging.info(f'Sent {len(response)} waypoints to {payload.fromId}')
+                self.__send_messages__(
+                    text=f'Sent {len(response)} {"waypoints" if len(response) > 0 else "waypoint"} to your map',
+                    destinationId=payload.fromId
+                )
 
             elif response is None and self.notify_node is not None:
                 # for those times when it's NOT a command, just forward the message to the admin node
