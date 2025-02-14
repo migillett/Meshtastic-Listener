@@ -5,10 +5,10 @@ from datetime import timedelta
 import logging
 import signal
 
-from meshtastic_listener.db_utils import ListenerDb, ItemNotFound
+from meshtastic_listener.db_utils import ListenerDb, ItemNotFound, Waypoints
 from meshtastic_listener.cmd_handler import CommandHandler, UnauthorizedError
 from meshtastic_listener.data_structures import (
-    MessageReceived, NodeBase,
+    MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload
 )
 from meshtastic_listener.position_utils import calculate_distance
@@ -160,11 +160,30 @@ class MeshtasticListener:
                 self.db.increment_failed_attempts(payload.fromId)
                 return 'You are not authorized to run this command.'
 
-            if response is not None:
+            if type(response) is str:
                 logging.info(f'Replying to {payload.fromId}: {response}')
                 self.__send_messages__(text=response, destinationId=payload.fromId)
-            elif self.notify_node is not None:
+
+            elif type(response) is list[Waypoints]:
+                logging.info(f'Sending waypoint to {payload.fromId}: {response}')
+                expiration_ts = int(time.time() + timedelta(days=3).total_seconds())
+                for waypoint in response:
+                    self.interface.sendWaypoint(
+                        name=waypoint.name,
+                        expire=expiration_ts,
+                        description=waypoint.description,
+                        latitude=float(waypoint.latitudeI / 100),
+                        longitude=float(waypoint.longitudeI / 100),
+                        destinationId=payload.fromId,
+                        wantAck=False,
+                        wantResponse=False
+                    )
+                logging.info(f'Sent {len(response)} waypoints to {payload.fromId}')
+
+            elif response is None and self.notify_node is not None:
+                # for those times when it's NOT a command, just forward the message to the admin node
                 self.__forward_direct_messages__(packet)
+
         else:
             logging.error("Command Handler not initialized. Cannot reply to message.")
 
@@ -300,6 +319,17 @@ class MeshtasticListener:
                     destinationId=node_num)
             self.__load_local_nodes__(force=True)
 
+    def __handle_waypoint__(self, packet: dict) -> None:
+        sender = int(packet.get('from', 0))
+        if sender == self.notify_node:
+            self.__print_packet_received__('waypoint', sender, packet.get('decoded', {}))
+            waypoint_data = packet.get('decoded', {}).get('waypoint', {})
+            waypoint_data.pop('raw')
+            waypoint = WaypointPayload(**waypoint_data)
+            self.db.insert_waypoint(waypoint)
+        else:
+            logging.info(f'Waypoint packet received from {self.db.get_shortname(sender)}. Ignoring.')
+
     def __trigger_notifications_to_admin__(self) -> None:
         '''
         if an incoming packet has the same `from` node as the `notify_node`,
@@ -388,6 +418,8 @@ class MeshtasticListener:
                     self.__handle_position__(packet)
                 case "NEIGHBORINFO_APP":
                     self.__handle_neighbor_update__(packet)
+                case "WAYPOINT_APP":
+                    self.__handle_waypoint__(packet)
                 case "ROUTING_APP":
                     # this is how we confirm that a message was received by the notify_node
                     self.__check_notification_received__(packet)

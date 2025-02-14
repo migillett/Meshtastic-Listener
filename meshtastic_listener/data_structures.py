@@ -61,6 +61,16 @@ class TransmissionPayload(BaseModel):
     numTxRelay: Optional[int] = None
     numTxRelayCanceled: Optional[int] = None
 
+class WaypointPayload(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    icon: int
+    latitudeI: int
+    longitudeI: int
+    expire: int
+    lockedTo: Optional[int] = None
+
 class EnvironmentPayload(BaseModel):
     temperature: Optional[float] = None
     relativeHumidity: Optional[float] = None

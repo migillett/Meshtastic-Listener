@@ -1,0 +1,27 @@
+{
+    "from": 1234567890,
+    "to": 4294967295,
+    "decoded": {
+        "portnum": "WAYPOINT_APP",
+        "payload": "b\"\\x08\\x97\\xe9\\x94'\\x15\\xc1\\xf2t\\x14\\x1d\\xab\\xc5\\x8c\\xcd \\xff\\xff\\xff\\xff\\x072\\x0cPine Log Mtn:\\x06KE4VUBE\\xfb\\xf5\\x01\\x00\"",
+        "bitfield": 1,
+        "waypoint": {
+            "id": 82130071,
+            "latitudeI": 343208641,
+            "longitudeI": -846412373,
+            "expire": 2147483647,
+            "name": "Pine Log Mtn",
+            "icon": 128507,
+            "raw": "id: 82130071\nlatitude_i: 343208641\nlongitude_i: -846412373\nexpire: 2147483647\nname: \"Pine Log Mtn\"\nicon: 128507\n"
+        }
+    },
+    "id": 440262352,
+    "rxTime": 1739459264,
+    "rxSnr": 6.0,
+    "hopLimit": 5,
+    "rxRssi": -9,
+    "hopStart": 5,
+    "raw": "from: 1234567890\nto: 4294967295\ndecoded {\n  portnum: WAYPOINT_APP\n  payload: \"\\010\\227\\351\\224'\\025\\301\\362t\\024\\035\\253\\305\\214\\315 \\377\\377\\377\\377\\0072\\014Pine Log Mtn:\\006KE4VUBE\\373\\365\\001\\000\"\n  bitfield: 1\n}\nid: 440262352\nrx_time: 1739459264\nrx_snr: 6\nhop_limit: 5\nrx_rssi: -9\nhop_start: 5\n",
+    "fromId": "!12345678",
+    "toId": "^all"
+  }

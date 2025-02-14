@@ -2,8 +2,7 @@ import logging
 import inspect
 
 from meshtastic_listener.data_structures import MessageReceived
-from meshtastic_listener.db_utils import ListenerDb
-from meshtastic_listener.position_utils import meters_to_miles
+from meshtastic_listener.db_utils import ListenerDb, Waypoints
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +94,17 @@ class CommandHandler:
         for i, neighbor in enumerate(neighbors):
             response_str += f'{i+1}. {neighbor.shortName}: {neighbor.snr} dB\n'
         return response_str.strip('\n')
+    
+    def cmd_waypoints(self) -> str | list[Waypoints]:
+        '''
+        !waypoints - Get the waypoints of the server
+        ''' 
+        waypoints = self.db.get_waypoints()
+        if len(waypoints) == 0:
+            return 'No waypoints found'
 
+        return waypoints
+    
     def cmd_help(self) -> str:
         '''
         !help - Display this help message
@@ -109,14 +118,11 @@ class CommandHandler:
                     help_str += f'\n  {doc}'
         return help_str
 
-    def handle_command(self, context: MessageReceived) -> str | None:
+    def handle_command(self, context: MessageReceived) -> str | None | list[Waypoints]:
         if context.decoded.text.startswith(self.prefix):
             command = context.decoded.text[1:].lower().split(' ')[0]
             logging.info(f'Command received: {command} From: {context.fromId}')
             match command:
-                case 'help':
-                    return self.cmd_help()
-                
                 case 'reply':
                     return self.cmd_reply(context)
                 
@@ -131,6 +137,14 @@ class CommandHandler:
                 
                 case 'uplink':
                     return self.cmd_uplink()
+                
+                case 'waypoints':
+                    # either returns an message "no waypoints found" or a list of Waypoints data
+                    # we'll need to send that data using the interface in the __main__.py file
+                    return self.cmd_waypoints()
+                
+                case 'help':
+                    return self.cmd_help()
 
                 case _:
                     logger.error(f'Unknown command: {command}')

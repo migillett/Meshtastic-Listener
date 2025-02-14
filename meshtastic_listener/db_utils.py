@@ -4,7 +4,8 @@ import json
 
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
-    EnvironmentPayload, MessageReceived, NeighborSnr
+    EnvironmentPayload, MessageReceived, NeighborSnr,
+    WaypointPayload
 )
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine, func
@@ -58,6 +59,7 @@ class Node(Base):
 
     def __repr__(self):
         return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
+
 
 class DeviceMetrics(Base):
     __tablename__ = 'device_metrics'
@@ -159,6 +161,17 @@ class Lockout(Base):
     failedAttempts = Column(Integer, default=0)
     lastFailedAttempt = Column(Integer, default=0)
     locked = Column(Boolean, default=False)
+
+
+class Waypoints(Base):
+    __tablename__ = 'waypoints'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    description = Column(String, default=None)
+    icon = Column(Integer, nullable=False)
+    latitudeI = Column(Integer, default=None)
+    longitudeI = Column(Integer, default=None)
+
 
 class ListenerDb:
     def __init__(self, db_path: str = ':memory:') -> None:
@@ -458,3 +471,22 @@ class ListenerDb:
                 )
                 for neighbor in response
             ]
+        
+    def insert_waypoint(self, waypoint: WaypointPayload) -> None:
+        with self.session() as session:
+            session.add(Waypoints(
+                name=waypoint.name,
+                description=waypoint.description,
+                icon=waypoint.icon,
+                latitudeI=waypoint.latitudeI,
+                longitudeI=waypoint.longitudeI,
+            ))
+            session.commit()
+
+    def get_waypoint_categories(self) -> list[str]:
+        with self.session() as session:
+            return session.query(Waypoints.category).distinct().all()
+
+    def get_waypoints(self) -> list[Waypoints]:
+        with self.session() as session:
+            return session.query(Waypoints).all()

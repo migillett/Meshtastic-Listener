@@ -55,7 +55,8 @@ def test_listener():
     listener = MeshtasticListener(
         interface=test_interface,
         cmd_handler=cmd_handler,
-        db_object=handler_db
+        db_object=handler_db,
+        notify_node=1234567890
     )
 
     json_dir = path.join(path.dirname(path.abspath(__file__)), 'test_messages')
@@ -67,7 +68,8 @@ def test_listener():
                 listener.__on_receive__(packet=message_received)
     
     test_commands = [
-        b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world', b'!clear', b'!uplink'
+        b'!help', b'!post Hello, World!', b'!read',
+        b'!reply', b'hello world', b'!clear', b'!uplink', b'!waypoints'
     ]
 
     message_received = {
