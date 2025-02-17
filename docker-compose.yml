@@ -9,11 +9,8 @@ services:
     user: "1000:1000"
     environment:
       - DB_NAME=listener.db
-      - DEVICE_INTERFACE=192.168.3.185
-      - ADMIN_NODE_ID=1129957512
-      - TRACEROUTE_NODE=3707405681
-    # devices:
-    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
     group_add:
       - dialout
     restart: unless-stopped
