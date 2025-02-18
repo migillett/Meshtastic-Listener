@@ -47,6 +47,7 @@ def test_listener():
 
     cmd_handler = CommandHandler(
         prefix='!',
+        server_node_id=1234567890,
         cmd_db=handler_db,
         admin_node_id=1234567890,
     )
@@ -54,11 +55,21 @@ def test_listener():
     listener = MeshtasticListener(
         interface=test_interface,
         cmd_handler=cmd_handler,
-        db_object=handler_db
+        db_object=handler_db,
+        notify_node=1234567890
     )
+
+    json_dir = path.join(path.dirname(path.abspath(__file__)), 'test_messages')
+    for file in listdir(json_dir):
+        if file.endswith(".json"):
+            with open(path.join(json_dir, file), 'rb') as json_file:
+                print(f'testing file: {file}')
+                message_received = json.load(json_file)
+                listener.__on_receive__(packet=message_received)
     
     test_commands = [
-        b'!help', b'!post Hello, World!', b'!read', b'!reply', b'hello world', b'!clear', b'!closest'
+        b'!help', b'!post Hello, World!', b'!read',
+        b'!reply', b'hello world', b'!clear', b'!uplink', b'!waypoints'
     ]
 
     message_received = {
@@ -89,11 +100,3 @@ def test_listener():
         message_received['decoded']['payload'] = message
         message_received['decoded']['text'] = message.decode()
         listener.__on_receive__(packet=message_received)
-    
-    json_dir = path.join(path.dirname(path.abspath(__file__)), 'test_messages')
-    for file in listdir(json_dir):
-        if file.endswith(".json"):
-            with open(path.join(json_dir, file), 'rb') as json_file:
-                print(f'testing file: {file}')
-                message_received = json.load(json_file)
-                listener.__on_receive__(packet=message_received)

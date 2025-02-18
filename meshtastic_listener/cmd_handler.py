@@ -2,10 +2,12 @@ import logging
 import inspect
 
 from meshtastic_listener.data_structures import MessageReceived
-from meshtastic_listener.db_utils import ListenerDb
-from meshtastic_listener.position_utils import meters_to_miles
+from meshtastic_listener.db_utils import ListenerDb, Waypoints
 
 logger = logging.getLogger(__name__)
+
+class UnauthorizedError(Exception):
+    pass
 
 class CommandHandler:
     # all command functions need to start with cmd_ to be recognized as commands
@@ -13,6 +15,7 @@ class CommandHandler:
     def __init__(
             self,
             cmd_db: ListenerDb,
+            server_node_id: int,
             prefix: str = '!',
             bbs_lookback: int = 7,
             admin_node_id: str | None = None,
@@ -22,19 +25,18 @@ class CommandHandler:
         self.prefix = prefix
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
+        self.server_node_id = server_node_id
         self.admin_node_id = admin_node_id
         self.char_limit = character_limit
 
-    def __is_admin__(self, node_id: str) -> bool:
+    def __is_admin__(self, node_id: str) -> None:
         if self.admin_node_id is None:
             logger.error('Admin node not set. Cannot check if node is an admin.')
-            return False
+            raise UnauthorizedError('Admin node not set. Cannot check if node is an admin.')
         elif str(node_id) != str(self.admin_node_id):
-            logger.warning(f'{node_id} is not authorized')
-            return False
+            raise UnauthorizedError(f'{node_id} is not authorized as admin')
         else:
             logger.info(f'{node_id} authenticated as admin')
-            return True
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''
@@ -73,26 +75,36 @@ class CommandHandler:
         '''
         !clear - (admins only) Clear the BBS
         '''
-        if self.__is_admin__(context.fromId) is False:
-            return 'You are not authorized to clear the BBS'
-        else:
-            self.db.soft_delete_annoucements()
-            return 'BBS Cleared'
-        
-    def cmd_closest(self, n_nodes: int = 5) -> str:
+        self.__is_admin__(context.fromId) # raises UnauthorizedError if not admin
+        self.db.soft_delete_annoucements()
+    
+    def cmd_uplink(self) -> str:
         '''
-        !closest - Report the closest nodes to server
+        !uplink - List the neighbors of the server by average SNR
         '''
-        nodes = self.db.get_closest_nodes(n_nodes=n_nodes)
-        if len(nodes) == 0:
-            logging.error('Unable to find any nodes with calculated positions')
-            return 'No nodes with calculated positions found'
+        neighbors = self.db.get_neighbors(
+            source_node_id=self.server_node_id,
+            lookback_hours=72
+        )
+        if len(neighbors) == 0:
+            logging.error('Unable to find any neighbors')
+            return 'No neighbors found'
         
-        response_str = 'Closest nodes:\n'
-        for i, node in enumerate(nodes):
-            response_str += f'{i+1}. {node.shortName} - {meters_to_miles(node.distance)} miles\n'
+        response_str = 'Uplink Neighbors:\n'
+        for i, neighbor in enumerate(neighbors):
+            response_str += f'{i+1}. {neighbor.shortName}: {neighbor.snr} dB\n'
         return response_str.strip('\n')
+    
+    def cmd_waypoints(self) -> str | list[Waypoints]:
+        '''
+        !waypoints - Get the waypoints of the server
+        ''' 
+        waypoints = self.db.get_waypoints()
+        if len(waypoints) == 0:
+            return 'No waypoints found'
 
+        return waypoints
+    
     def cmd_help(self) -> str:
         '''
         !help - Display this help message
@@ -106,14 +118,11 @@ class CommandHandler:
                     help_str += f'\n  {doc}'
         return help_str
 
-    def handle_command(self, context: MessageReceived) -> str | None:
+    def handle_command(self, context: MessageReceived) -> str | None | list[Waypoints]:
         if context.decoded.text.startswith(self.prefix):
             command = context.decoded.text[1:].lower().split(' ')[0]
             logging.info(f'Command received: {command} From: {context.fromId}')
             match command:
-                case 'help':
-                    return self.cmd_help()
-                
                 case 'reply':
                     return self.cmd_reply(context)
                 
@@ -126,8 +135,16 @@ class CommandHandler:
                 case 'clear':
                     return self.cmd_clear(context)
                 
-                case 'closest':
-                    return self.cmd_closest()
+                case 'uplink':
+                    return self.cmd_uplink()
+                
+                case 'waypoints':
+                    # either returns an message "no waypoints found" or a list of Waypoints data
+                    # we'll need to send that data using the interface in the __main__.py file
+                    return self.cmd_waypoints()
+                
+                case 'help':
+                    return self.cmd_help()
 
                 case _:
                     logger.error(f'Unknown command: {command}')

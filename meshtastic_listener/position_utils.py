@@ -29,6 +29,14 @@ def meters_to_miles(meters: float) -> float:
     return round(meters / 1609.34, 2)
 
 
+def coords_int_to_float(coordinate: int) -> float:
+    """
+    Convert an integer GPS coordinate to a float.
+    """
+    num_places = len(str(coordinate).replace('-', '')) - 2
+    return round(coordinate / 10**(num_places), 7)
+
+
 if __name__ == "__main__":
     # Example usage
     lat1, lon1 = 37.7749, -122.4194

@@ -6,12 +6,12 @@ import logging
 import signal
 
 from meshtastic_listener.db_utils import ListenerDb, ItemNotFound
-from meshtastic_listener.cmd_handler import CommandHandler
+from meshtastic_listener.cmd_handler import CommandHandler, UnauthorizedError
 from meshtastic_listener.data_structures import (
-    MessageReceived, NodeBase,
+    MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload
 )
-from meshtastic_listener.position_utils import calculate_distance
+from meshtastic_listener.position_utils import calculate_distance, coords_int_to_float
 
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
@@ -83,6 +83,8 @@ class MeshtasticListener:
             self.notify_node = int(notify_node)
         self.notification_ts = time.time()
 
+        self.rx_rssi_stats = []
+
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'ListenerDb initialized with db_path: {self.db.db_path}')
@@ -116,7 +118,7 @@ class MeshtasticListener:
         self.interface.close()
         self.interface.connect()
 
-    def __reply__(self, text: str, destinationId: int) -> None:
+    def __send_messages__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
         # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
         # round down to 200 to account for the message header and pagination footer
@@ -130,7 +132,7 @@ class MeshtasticListener:
                 destinationId=destinationId,
                 channelIndex=0)
             
-    def __print_packet_received__(self, msg_type: str, node_num: int, packet: dict) -> None:
+    def __print_packet_received__(self, msg_type: str, node_num: int, packet: dict, rx_rssi: float) -> None:
         if int(node_num) == int(self.interface.localNode.nodeNum):
             return
         if 'raw' in packet:
@@ -142,35 +144,82 @@ class MeshtasticListener:
         else:
             log_insert = f"{shortname} ({node_num})"
 
-        logging.info(f"Received {msg_type} payload from {log_insert}: {packet}")
-
+        logging.info(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi): {packet}")
     
     def __handle_text_message__(self, packet: dict) -> None:
-        self.__print_packet_received__('text message', packet['from'], packet.get('decoded', {}))
+        self.__print_packet_received__('text message', packet['from'], packet.get('decoded', {}), packet.get('rxRssi', 0))
 
         if self.cmd_handler is not None:
             payload = MessageReceived(**packet)
-            response = self.cmd_handler.handle_command(context=payload)
-            if response is not None:
+            try:
+                response = self.cmd_handler.handle_command(context=payload)
+            except UnauthorizedError as e:
+                logging.error(f'User unauthorized to execute command: {e}')
+                if self.notify_node is not None:
+                    self.db.insert_notification(
+                        to_id=self.notify_node,
+                        message=f"Unauthorized command execution attempt from {payload.fromId}: {e}")
+                self.db.increment_failed_attempts(payload.fromId)
+                return 'You are not authorized to run this command.'
+
+            if type(response) is str:
                 logging.info(f'Replying to {payload.fromId}: {response}')
-                self.__reply__(text=response, destinationId=payload.fromId)
+                self.__send_messages__(text=response, destinationId=payload.fromId)
+
+            elif type(response) is list:
+                logging.info(f'Sending waypoint to {payload.fromId}: {response}')
+                expiration_ts = int(time.time() + timedelta(days=7).total_seconds())
+                for waypoint in response:
+                    self.interface.sendWaypoint(
+                        name=waypoint.name,
+                        expire=expiration_ts,
+                        description=waypoint.description or '',
+                        latitude=coords_int_to_float(waypoint.latitudeI),
+                        longitude=coords_int_to_float(waypoint.longitudeI),
+                        destinationId=payload.fromId,
+                        wantAck=False,
+                        wantResponse=False
+                    )
+                    
+                logging.info(f'Sent {len(response)} waypoints to {payload.fromId}')
+                self.__send_messages__(
+                    text=f'Sent {len(response)} {"waypoints" if len(response) > 0 else "waypoint"} to your map',
+                    destinationId=payload.fromId
+                )
+
+            elif response is None and self.notify_node is not None:
+                # for those times when it's NOT a command, just forward the message to the admin node
+                self.__forward_direct_messages__(packet)
+
         else:
             logging.error("Command Handler not initialized. Cannot reply to message.")
 
     def __handle_telemetry__(self, packet: dict) -> None:
         telemetry = packet.get('decoded', {}).get('telemetry', {})
 
-        self.__print_packet_received__('telemetry', packet['from'], telemetry)
+        self.__print_packet_received__('telemetry', packet['from'], telemetry, packet.get('rxRssi', 0))
 
         if 'deviceMetrics' in telemetry:
             metrics = DevicePayload(**telemetry['deviceMetrics'])
-            self.db.insert_device_metrics(packet['from'], packet['rxTime'], metrics)
+            self.db.insert_device_metrics(
+                packet['from'],
+                packet.get('rxTime', int(time.time())),
+                metrics
+            )
         elif 'localStats' in telemetry:
             metrics = TransmissionPayload(**telemetry['localStats'])
-            self.db.insert_transmission_metrics(packet['from'], packet['rxTime'], metrics)
+            self.db.insert_transmission_metrics(
+                packet['from'],
+                packet.get('rxTime', int(time.time())),
+                metrics
+            )
         elif 'environmentMetrics' in telemetry:
             metrics = EnvironmentPayload(**telemetry['environmentMetrics'])
-            self.db.insert_environment_metrics(packet['from'], packet['rxTime'], metrics)
+            self.db.insert_environment_metrics(
+                packet['from'],
+                packet.get('rxTime', int(time.time())),
+                metrics
+            )
         else:
             logging.error(f"Unknown telemetry type: {telemetry}")
             return
@@ -179,7 +228,7 @@ class MeshtasticListener:
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})
         traceroute_details.pop('raw', None)
         
-        self.__print_packet_received__('traceroute', packet['from'], traceroute_details)
+        self.__print_packet_received__('traceroute', packet['from'], traceroute_details, packet.get('rxRssi', 0))
 
         direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
@@ -204,9 +253,24 @@ class MeshtasticListener:
                 message=f"Received traceroute from {from_shortname}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
             logging.info(f'Queued traceroute notification delivery for node: {self.notify_node}')
 
+    def __forward_direct_messages__(self, packet: dict) -> None:
+        '''
+        Forwards messages sent directly to the server node (assumed headless) to the notify/admin node
+        '''
+        message = packet.get('decoded', {}).get('text', None)
+        if int(packet['to']) == int(self.interface.localNode.nodeNum) and message is not None:
+            logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.notify_node}')
+            self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.notify_node)
+
+    def __print_rxrssi_stats__(self, rx_rssi: int, average_n: int = 10) -> None:
+        self.rx_rssi_stats.append(rx_rssi)
+        if len(self.rx_rssi_stats) > average_n:
+            logging.info(f'Average rxRssi for the past {average_n} packets: {round(sum(self.rx_rssi_stats) / len(self.rx_rssi_stats), 2)} dB')
+            self.rx_rssi_stats = []
+
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
-        self.__print_packet_received__('position', packet['from'], position)
+        self.__print_packet_received__('position', packet['from'], position, packet.get('rxRssi', 0))
 
         try:
             node_details = self.interface.getMyNodeInfo()
@@ -250,7 +314,7 @@ class MeshtasticListener:
 
     def __handle_neighbor_update__(self, packet: dict) -> None:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
-        self.__print_packet_received__('neighbor info', packet['from'], neighbor_info)
+        self.__print_packet_received__('neighbor info', packet['from'], neighbor_info, packet.get('rxRssi', 0))
         for neighbor in neighbor_info.get('neighbors', []):
             self.db.insert_neighbor(
                 source_node_id=packet['from'],
@@ -263,10 +327,21 @@ class MeshtasticListener:
         if not self.db.get_node(node_num):
             if self.welcome_message is not None:
                 logging.info(f"Sending welcome message to {node_num}")
-                self.__reply__(
+                self.__send_messages__(
                     text=self.welcome_message,
                     destinationId=node_num)
             self.__load_local_nodes__(force=True)
+
+    def __handle_waypoint__(self, packet: dict) -> None:
+        sender = int(packet.get('from', 0))
+        if sender == self.notify_node:
+            self.__print_packet_received__('waypoint', sender, packet.get('decoded', {}), packet.get('rxRssi', 0))
+            waypoint_data = packet.get('decoded', {}).get('waypoint', {})
+            waypoint_data.pop('raw')
+            waypoint = WaypointPayload(**waypoint_data)
+            self.db.insert_waypoint(waypoint)
+        else:
+            logging.info(f'Waypoint packet received from {self.db.get_shortname(sender)}. Ignoring.')
 
     def __trigger_notifications_to_admin__(self) -> None:
         '''
@@ -318,6 +393,14 @@ class MeshtasticListener:
                 logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
                 return
             
+            if self.db.check_node_lockout(packet['from']):
+                logging.info(f"Node {packet['from']} is locked out due to too many malicious requests. Ignoring packet.")
+                return
+            
+            rx_rssi = packet.get('rxRssi')
+            if rx_rssi is not None:
+                self.__print_rxrssi_stats__(float(rx_rssi))
+            
             self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
 
@@ -352,6 +435,8 @@ class MeshtasticListener:
                     self.__handle_position__(packet)
                 case "NEIGHBORINFO_APP":
                     self.__handle_neighbor_update__(packet)
+                case "WAYPOINT_APP":
+                    self.__handle_waypoint__(packet)
                 case "ROUTING_APP":
                     # this is how we confirm that a message was received by the notify_node
                     self.__check_notification_received__(packet)
@@ -423,8 +508,9 @@ if __name__ == "__main__":
     )
 
     cmd_handler = CommandHandler(
-        prefix=environ.get("CMD_PREFIX", '!'),
         cmd_db=db_object,
+        server_node_id=int(interface.localNode.nodeNum),
+        prefix=environ.get("CMD_PREFIX", '!'),
         bbs_lookback=int(environ.get("BBS_DAYS", 7)),
         admin_node_id=admin_node,
         character_limit=char_limit

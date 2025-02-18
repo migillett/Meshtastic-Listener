@@ -3,10 +3,12 @@ from time import time
 import json
 
 from meshtastic_listener.data_structures import (
-    NodeBase, DevicePayload, TransmissionPayload, EnvironmentPayload, MessageReceived
+    NodeBase, DevicePayload, TransmissionPayload,
+    EnvironmentPayload, MessageReceived, NeighborSnr,
+    WaypointPayload
 )
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine
+from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine, func
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.dialects.sqlite import insert
 
@@ -57,6 +59,7 @@ class Node(Base):
 
     def __repr__(self):
         return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
+
 
 class DeviceMetrics(Base):
     __tablename__ = 'device_metrics'
@@ -140,6 +143,9 @@ class Neighbor(Base):
     neighborNodeId = Column(Integer, nullable=False)
     snr = Column(Float, nullable=False)
 
+    def __repr__(self):
+        return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
+
 
 class OutgoingNotifications(Base):
     __tablename__ = 'outgoing_notifications'
@@ -150,6 +156,33 @@ class OutgoingNotifications(Base):
     received = Column(Boolean, default=False)
     attempts = Column(Integer, default=0)
     txId = Column(Integer, default=None) # id of the notification message sent to the node
+
+    def __repr__(self):
+        return f'<OutgoingNotifications(id={self.id}, timestamp={self.timestamp}, toId={self.toId}, message={self.message}, received={self.received}, attempts={self.attempts})>'
+
+
+class Lockout(Base):
+    __tablename__ = 'node_lockout'
+    nodeNum = Column(Integer, primary_key=True)
+    failedAttempts = Column(Integer, default=0)
+    lastFailedAttempt = Column(Integer, default=0)
+    locked = Column(Boolean, default=False)
+
+    def __repr__(self):
+        return f'<Lockout(nodeNum={self.nodeNum}, failedAttempts={self.failedAttempts}, lastFailedAttempt={self.lastFailedAttempt}, locked={self.locked})>'
+
+
+class Waypoints(Base):
+    __tablename__ = 'waypoints'
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    description = Column(String, default=None)
+    icon = Column(Integer, nullable=False)
+    latitudeI = Column(Integer, default=None)
+    longitudeI = Column(Integer, default=None)
+
+    def __repr__(self):
+        return f'<Waypoints(id={self.id}, name={self.name}, description={self.description}, icon={self.icon}, latitudeI={self.latitudeI}, longitudeI={self.longitudeI})>'
 
 
 class ListenerDb:
@@ -406,3 +439,77 @@ class ListenerDb:
                 notification.received = True
                 session.add(notification)
                 session.commit()
+
+    def check_node_lockout(self, node_num: int) -> bool:
+        with self.session() as session:
+            lockout = session.query(Lockout).filter(Lockout.nodeNum == node_num).first()
+            if lockout:
+                return lockout.locked
+            return False
+        
+    def increment_failed_attempts(self, node_num: int, lockout_n: int = 3) -> None:
+        with self.session() as session:
+            lockout = session.query(Lockout).filter(Lockout.nodeNum == node_num).first()
+            if lockout:
+                lockout.failedAttempts += 1
+                lockout.lastFailedAttempt = int(time())
+                if lockout.failedAttempts >= lockout_n:
+                    logger.info(f'Node {node_num} has reached the failed attempt threshold. Locking out node.')
+                    lockout.locked = True
+                session.add(lockout)
+                session.commit()
+            else:
+                session.add(Lockout(nodeNum=node_num, failedAttempts=1, lastFailedAttempt=int(time())))
+                session.commit()
+
+    def get_neighbors(self, source_node_id: int, lookback_hours: int) -> list[NeighborSnr]:
+        with self.session() as session:
+            lookback = int(time() - (lookback_hours * 3600))
+
+            response = (
+                session.query(
+                    Neighbor.neighborNodeId,
+                    func.round(func.avg(Neighbor.snr), 2).label('average_snr')
+                )
+                .filter(Neighbor.sourceNodeId == int(source_node_id), Neighbor.rxTime > lookback)
+                .group_by(Neighbor.neighborNodeId)
+                .order_by(func.avg(Neighbor.snr).desc())
+            ).all()
+
+            return [
+                NeighborSnr(
+                    shortName=self.get_shortname(neighbor.neighborNodeId),
+                    snr=neighbor.average_snr
+                )
+                for neighbor in response
+            ]
+        
+    def insert_waypoint(self, waypoint: WaypointPayload) -> None:
+        with self.session() as session:
+            stmt = insert(Waypoints).values(
+                id=waypoint.id,
+                name=waypoint.name,
+                description=waypoint.description,
+                icon=waypoint.icon,
+                latitudeI=waypoint.latitudeI,
+                longitudeI=waypoint.longitudeI,
+            ).on_conflict_do_update(
+                index_elements=['id'],
+                set_={
+                    'name': waypoint.name,
+                    'description': waypoint.description,
+                    'icon': waypoint.icon,
+                    'latitudeI': waypoint.latitudeI,
+                    'longitudeI': waypoint.longitudeI,
+                }
+            )
+            session.execute(stmt)
+            session.commit()
+
+    def get_waypoint_categories(self) -> list[str]:
+        with self.session() as session:
+            return session.query(Waypoints.category).distinct().all()
+
+    def get_waypoints(self) -> list[Waypoints]:
+        with self.session() as session:
+            return session.query(Waypoints).all()
