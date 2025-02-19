@@ -20,7 +20,7 @@ poetry install
 ```
 
 ## Environment Variables
-<!-- `DEVICE_INTERFACE` - (optional, default to serial) The interace in which you wish to interact with your radio. Can either be an IPV4 address (`x.x.x.x`) or a serial path (`/dev/ttyUSBx`). The software will use whatever environment variable is provided to attempt a connection. If you're doing serial and Docker deploys, don't forget to pass the serial path into the container using `devices`. -->
+`DEVICE_INTERFACE` - (optional, default to serial) The interace in which you wish to interact with your radio. Can either be an IPV4 address (`x.x.x.x`) or a serial path (`/dev/ttyUSBx`). The software will use whatever environment variable is provided to attempt a connection. If you're doing serial and Docker deploys, don't forget to pass the serial path into the container using `devices`.
 
 `CMD_PREFIX` - (optional, default `!`) What prefix to use when triggering `cmd_handler.py`.
 
