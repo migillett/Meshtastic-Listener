@@ -427,7 +427,7 @@ class MeshtasticListener:
                 case "TELEMETRY_APP":
                     self.__handle_telemetry__(packet)
                 case "NODEINFO_APP":
-                    logging.info(f'NODEINFO_APP packet received from {packet['from']}. Refreshing local nodes...')
+                    logging.info(f'NODEINFO_APP packet received from {packet["from"]}. Refreshing local nodes...')
                     self.__load_local_nodes__(force=True)
                 case "TRACEROUTE_APP":
                     self.__handle_traceroute__(packet)
@@ -449,7 +449,7 @@ class MeshtasticListener:
     
     def run(self):
         def handle_shutdown_signal(signum, frame):
-            logging.info(f"Received shutdown signal: {signum}. Exiting gracefully...")
+            logging.info(f"Received shutdown signal. Exiting gracefully...")
             self.interface.close()
             logging.info("====== MeshtasticListener Exiting ======")
             exit(0)
@@ -472,6 +472,8 @@ class MeshtasticListener:
             except Exception as e:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
                 raise e
+            except KeyboardInterrupt:
+                handle_shutdown_signal(None, None)
 
 if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
@@ -504,7 +506,7 @@ if __name__ == "__main__":
     char_limit = int(environ.get("RESPONSE_CHAR_LIMIT", 200))
 
     db_object = ListenerDb(
-        db_path=path.join(data_dir, db_path)
+        db_path=path.join(data_dir, db_path) if db_path != ':memory:' else ':memory:'
     )
 
     cmd_handler = CommandHandler(
