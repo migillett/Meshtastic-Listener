@@ -52,9 +52,8 @@ This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. Jus
 ```bash
 docker-compose up -d --force-recreate --build
 ```
-> [!TIP]
-> A note on devices: I've found that passing in `/dev/ttyUSB0` for Linux is working well so far on my Raspberry Pi 3B+.
 
+> [!TIP]
 >If you're using a I2C device such as the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat), you may need to add `network_mode: host` to your docker-compose.yml file and point your `DEVICE_INTERFACE` to `127.0.0.1` to properly connect to the local device hosted by the Raspberry Pi.
 
 ## Docker
