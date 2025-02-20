@@ -449,7 +449,7 @@ class MeshtasticListener:
     
     def run(self):
         def handle_shutdown_signal(signum, frame):
-            logging.info(f"Received shutdown signal: {signum}. Exiting gracefully...")
+            logging.info(f"Received shutdown signal. Exiting gracefully...")
             self.interface.close()
             logging.info("====== MeshtasticListener Exiting ======")
             exit(0)
@@ -472,6 +472,8 @@ class MeshtasticListener:
             except Exception as e:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
                 raise e
+            except KeyboardInterrupt:
+                handle_shutdown_signal()
 
 if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
