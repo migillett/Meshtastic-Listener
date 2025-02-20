@@ -473,7 +473,7 @@ class MeshtasticListener:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
                 raise e
             except KeyboardInterrupt:
-                handle_shutdown_signal()
+                handle_shutdown_signal(None, None)
 
 if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
