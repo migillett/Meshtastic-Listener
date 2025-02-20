@@ -77,6 +77,7 @@ class CommandHandler:
         '''
         self.__is_admin__(context.fromId) # raises UnauthorizedError if not admin
         self.db.soft_delete_annoucements()
+        return 'BBS cleared'
     
     def cmd_uplink(self) -> str:
         '''
