@@ -10,7 +10,7 @@ package-mode = false
 meshtastic_listener = "meshtastic_listener.__main__:main"
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.14"
+python = ">=3.10,<3.14"
 pubsub = "^0.1.2"
 requests = "^2.32.3"
 pydantic = "^2.10.5"
