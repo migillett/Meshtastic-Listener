@@ -504,7 +504,7 @@ if __name__ == "__main__":
     char_limit = int(environ.get("RESPONSE_CHAR_LIMIT", 200))
 
     db_object = ListenerDb(
-        db_path=path.join(data_dir, db_path)
+        db_path=path.join(data_dir, db_path) if db_path != ':memory:' else ':memory:'
     )
 
     cmd_handler = CommandHandler(
