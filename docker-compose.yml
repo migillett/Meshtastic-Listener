@@ -1,6 +1,6 @@
 services:
   meshtastic_listener:
-    build: 
+    build:
       context: .
       dockerfile: dockerfile
     container_name: meshtastic_listener
@@ -14,3 +14,4 @@ services:
     group_add:
       - dialout
     restart: unless-stopped
+    
