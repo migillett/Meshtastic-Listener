@@ -449,7 +449,7 @@ class MeshtasticListener:
     
     def run(self):
         def handle_shutdown_signal(signum, frame):
-            logging.info(f"Received shutdown signal. Exiting gracefully...")
+            logging.info("Received shutdown signal. Exiting gracefully...")
             self.interface.close()
             logging.info("====== MeshtasticListener Exiting ======")
             exit(0)

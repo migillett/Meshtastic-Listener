@@ -20,7 +20,7 @@ poetry install
 ```
 
 ## Environment Variables
-`DEVICE_INTERFACE` - (optional, default to serial) The interace in which you wish to interact with your radio. Can either be an IPV4 address (`x.x.x.x`) or a serial path (`/dev/ttyUSBx`). The software will use whatever environment variable is provided to attempt a connection. If you're doing serial and Docker deploys, don't forget to pass the serial path into the container using `devices`.
+`DEVICE_INTERFACE` - (optional, default to serial auto-detect) The IP address in which you wish to interact with your radio. The software will use whatever environment variable is provided to attempt a connection. If you're doing serial and Docker deploys, don't forget to pass the serial path into the container using `devices`.
 
 `CMD_PREFIX` - (optional, default `!`) What prefix to use when triggering `cmd_handler.py`.
 
@@ -53,7 +53,8 @@ This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. Jus
 docker-compose up -d --force-recreate --build
 ```
 
-A note on devices: I've found that passing in `/dev/ttyUSB0` for Linux is working well so far on my Raspberry Pi 3B+.
+> [!TIP]
+>If you're using a I2C device such as the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat), you may need to add `network_mode: host` to your docker-compose.yml file and point your `DEVICE_INTERFACE` to `127.0.0.1` to properly connect to the local device hosted by the Raspberry Pi.
 
 ## Docker
 ### Build
