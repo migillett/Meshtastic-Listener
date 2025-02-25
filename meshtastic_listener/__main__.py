@@ -266,9 +266,8 @@ class MeshtasticListener:
         self.rx_stats.append([rx_rssi, snr])
         if len(self.rx_stats) > average_n:
             rx_rssi_avg = round(sum([x[0] for x in self.rx_stats]) / len(self.rx_stats), 2)
-            logging.info(f'Average rxRssi for the past {average_n} packets: {rx_rssi_avg} dB')
             snr_avg = round(sum([x[1] for x in self.rx_stats]) / len(self.rx_stats), 2)
-            logging.info(f'Average rxSNR for the past {average_n} packets: {snr_avg}')
+            logging.info(f'Average transmission statistics for the past {average_n} packets: {rx_rssi_avg} dB, {snr_avg} SNR')
             self.rx_stats = []
 
     def __handle_position__(self, packet: dict) -> None:
