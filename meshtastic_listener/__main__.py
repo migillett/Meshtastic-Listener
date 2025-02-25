@@ -350,29 +350,34 @@ class MeshtasticListener:
         if an incoming packet has the same `from` node as the `notify_node`,
         get all of the pending notifications from the DB and send them to the admin node
         '''
-        notifications = self.db.get_pending_notifications()
-        if len(notifications) == 0:
-            logging.debug("No notifications to send to admin node.")
-            return
-        
-        logging.info(f"Sending {len(notifications)} notifications to admin node: {self.notify_node}")
-        for notif in notifications:
-            message_metadata = self.interface.sendText(
-                text=notif.message,
-                destinationId=self.notify_node,
-                wantAck=True
-            )
+        if self.notification_ts < time.time():
+            logging.debug(f'Packet received from notify_node {self.notify_node}. Triggering notifications...')
 
-            # log the request_id for the notification so we can track if it was received
-            # whenever we receive an ROUTER_APP packet from the notify_node
-            # we check for the request_id in the notifications table
-            try:
-                self.db.increment_notification_attempts(
-                    notification_id=notif.id,
-                    notif_tx_id=int(message_metadata.id)
+            notifications = self.db.get_pending_notifications()
+            if len(notifications) == 0:
+                logging.debug("No notifications to send to admin node.")
+                return
+            
+            logging.info(f"Sending {len(notifications)} notifications to admin node: {self.notify_node}")
+            for notif in notifications:
+                message_metadata = self.interface.sendText(
+                    text=notif.message,
+                    destinationId=self.notify_node,
+                    wantAck=True
                 )
-            except ItemNotFound as e:
-                logging.warning(e)
+
+                # log the request_id for the notification so we can track if it was received
+                # whenever we receive an ROUTER_APP packet from the notify_node
+                # we check for the request_id in the notifications table
+                try:
+                    self.db.increment_notification_attempts(
+                        notification_id=notif.id,
+                        notif_tx_id=int(message_metadata.id)
+                    )
+                except ItemNotFound as e:
+                    logging.warning(e)
+
+            self.notification_ts = time.time() + timedelta(minutes=5).total_seconds()
     
     def __sender_is_notify_node__(self, node_id: int) -> bool:
         if self.notify_node is not None:
@@ -399,19 +404,16 @@ class MeshtasticListener:
                 logging.info(f"Node {packet['from']} is locked out due to too many malicious requests. Ignoring packet.")
                 return
             
-            rx_rssi = packet.get('rxRssi')
-            rx_snr = packet.get('rxSnr')
-            if rx_rssi is not None and rx_snr is not None:
-                self.__print_message_stats__(float(rx_rssi), float(rx_snr))
-            
             self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
+            rx_rssi = packet.get('rxRssi')
+            rx_snr = packet.get('rxSnr')
 
-            if self.__sender_is_notify_node__(packet['from']) and self.notification_ts < time.time():
-                # don't spam notifications otherwise the return packet acknowledgement won't work
-                logging.debug(f'Packet received from notify_node {self.notify_node}. Triggering notifications...')
+            if self.__sender_is_notify_node__(packet['from']):
                 self.__trigger_notifications_to_admin__()
-                self.notification_ts = time.time() + timedelta(minutes=5).total_seconds()
+            elif rx_rssi is not None and rx_snr is not None:
+                # only save rssi and snr values for non-notify_node packets
+                self.__print_message_stats__(float(rx_rssi), float(rx_snr))
             
             try:
                 self.db.insert_message_history(
