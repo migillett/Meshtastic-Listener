@@ -83,7 +83,7 @@ class MeshtasticListener:
             self.notify_node = int(notify_node)
         self.notification_ts = time.time()
 
-        self.rx_rssi_stats = []
+        self.rx_stats = []
 
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
@@ -262,11 +262,14 @@ class MeshtasticListener:
             logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.notify_node}')
             self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.notify_node)
 
-    def __print_rxrssi_stats__(self, rx_rssi: int, average_n: int = 10) -> None:
-        self.rx_rssi_stats.append(rx_rssi)
-        if len(self.rx_rssi_stats) > average_n:
-            logging.info(f'Average rxRssi for the past {average_n} packets: {round(sum(self.rx_rssi_stats) / len(self.rx_rssi_stats), 2)} dB')
-            self.rx_rssi_stats = []
+    def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 10) -> None:
+        self.rx_stats.append([rx_rssi, snr])
+        if len(self.rx_stats) > average_n:
+            rx_rssi_avg = round(sum([x[0] for x in self.rx_stats]) / len(self.rx_stats), 2)
+            logging.info(f'Average rxRssi for the past {average_n} packets: {rx_rssi_avg} dB')
+            snr_avg = round(sum([x[1] for x in self.rx_stats]) / len(self.rx_stats), 2)
+            logging.info(f'Average rxSNR for the past {average_n} packets: {snr_avg}')
+            self.rx_stats = []
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
@@ -398,8 +401,9 @@ class MeshtasticListener:
                 return
             
             rx_rssi = packet.get('rxRssi')
-            if rx_rssi is not None:
-                self.__print_rxrssi_stats__(float(rx_rssi))
+            rx_snr = packet.get('rxSnr')
+            if rx_rssi is not None and rx_snr is not None:
+                self.__print_message_stats__(float(rx_rssi), float(rx_snr))
             
             self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
