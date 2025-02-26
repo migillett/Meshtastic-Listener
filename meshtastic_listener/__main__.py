@@ -83,7 +83,7 @@ class MeshtasticListener:
             self.notify_node = int(notify_node)
         self.notification_ts = time.time()
 
-        self.rx_rssi_stats = []
+        self.rx_stats = []
 
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
@@ -132,7 +132,7 @@ class MeshtasticListener:
                 destinationId=destinationId,
                 channelIndex=0)
             
-    def __print_packet_received__(self, msg_type: str, node_num: int, packet: dict, rx_rssi: float) -> None:
+    def __print_packet_received__(self, msg_type: str, node_num: int, packet: dict, rx_rssi: float, snr: float) -> None:
         if int(node_num) == int(self.interface.localNode.nodeNum):
             return
         if 'raw' in packet:
@@ -144,10 +144,10 @@ class MeshtasticListener:
         else:
             log_insert = f"{shortname} ({node_num})"
 
-        logging.info(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi): {packet}")
+        logging.info(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi, {snr} rxSNR): {packet}")
     
     def __handle_text_message__(self, packet: dict) -> None:
-        self.__print_packet_received__('text message', packet['from'], packet.get('decoded', {}), packet.get('rxRssi', 0))
+        self.__print_packet_received__('text message', packet['from'], packet.get('decoded', {}), packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
 
         if self.cmd_handler is not None:
             payload = MessageReceived(**packet)
@@ -197,7 +197,7 @@ class MeshtasticListener:
     def __handle_telemetry__(self, packet: dict) -> None:
         telemetry = packet.get('decoded', {}).get('telemetry', {})
 
-        self.__print_packet_received__('telemetry', packet['from'], telemetry, packet.get('rxRssi', 0))
+        self.__print_packet_received__('telemetry', packet['from'], telemetry, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
 
         if 'deviceMetrics' in telemetry:
             metrics = DevicePayload(**telemetry['deviceMetrics'])
@@ -228,7 +228,7 @@ class MeshtasticListener:
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})
         traceroute_details.pop('raw', None)
         
-        self.__print_packet_received__('traceroute', packet['from'], traceroute_details, packet.get('rxRssi', 0))
+        self.__print_packet_received__('traceroute', packet['from'], traceroute_details, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
 
         direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
@@ -262,15 +262,17 @@ class MeshtasticListener:
             logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.notify_node}')
             self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.notify_node)
 
-    def __print_rxrssi_stats__(self, rx_rssi: int, average_n: int = 10) -> None:
-        self.rx_rssi_stats.append(rx_rssi)
-        if len(self.rx_rssi_stats) > average_n:
-            logging.info(f'Average rxRssi for the past {average_n} packets: {round(sum(self.rx_rssi_stats) / len(self.rx_rssi_stats), 2)} dB')
-            self.rx_rssi_stats = []
+    def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 10) -> None:
+        self.rx_stats.append([rx_rssi, snr])
+        if len(self.rx_stats) >= average_n:
+            rx_rssi_avg = round(sum([x[0] for x in self.rx_stats]) / len(self.rx_stats), 2)
+            snr_avg = round(sum([x[1] for x in self.rx_stats]) / len(self.rx_stats), 2)
+            logging.info(f'Average transmission statistics for the past {len(self.rx_stats)} packets: {rx_rssi_avg} dB, {snr_avg} SNR')
+            self.rx_stats = []
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
-        self.__print_packet_received__('position', packet['from'], position, packet.get('rxRssi', 0))
+        self.__print_packet_received__('position', packet['from'], position, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
 
         try:
             node_details = self.interface.getMyNodeInfo()
@@ -314,7 +316,7 @@ class MeshtasticListener:
 
     def __handle_neighbor_update__(self, packet: dict) -> None:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
-        self.__print_packet_received__('neighbor info', packet['from'], neighbor_info, packet.get('rxRssi', 0))
+        self.__print_packet_received__('neighbor info', packet['from'], neighbor_info, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
         for neighbor in neighbor_info.get('neighbors', []):
             self.db.insert_neighbor(
                 source_node_id=packet['from'],
@@ -335,7 +337,7 @@ class MeshtasticListener:
     def __handle_waypoint__(self, packet: dict) -> None:
         sender = int(packet.get('from', 0))
         if sender == self.notify_node:
-            self.__print_packet_received__('waypoint', sender, packet.get('decoded', {}), packet.get('rxRssi', 0))
+            self.__print_packet_received__('waypoint', sender, packet.get('decoded', {}), packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
             waypoint_data = packet.get('decoded', {}).get('waypoint', {})
             waypoint_data.pop('raw')
             waypoint = WaypointPayload(**waypoint_data)
@@ -348,29 +350,34 @@ class MeshtasticListener:
         if an incoming packet has the same `from` node as the `notify_node`,
         get all of the pending notifications from the DB and send them to the admin node
         '''
-        notifications = self.db.get_pending_notifications()
-        if len(notifications) == 0:
-            logging.debug("No notifications to send to admin node.")
-            return
-        
-        logging.info(f"Sending {len(notifications)} notifications to admin node: {self.notify_node}")
-        for notif in notifications:
-            message_metadata = self.interface.sendText(
-                text=notif.message,
-                destinationId=self.notify_node,
-                wantAck=True
-            )
+        if self.notification_ts < time.time():
+            logging.debug(f'Packet received from notify_node {self.notify_node}. Triggering notifications...')
 
-            # log the request_id for the notification so we can track if it was received
-            # whenever we receive an ROUTER_APP packet from the notify_node
-            # we check for the request_id in the notifications table
-            try:
-                self.db.increment_notification_attempts(
-                    notification_id=notif.id,
-                    notif_tx_id=int(message_metadata.id)
+            notifications = self.db.get_pending_notifications()
+            if len(notifications) == 0:
+                logging.debug("No notifications to send to admin node.")
+                return
+            
+            logging.info(f"Sending {len(notifications)} notifications to admin node: {self.notify_node}")
+            for notif in notifications:
+                message_metadata = self.interface.sendText(
+                    text=notif.message,
+                    destinationId=self.notify_node,
+                    wantAck=True
                 )
-            except ItemNotFound as e:
-                logging.warning(e)
+
+                # log the request_id for the notification so we can track if it was received
+                # whenever we receive an ROUTER_APP packet from the notify_node
+                # we check for the request_id in the notifications table
+                try:
+                    self.db.increment_notification_attempts(
+                        notification_id=notif.id,
+                        notif_tx_id=int(message_metadata.id)
+                    )
+                except ItemNotFound as e:
+                    logging.warning(e)
+
+            self.notification_ts = time.time() + timedelta(minutes=5).total_seconds()
     
     def __sender_is_notify_node__(self, node_id: int) -> bool:
         if self.notify_node is not None:
@@ -397,18 +404,16 @@ class MeshtasticListener:
                 logging.info(f"Node {packet['from']} is locked out due to too many malicious requests. Ignoring packet.")
                 return
             
-            rx_rssi = packet.get('rxRssi')
-            if rx_rssi is not None:
-                self.__print_rxrssi_stats__(float(rx_rssi))
-            
             self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
+            rx_rssi = packet.get('rxRssi')
+            rx_snr = packet.get('rxSnr')
 
-            if self.__sender_is_notify_node__(packet['from']) and self.notification_ts < time.time():
-                # don't spam notifications otherwise the return packet acknowledgement won't work
-                logging.debug(f'Packet received from notify_node {self.notify_node}. Triggering notifications...')
+            if self.__sender_is_notify_node__(packet['from']):
                 self.__trigger_notifications_to_admin__()
-                self.notification_ts = time.time() + timedelta(minutes=5).total_seconds()
+            elif rx_rssi is not None and rx_snr is not None:
+                # only save rssi and snr values for non-notify_node packets
+                self.__print_message_stats__(float(rx_rssi), float(rx_snr))
             
             try:
                 self.db.insert_message_history(
