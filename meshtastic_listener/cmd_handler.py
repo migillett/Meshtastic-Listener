@@ -31,7 +31,7 @@ class CommandHandler:
 
     def __is_admin__(self, node_id: str) -> None:
         if self.admin_node_id is None:
-            logger.error('Admin node not set. Cannot check if node is an admin.')
+            logger.warning('Admin node not set. Cannot check if node is an admin.')
             raise UnauthorizedError('Admin node not set. Cannot check if node is an admin.')
         elif str(node_id) != str(self.admin_node_id):
             raise UnauthorizedError(f'{node_id} is not authorized as admin')
@@ -88,7 +88,7 @@ class CommandHandler:
             lookback_hours=72
         )
         if len(neighbors) == 0:
-            logging.error('Unable to find any neighbors')
+            logging.warning('Unable to find any neighbors')
             return 'No neighbors found'
         
         response_str = 'Uplink Neighbors:\n'
@@ -148,7 +148,7 @@ class CommandHandler:
                     return self.cmd_help()
 
                 case _:
-                    logger.error(f'Unknown command: {command}')
+                    logger.warning(f'Unknown command: {command}')
                     return f'Unknown command: {command}'
         else:
             return None
