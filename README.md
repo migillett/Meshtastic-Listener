@@ -20,27 +20,19 @@ poetry install
 ```
 
 ## Environment Variables
-`DEVICE_INTERFACE` - (optional, default to serial auto-detect) The IP address in which you wish to interact with your radio. The software will use whatever environment variable is provided to attempt a connection. If you're doing serial and Docker deploys, don't forget to pass the serial path into the container using `devices`.
 
-`CMD_PREFIX` - (optional, default `!`) What prefix to use when triggering `cmd_handler.py`.
-
-`DB_NAME` - (optional, default `:memory:`) The name to the SQLite database. Names must end in `.db`. This database will be created in the `../data` in relation to the absolute path of `__main__.py`.
-
-`NODE_UPDATE_INTERVAL` - (optional, default `15`) how often the service should load the local Node database to the SQLite DB in minutes.
-
-`RESPONSE_CHAR_LIMIT` - (optional, default `200`) the maximum length of a message in characters before pagination.
-
-`WELCOME_MESSAGE` - (optional str, default `None`) Whenever we see a new node on the mesh, we immediately traceroute it. Adding this environment variable will include a welcome message. Keep welcome messages under 200 characters.
-
-`BBS_DAYS` - (optional int, default `7`) The number of days the server will look back for bulletin board service (BBS) messages. Only BBS messages posted within that window will return when someone runs `!read`.
-
-`ADMIN_NODE_ID` - (optional int, default `None`) The admin node id that has elevated permissions to clear the BBS. Also receives service notifications for vital service messages. MUST be the full node ID as an integer, not the id that starts with `!`.
-
-`ENABLE_DEBUG` - (optional, default `False`) Sets the logger to debug mode if set to `True`.
-
-`TRACEROUTE_NODE` - (optional, default `None`) The node to traceroute to every n hours (see `TRACEROUTE_INTERVAL`). This is useful for keeping track of the network topology.
-
-`TRACEROUTE_INTERVAL` - (optional, default `24`) The interval (in hours) that the host node will traceroute the `TRACEROUTE_NODE`. This is useful for keeping track of the network topology.
+| Variable             | Description                                                                                       | Default       |
+|----------------------|---------------------------------------------------------------------------------------------------|---------------|
+| `DEVICE_INTERFACE`   | The IP address to interact with your radio.                                                       | serial auto-detect |
+| `CMD_PREFIX`         | Prefix to use when triggering `cmd_handler.py`.                                                   | `!`           |
+| `DB_NAME`            | Name of the SQLite database. Must end in `.db`.                                                   | `:memory:`    |
+| `NODE_UPDATE_INTERVAL` | How often the service should load the local Node database to the SQLite DB in minutes.           | `15`          |
+| `WELCOME_MESSAGE`    | Welcome message for new nodes on the mesh.                                                        | `None`        |
+| `BBS_DAYS`           | Number of days to look back for BBS messages.                                                     | `7`           |
+| `ADMIN_NODE_ID`      | Admin node ID with elevated permissions to clear the BBS.                                         | `None`        |
+| `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |
+| `TRACEROUTE_NODE`    | Node to traceroute to every n hours.                                                              | `None`        |
+| `TRACEROUTE_INTERVAL`| Interval (in hours) to traceroute the `TRACEROUTE_NODE`.                                          | `24`          |
 
 ## Running Locally
 ```bash
