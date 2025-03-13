@@ -319,7 +319,7 @@ class MeshtasticListener:
 
     def __handle_neighbor_update__(self, packet: dict) -> None:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
-        self.__print_packet_received__('neighbor info', packet['from'], neighbor_info, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
+        self.__print_packet_received__(logging.info, packet)
         for neighbor in neighbor_info.get('neighbors', []):
             self.db.insert_neighbor(
                 source_node_id=packet['from'],
