@@ -6,5 +6,5 @@
 git stash
 git pull
 git stash pop
-docker-compose up -d --force-recreate --build
+docker compose up -d --force-recreate --build
 docker system prune -af
