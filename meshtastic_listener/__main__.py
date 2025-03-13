@@ -131,22 +131,26 @@ class MeshtasticListener:
                 destinationId=destinationId,
                 channelIndex=0)
             
-    def __print_packet_received__(self, msg_type: str, node_num: int, packet: dict, rx_rssi: float, snr: float) -> None:
+    def __print_packet_received__(self, logger: callable, message: dict) -> None:
+        node_num = message.get('from', 'UNKNOWN')
         if int(node_num) == int(self.interface.localNode.nodeNum):
             return
+        
+        packet = message.get('decoded', {})
         if 'raw' in packet:
             packet.pop('raw')
 
-        shortname = self.db.get_shortname(node_num)
-        if str(shortname) == str(node_num):
-            log_insert = f"node {node_num}"
-        else:
-            log_insert = f"{shortname} ({node_num})"
+        snr = message.get('rxSnr', "N/A")
+        rx_rssi = message.get('rxRssi', "N/A")
+        msg_type = packet.get('portnum', 'UNKNOWN')
 
-        logging.info(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi, {snr} rxSNR): {packet}")
+        shortname = self.db.get_shortname(node_num)
+        log_insert = f"node {node_num}" if str(shortname) == str(node_num) else f"{shortname} ({node_num})"
+
+        logger(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi, {snr} rxSNR): {packet}")
     
     def __handle_text_message__(self, packet: dict) -> None:
-        self.__print_packet_received__('text message', packet['from'], packet.get('decoded', {}), packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
+        self.__print_packet_received__(logging.info, packet)
 
         if self.cmd_handler is not None:
             payload = MessageReceived(**packet)
@@ -196,7 +200,7 @@ class MeshtasticListener:
     def __handle_telemetry__(self, packet: dict) -> None:
         telemetry = packet.get('decoded', {}).get('telemetry', {})
 
-        self.__print_packet_received__('telemetry', packet['from'], telemetry, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
+        self.__print_packet_received__(logging.debug, packet)
 
         if 'deviceMetrics' in telemetry:
             metrics = DevicePayload(**telemetry['deviceMetrics'])
@@ -227,7 +231,7 @@ class MeshtasticListener:
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})
         traceroute_details.pop('raw', None)
         
-        self.__print_packet_received__('traceroute', packet['from'], traceroute_details, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
+        self.__print_packet_received__(logging.info, packet)
 
         direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
@@ -271,7 +275,7 @@ class MeshtasticListener:
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
-        self.__print_packet_received__('position', packet['from'], position, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
+        self.__print_packet_received__(logging.debug, packet)
 
         try:
             node_details = self.interface.getMyNodeInfo()
@@ -325,7 +329,7 @@ class MeshtasticListener:
     def __handle_waypoint__(self, packet: dict) -> None:
         sender = int(packet.get('from', 0))
         if sender == self.notify_node:
-            self.__print_packet_received__('waypoint', sender, packet.get('decoded', {}), packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
+            self.__print_packet_received__(logging.info, packet)
             waypoint_data = packet.get('decoded', {}).get('waypoint', {})
             waypoint_data.pop('raw')
             waypoint = WaypointPayload(**waypoint_data)
