@@ -1,6 +1,7 @@
 import logging
 from time import time
 import json
+from statistics import mean
 
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
@@ -130,22 +131,11 @@ class MessageHistory(Base):
     toId = Column(Integer, nullable=False)
     portnum = Column(String, nullable=False)
     packetRaw = Column(String, nullable=False)
+    rxSnr = Column(Float, default=None)
+    rxRssi = Column(Integer, default=None)
 
     def __repr__(self):
         return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, packetRaw={self.packetRaw})>'
-
-
-class Neighbor(Base):
-    __tablename__ = 'neighbors'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    sourceNodeId = Column(Integer, nullable=False)
-    neighborNodeId = Column(Integer, nullable=False)
-    snr = Column(Float, nullable=False)
-
-    def __repr__(self):
-        return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
-
 
 class OutgoingNotifications(Base):
     __tablename__ = 'outgoing_notifications'
@@ -374,17 +364,9 @@ class ListenerDb:
                 fromId=from_id,
                 toId=to_id,
                 portnum=portnum,
-                packetRaw=json.dumps(packet_raw, default=str, indent=2)
-            ))
-            session.commit()
-
-    def insert_neighbor(self, source_node_id: int, neighbor_id: str, snr: float, rx_time: int) -> None:
-        with self.session() as session:
-            session.add(Neighbor(
-                sourceNodeId=source_node_id,
-                neighborNodeId=neighbor_id,
-                snr=snr,
-                rxTime=rx_time,
+                rxSnr=packet_raw.get('rxSnr', None),
+                rxRssi=packet_raw.get('rxRssi', None),
+                packetRaw=json.dumps(packet_raw, default=str, indent=2),
             ))
             session.commit()
 
@@ -462,28 +444,37 @@ class ListenerDb:
                 session.add(Lockout(nodeNum=node_num, failedAttempts=1, lastFailedAttempt=int(time())))
                 session.commit()
 
-    def get_neighbors(self, source_node_id: int, lookback_hours: int) -> list[NeighborSnr]:
-        with self.session() as session:
-            lookback = int(time() - (lookback_hours * 3600))
+    def get_neighbors(self, lookback_hours: int = 72) -> list[NeighborSnr]:
+        # check the message_history table for the most "talkative" nodes from the past n hours
+        # order them by average SNR
 
-            response = (
-                session.query(
-                    Neighbor.neighborNodeId,
-                    func.round(func.avg(Neighbor.snr), 2).label('average_snr')
-                )
-                .filter(Neighbor.sourceNodeId == int(source_node_id), Neighbor.rxTime > lookback)
-                .group_by(Neighbor.neighborNodeId)
-                .order_by(func.avg(Neighbor.snr).desc())
+        response: list[NeighborSnr] = []
+        neighbors = {}
+
+        with self.session() as session:
+            messages = session.query(
+                MessageHistory
+            ).filter(
+                MessageHistory.rxTime > int(time() - (lookback_hours * 3600))
             ).all()
 
-            return [
+            for message in messages:
+                if isinstance(message.rxSnr, float):
+                    if message.fromId in neighbors:
+                        neighbors[message.fromId].append(message.rxSnr)
+                    else:
+                        neighbors[message.fromId] = [message.rxSnr]
+
+        for neighbor in neighbors:
+            response.append(
                 NeighborSnr(
-                    shortName=self.get_shortname(neighbor.neighborNodeId),
-                    snr=neighbor.average_snr
+                    shortName=self.get_shortname(neighbor),
+                    snr=round(mean(neighbors[neighbor]), 2)
                 )
-                for neighbor in response
-            ]
-        
+            )
+
+        return sorted(response, key=lambda x: x.snr, reverse=True)
+
     def insert_waypoint(self, waypoint: WaypointPayload) -> None:
         with self.session() as session:
             stmt = insert(Waypoints).values(

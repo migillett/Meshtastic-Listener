@@ -82,10 +82,7 @@ class CommandHandler:
         '''
         !uplink - List the neighbors of the server by average SNR
         '''
-        neighbors = self.db.get_neighbors(
-            source_node_id=self.server_node_id,
-            lookback_hours=72
-        )
+        neighbors = self.db.get_neighbors(lookback_hours=72)[:10]
         if len(neighbors) == 0:
             logging.warning('Unable to find any neighbors')
             return 'No neighbors found'
