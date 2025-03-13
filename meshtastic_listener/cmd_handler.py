@@ -19,7 +19,6 @@ class CommandHandler:
             prefix: str = '!',
             bbs_lookback: int = 7,
             admin_node_id: str | None = None,
-            character_limit: int = 200
         ) -> None:
 
         self.prefix = prefix
@@ -27,7 +26,7 @@ class CommandHandler:
         self.bbs_lookback = bbs_lookback
         self.server_node_id = server_node_id
         self.admin_node_id = admin_node_id
-        self.char_limit = character_limit
+        self.char_limit = 200
 
     def __is_admin__(self, node_id: str) -> None:
         if self.admin_node_id is None:

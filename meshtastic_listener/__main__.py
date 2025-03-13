@@ -51,7 +51,6 @@ class MeshtasticListener:
             db_object: ListenerDb,
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
-            response_char_limit: int = 200,
             welcome_message: str | None = None,
             traceroute_interval: int = 24,
             traceroute_node: str | None = None,
@@ -64,7 +63,7 @@ class MeshtasticListener:
         self.interface = interface
         self.db = db_object
         self.cmd_handler = cmd_handler
-        self.char_limit = response_char_limit
+        self.char_limit = 200
         self.welcome_message = welcome_message
 
         self.node_refresh_ts: float = time.time()
@@ -162,11 +161,11 @@ class MeshtasticListener:
                 self.db.increment_failed_attempts(payload.fromId)
                 return 'You are not authorized to run this command.'
 
-            if type(response) is str:
+            if isinstance(response, str):
                 logging.info(f'Replying to {payload.fromId}: {response}')
                 self.__send_messages__(text=response, destinationId=payload.fromId)
 
-            elif type(response) is list:
+            elif isinstance(response, list):
                 logging.info(f'Sending waypoint to {payload.fromId}: {response}')
                 expiration_ts = int(time.time() + timedelta(days=7).total_seconds())
                 for waypoint in response:
@@ -507,8 +506,6 @@ if __name__ == "__main__":
             raise EnvironmentError("DB_NAME must be a .db file")
         if '/' in db_path or '\\' in db_path:
             raise EnvironmentError("DB_NAME must be a filename only")
-        
-    char_limit = int(environ.get("RESPONSE_CHAR_LIMIT", 200))
 
     db_object = ListenerDb(
         db_path=path.join(data_dir, db_path) if db_path != ':memory:' else ':memory:'
@@ -519,8 +516,7 @@ if __name__ == "__main__":
         server_node_id=int(interface.localNode.nodeNum),
         prefix=environ.get("CMD_PREFIX", '!'),
         bbs_lookback=int(environ.get("BBS_DAYS", 7)),
-        admin_node_id=admin_node,
-        character_limit=char_limit
+        admin_node_id=admin_node
     )
 
     listener = MeshtasticListener(
@@ -528,7 +524,6 @@ if __name__ == "__main__":
         db_object=db_object,
         cmd_handler=cmd_handler,
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
-        response_char_limit=char_limit,
         welcome_message=environ.get("WELCOME_MESSAGE"),
         traceroute_interval=int(environ.get("TRACEROUTE_INTERVAL", 24)),
         traceroute_node=environ.get("TRACEROUTE_NODE"),
