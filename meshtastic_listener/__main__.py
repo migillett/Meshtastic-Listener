@@ -317,6 +317,17 @@ class MeshtasticListener:
                     logging.error(f"Failed to send traceroute to {self.traceroute_node}: {e}")
             self.traceroute_ts = now
 
+    def __handle_neighbor_update__(self, packet: dict) -> None:
+        neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
+        self.__print_packet_received__('neighbor info', packet['from'], neighbor_info, packet.get('rxRssi', 0), packet.get('rxSnr', 0.0))
+        for neighbor in neighbor_info.get('neighbors', []):
+            self.db.insert_neighbor(
+                source_node_id=packet['from'],
+                neighbor_id=neighbor['nodeId'],
+                snr=neighbor['snr'],
+                rx_time=int(time.time())
+            )
+
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.get_node(node_num):
             if self.welcome_message is not None:
@@ -430,6 +441,8 @@ class MeshtasticListener:
                     self.__handle_traceroute__(packet)
                 case "POSITION_APP":
                     self.__handle_position__(packet)
+                case "NEIGHBORINFO_APP":
+                    self.__handle_neighbor_update__(packet)
                 case "WAYPOINT_APP":
                     self.__handle_waypoint__(packet)
                 case "ROUTING_APP":
