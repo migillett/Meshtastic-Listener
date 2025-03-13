@@ -265,7 +265,7 @@ class MeshtasticListener:
             logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.notify_node}')
             self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.notify_node)
 
-    def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 10) -> None:
+    def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:
         self.rx_stats.append([rx_rssi, snr])
         if len(self.rx_stats) >= average_n:
             rx_rssi_avg = round(sum([x[0] for x in self.rx_stats]) / len(self.rx_stats), 2)
