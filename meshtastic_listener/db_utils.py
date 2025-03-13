@@ -137,6 +137,18 @@ class MessageHistory(Base):
     def __repr__(self):
         return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, packetRaw={self.packetRaw})>'
 
+
+class Neighbor(Base):
+    __tablename__ = 'neighbors'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rxTime = Column(Integer, nullable=False)
+    sourceNodeId = Column(Integer, nullable=False)
+    neighborNodeId = Column(Integer, nullable=False)
+    snr = Column(Float, nullable=False)
+    def __repr__(self):
+        return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
+
+
 class OutgoingNotifications(Base):
     __tablename__ = 'outgoing_notifications'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -367,6 +379,16 @@ class ListenerDb:
                 rxSnr=packet_raw.get('rxSnr', None),
                 rxRssi=packet_raw.get('rxRssi', None),
                 packetRaw=json.dumps(packet_raw, default=str, indent=2),
+            ))
+            session.commit()
+
+    def insert_neighbor(self, source_node_id: int, neighbor_id: str, snr: float, rx_time: int) -> None:
+        with self.session() as session:
+            session.add(Neighbor(
+                sourceNodeId=source_node_id,
+                neighborNodeId=neighbor_id,
+                snr=snr,
+                rxTime=rx_time,
             ))
             session.commit()
 
