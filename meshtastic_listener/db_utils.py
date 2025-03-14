@@ -358,8 +358,7 @@ class ListenerDb:
         with self.session() as session:
             node = self.get_node(node_num)
             if not node:
-                logger.warning(f'Node {node_num} not found in db. Unable to update position.')
-                return
+                raise ItemNotFound(f'Node {node_num} not found in db. Unable to update position.')
             node.lastHeard = last_heard
             node.latitude = latitude
             node.longitude = longitude

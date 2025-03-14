@@ -290,16 +290,19 @@ class MeshtasticListener:
             logging.error(f"{e}: Unable to calculate distance from base node to {packet['from']}. Base node position not configured.")
             distance = None
 
-        self.db.upsert_position(
-            node_num=packet['from'],
-            last_heard=position.get('time', int(time.time())),
-            latitude=position.get('latitude'),
-            longitude=position.get('longitude'),
-            altitude=position.get('altitude'),
-            distance=distance,
-            precision_bits=position.get('precisionBits')
-        )
-        logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
+        try:
+            self.db.upsert_position(
+                node_num=packet['from'],
+                last_heard=position.get('time', int(time.time())),
+                latitude=position.get('latitude'),
+                longitude=position.get('longitude'),
+                altitude=position.get('altitude'),
+                distance=distance,
+                precision_bits=position.get('precisionBits')
+            )
+            logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
+        except ItemNotFound as e:
+            logging.warning(e)
 
     def __connect_upstream__(self) -> None:
         '''
