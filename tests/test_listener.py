@@ -56,7 +56,7 @@ def test_listener():
         interface=test_interface,
         cmd_handler=cmd_handler,
         db_object=handler_db,
-        notify_node=1234567890
+        admin_node=1234567890
     )
 
     json_dir = path.join(path.dirname(path.abspath(__file__)), 'test_messages')

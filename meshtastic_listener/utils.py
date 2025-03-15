@@ -1,4 +1,8 @@
+import logging
 import math
+from os import environ
+
+logger = logging.getLogger(__name__)
 
 EARTH_RADIUS = 6371000  # Radius of the Earth in meters
 
@@ -35,6 +39,23 @@ def coords_int_to_float(coordinate: int) -> float:
     """
     num_places = len(str(coordinate).replace('-', '')) - 2
     return round(coordinate / 10**(num_places), 7)
+
+
+def load_node_env_var(env_var_name: str) -> int | None:
+    # node values can be integers or strings that start with "!"
+    # all env vars are strings, so we need to check for both types
+    # makes sure that the user-provided node_id is an integer and not a string
+    node_id = environ.get(env_var_name, None)
+    if node_id is None:
+        return None
+    try:
+        if isinstance(node_id, str) and node_id.startswith('!'):
+            logger.info(f"Node ID is a string starting with '!': {node_id}. Converting to integer.")
+            return int(node_id[1:], 16)
+        else:
+            return int(node_id)
+    except ValueError:
+        raise EnvironmentError(f"Invalid node_id: {node_id}. It must be an integer or a string starting with '!'.")
 
 
 if __name__ == "__main__":

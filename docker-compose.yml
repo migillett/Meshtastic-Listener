@@ -9,9 +9,11 @@ services:
     user: "1000:1000"
     environment:
       - DB_NAME=listener.db
-    devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
-    group_add:
-      - dialout
+      # Change this to your device's IP address
+      - DEVICE_INTERFACE=192.168.2.147
+    # Uncomment if you need to access the serial port for a Meshtastic device
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    # group_add:
+    #   - dialout
     restart: unless-stopped
-    

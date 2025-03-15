@@ -11,7 +11,7 @@ from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload
 )
-from meshtastic_listener.position_utils import calculate_distance, coords_int_to_float
+from meshtastic_listener.utils import calculate_distance, coords_int_to_float, load_node_env_var
 
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
@@ -53,8 +53,8 @@ class MeshtasticListener:
             node_update_interval: int = 15,
             welcome_message: str | None = None,
             traceroute_interval: int = 24,
-            traceroute_node: str | None = None,
-            notify_node: int | None = None
+            traceroute_node: int | None = None,
+            admin_node: int | None = None
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -63,23 +63,18 @@ class MeshtasticListener:
         self.interface = interface
         self.db = db_object
         self.cmd_handler = cmd_handler
-        self.char_limit = 200
         self.welcome_message = welcome_message
+        self.char_limit = 200
 
         self.node_refresh_ts: float = time.time()
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
 
         self.traceroute_interval = timedelta(hours=traceroute_interval)
         self.traceroute_ts: float = time.time() - self.traceroute_interval.total_seconds()
-
-        # node values can be integers or strings that start with "!"
-        # all env vars are strings, so we need to check for both types
-        self.traceroute_node = self.__check_node_id__(traceroute_node)
+        self.traceroute_node = traceroute_node
 
         # where to send notification messages
-        self.notify_node: int | None = None
-        if notify_node is not None:
-            self.notify_node = int(notify_node)
+        self.admin_node = admin_node
         self.notification_ts = time.time()
 
         self.rx_stats = []
@@ -88,8 +83,8 @@ class MeshtasticListener:
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'ListenerDb initialized with db_path: {self.db.db_path}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
-        if self.cmd_handler.admin_node_id is not None:
-            logging.info(f'Admin node ID set to: {self.cmd_handler.admin_node_id}')
+        if self.admin_node is not None:
+            logging.info(f'Admin node ID set to: {self.admin_node}')
         else:
             logging.info('Admin node ID not set. Admin commands will not be available.')
 
@@ -97,12 +92,6 @@ class MeshtasticListener:
             logging.info(f'Traceroute node set to: {self.traceroute_node} with interval: {self.traceroute_interval}')
 
         self.__load_local_nodes__(force=True)
-
-    def __check_node_id__(self, node_id: str | None) -> str | int | None:
-        if node_id is not None:
-            if not node_id.startswith('!'):
-                return int(node_id)
-        return node_id
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
@@ -158,9 +147,9 @@ class MeshtasticListener:
                 response = self.cmd_handler.handle_command(context=payload)
             except UnauthorizedError as e:
                 logging.error(f'User unauthorized to execute command: {e}')
-                if self.notify_node is not None:
+                if self.admin_node is not None:
                     self.db.insert_notification(
-                        to_id=self.notify_node,
+                        to_id=self.admin_node,
                         message=f"Unauthorized command execution attempt from {payload.fromId}: {e}")
                 self.db.increment_failed_attempts(payload.fromId)
                 return 'You are not authorized to run this command.'
@@ -190,7 +179,7 @@ class MeshtasticListener:
                     destinationId=payload.fromId
                 )
 
-            elif response is None and self.notify_node is not None:
+            elif response is None and self.admin_node is not None:
                 # for those times when it's NOT a command, just forward the message to the admin node
                 self.__forward_direct_messages__(packet)
 
@@ -247,14 +236,14 @@ class MeshtasticListener:
             direct_connection=direct_connection,
         )
 
-        if self.notify_node is not None:
+        if self.admin_node is not None:
             # add a slight delay to give time for the db to update
             self.notification_ts = time.time() + timedelta(seconds=30).total_seconds()
             from_shortname = self.db.get_shortname(packet['from'])
             self.db.insert_notification(
-                to_id=self.notify_node,
+                to_id=self.admin_node,
                 message=f"Received traceroute from {from_shortname}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
-            logging.info(f'Queued traceroute notification delivery for node: {self.notify_node}')
+            logging.info(f'Queued traceroute notification delivery for node: {self.admin_node}')
 
     def __forward_direct_messages__(self, packet: dict) -> None:
         '''
@@ -262,8 +251,8 @@ class MeshtasticListener:
         '''
         message = packet.get('decoded', {}).get('text', None)
         if int(packet['to']) == int(self.interface.localNode.nodeNum) and message is not None:
-            logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.notify_node}')
-            self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.notify_node)
+            logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.admin_node}')
+            self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.admin_node)
 
     def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:
         self.rx_stats.append([rx_rssi, snr])
@@ -342,7 +331,7 @@ class MeshtasticListener:
 
     def __handle_waypoint__(self, packet: dict) -> None:
         sender = int(packet.get('from', 0))
-        if sender == self.notify_node:
+        if sender == self.admin_node:
             self.__print_packet_received__(logging.info, packet)
             waypoint_data = packet.get('decoded', {}).get('waypoint', {})
             waypoint_data.pop('raw')
@@ -357,18 +346,18 @@ class MeshtasticListener:
         get all of the pending notifications from the DB and send them to the admin node
         '''
         if self.notification_ts < time.time():
-            logging.debug(f'Packet received from notify_node {self.notify_node}. Triggering notifications...')
+            logging.debug(f'Packet received from notify_node {self.admin_node}. Triggering notifications...')
 
             notifications = self.db.get_pending_notifications()
             if len(notifications) == 0:
                 logging.debug("No notifications to send to admin node.")
                 return
             
-            logging.info(f"Sending {len(notifications)} notifications to admin node: {self.notify_node}")
+            logging.info(f"Sending {len(notifications)} notifications to admin node: {self.admin_node}")
             for notif in notifications:
                 message_metadata = self.interface.sendText(
                     text=notif.message,
-                    destinationId=self.notify_node,
+                    destinationId=self.admin_node,
                     wantAck=True
                 )
 
@@ -386,8 +375,8 @@ class MeshtasticListener:
             self.notification_ts = time.time() + timedelta(minutes=5).total_seconds()
     
     def __sender_is_notify_node__(self, node_id: int) -> bool:
-        if self.notify_node is not None:
-            return int(self.notify_node) == int(node_id)
+        if self.admin_node is not None:
+            return int(self.admin_node) == int(node_id)
         return False
 
     def __check_notification_received__(self, packet: dict) -> None:
@@ -457,21 +446,17 @@ class MeshtasticListener:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
+
+    def __exit__(self, signum, frame) -> None:
+        logging.info("Received shutdown signal. Exiting gracefully...")
+        self.interface.close()
+        logging.info("====== MeshtasticListener Exiting ======")
+        exit(0)
     
     def run(self):
-        def handle_shutdown_signal(signum, frame):
-            logging.info("Received shutdown signal. Exiting gracefully...")
-            self.interface.close()
-            logging.info("====== MeshtasticListener Exiting ======")
-            exit(0)
-
-        signal.signal(signal.SIGTERM, handle_shutdown_signal)
+        signal.signal(signal.SIGTERM, self.__exit__)
 
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
-        # TODO: disabling temporarly for now due to error:
-        # pubsub.core.topicargspec.SenderUnknownMsgDataError:
-            # Some optional args unknown in call to sendMessage('('meshtastic', 'connection', 'lost')', interface): interface
-        # pub.subscribe(self.__reconnect__, "meshtastic.connection.lost")
         logging.info("Subscribed to meshtastic.receive")
         
         while True:
@@ -484,33 +469,26 @@ class MeshtasticListener:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
                 raise e
             except KeyboardInterrupt:
-                handle_shutdown_signal(None, None)
+                self.__exit__(None, None)
 
 if __name__ == "__main__":
     device = environ.get("DEVICE_INTERFACE")
     try:
-        # IP address
         if device and len(device.split('.')) == 4:
+            # IP address
             interface = TCPInterface(hostname=device)
-        # Serial port path
         else:
+            # Serial port path
             interface = SerialInterface()
     except ConnectionRefusedError:
         logging.warning(f"Connection to {device} refused. Exiting...")
         exit(1)
 
-    admin_node = environ.get("ADMIN_NODE_ID")
-    if admin_node is not None:
-        try:
-            admin_node = int(admin_node)
-        except ValueError:
-            raise EnvironmentError("Invalid value for ADMIN_NODE_ID: must be an integer")
-
     # sanitizing the db_path
     db_path = environ.get("DB_NAME", ':memory:')
     if db_path != ':memory:':
         if not db_path.endswith('.db'):
-            raise EnvironmentError("DB_NAME must be a .db file")
+            db_path += '.db'  # append .db if not present
         if '/' in db_path or '\\' in db_path:
             raise EnvironmentError("DB_NAME must be a filename only")
 
@@ -523,7 +501,7 @@ if __name__ == "__main__":
         server_node_id=int(interface.localNode.nodeNum),
         prefix=environ.get("CMD_PREFIX", '!'),
         bbs_lookback=int(environ.get("BBS_DAYS", 7)),
-        admin_node_id=admin_node
+        admin_node_id=load_node_env_var("ADMIN_NODE_ID")
     )
 
     listener = MeshtasticListener(
@@ -533,8 +511,8 @@ if __name__ == "__main__":
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
         welcome_message=environ.get("WELCOME_MESSAGE"),
         traceroute_interval=int(environ.get("TRACEROUTE_INTERVAL", 24)),
-        traceroute_node=environ.get("TRACEROUTE_NODE"),
-        notify_node=admin_node
+        traceroute_node=load_node_env_var("TRACEROUTE_NODE"),
+        admin_node=load_node_env_var("ADMIN_NODE_ID")
     )
     
     listener.run()
