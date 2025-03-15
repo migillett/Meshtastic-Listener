@@ -30,8 +30,8 @@ poetry install
 | `BBS_DAYS`           | Number of days to look back for BBS messages.                                                     | `7`           |
 | `ADMIN_NODE_ID`      | Admin node ID with elevated permissions.                                         | `None`        |
 | `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |
-| `TRACEROUTE_NODE`    | Node to traceroute to every n hours.                                                              | `None`        |
-| `TRACEROUTE_INTERVAL`| Interval (in hours) to traceroute the `TRACEROUTE_NODE`.                                          | `24`          |
+| `TRACEROUTE_NODE_ID`    | Node to traceroute to every n hours.                                                              | `None`        |
+| `TRACEROUTE_INTERVAL`| Interval (in hours) to traceroute the `TRACEROUTE_NODE_ID`.                                          | `24`          |
 
 ## Running Locally
 ```bash
