@@ -78,20 +78,6 @@ class CommandHandler:
         self.db.soft_delete_annoucements()
         return 'BBS cleared'
     
-    def cmd_uplink(self) -> str:
-        '''
-        !uplink - List the neighbors of the server by average SNR
-        '''
-        neighbors = self.db.get_neighbors(lookback_hours=72)[:10]
-        if len(neighbors) == 0:
-            logging.warning('Unable to find any neighbors')
-            return 'No neighbors found'
-        
-        response_str = 'Uplink Neighbors:\n'
-        for i, neighbor in enumerate(neighbors):
-            response_str += f'{i+1}. {neighbor.shortName}: {neighbor.snr} dB\n'
-        return response_str.strip('\n')
-    
     def cmd_waypoints(self) -> str | list[Waypoints]:
         '''
         !waypoints - Get the waypoints of the server

@@ -6,7 +6,6 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 - `!post <message>` - posts a message to the board
 - `!read` - get all posts to the message board from the past n days.
 - `!clear` - soft deletes all messages from the BBS. Only available when a node id matches the admin id set in the env vars.
-- `!uplink` - returns a list of local devices sorted by signal to noise ratio (SNR).
 - `!waypoints` - adds a list of waypoints from the server to your local map with a ttl of 7 days.
 
 ## To Do
@@ -29,7 +28,7 @@ poetry install
 | `NODE_UPDATE_INTERVAL` | How often the service should load the local Node database to the SQLite DB in minutes.           | `15`          |
 | `WELCOME_MESSAGE`    | Welcome message for new nodes on the mesh.                                                        | `None`        |
 | `BBS_DAYS`           | Number of days to look back for BBS messages.                                                     | `7`           |
-| `ADMIN_NODE_ID`      | Admin node ID with elevated permissions to clear the BBS.                                         | `None`        |
+| `ADMIN_NODE_ID`      | Admin node ID with elevated permissions.                                         | `None`        |
 | `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |
 | `TRACEROUTE_NODE`    | Node to traceroute to every n hours.                                                              | `None`        |
 | `TRACEROUTE_INTERVAL`| Interval (in hours) to traceroute the `TRACEROUTE_NODE`.                                          | `24`          |
