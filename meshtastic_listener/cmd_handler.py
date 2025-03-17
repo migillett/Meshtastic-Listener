@@ -19,7 +19,6 @@ class CommandHandler:
             prefix: str = '!',
             bbs_lookback: int = 7,
             admin_node_id: str | None = None,
-            character_limit: int = 200
         ) -> None:
 
         self.prefix = prefix
@@ -27,11 +26,11 @@ class CommandHandler:
         self.bbs_lookback = bbs_lookback
         self.server_node_id = server_node_id
         self.admin_node_id = admin_node_id
-        self.char_limit = character_limit
+        self.char_limit = 200
 
     def __is_admin__(self, node_id: str) -> None:
         if self.admin_node_id is None:
-            logger.error('Admin node not set. Cannot check if node is an admin.')
+            logger.warning('Admin node not set. Cannot check if node is an admin.')
             raise UnauthorizedError('Admin node not set. Cannot check if node is an admin.')
         elif str(node_id) != str(self.admin_node_id):
             raise UnauthorizedError(f'{node_id} is not authorized as admin')
@@ -78,23 +77,6 @@ class CommandHandler:
         self.__is_admin__(context.fromId) # raises UnauthorizedError if not admin
         self.db.soft_delete_annoucements()
         return 'BBS cleared'
-    
-    def cmd_uplink(self) -> str:
-        '''
-        !uplink - List the neighbors of the server by average SNR
-        '''
-        neighbors = self.db.get_neighbors(
-            source_node_id=self.server_node_id,
-            lookback_hours=72
-        )
-        if len(neighbors) == 0:
-            logging.error('Unable to find any neighbors')
-            return 'No neighbors found'
-        
-        response_str = 'Uplink Neighbors:\n'
-        for i, neighbor in enumerate(neighbors):
-            response_str += f'{i+1}. {neighbor.shortName}: {neighbor.snr} dB\n'
-        return response_str.strip('\n')
     
     def cmd_waypoints(self) -> str | list[Waypoints]:
         '''
@@ -148,7 +130,7 @@ class CommandHandler:
                     return self.cmd_help()
 
                 case _:
-                    logger.error(f'Unknown command: {command}')
+                    logger.warning(f'Unknown command: {command}')
                     return f'Unknown command: {command}'
         else:
             return None
