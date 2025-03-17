@@ -472,16 +472,11 @@ class MeshtasticListener:
                 self.__exit__(None, None)
 
 if __name__ == "__main__":
-    device = environ.get("DEVICE_INTERFACE")
+    device_ip = environ.get("DEVICE_IP")
     try:
-        if device and len(device.split('.')) == 4:
-            # IP address
-            interface = TCPInterface(hostname=device)
-        else:
-            # Serial port path
-            interface = SerialInterface()
+        interface = TCPInterface(hostname=device_ip) if device_ip is not None else SerialInterface()
     except ConnectionRefusedError:
-        logging.warning(f"Connection to {device} refused. Exiting...")
+        logging.warning(f"Connection to {device_ip} refused. Exiting...")
         exit(1)
 
     # sanitizing the db_path

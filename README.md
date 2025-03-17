@@ -22,7 +22,7 @@ poetry install
 
 | Variable             | Description                                                                                       | Default       |
 |----------------------|---------------------------------------------------------------------------------------------------|---------------|
-| `DEVICE_INTERFACE`   | The IP address to interact with your radio.                                                       | serial auto-detect |
+| `DEVICE_IP`   | The IP address or hostname with your radio using TCP/IP.                                                       | serial auto-detect |
 | `CMD_PREFIX`         | Prefix to use when triggering `cmd_handler.py`.                                                   | `!`           |
 | `DB_NAME`            | Name of the SQLite database. Must end in `.db`.                                                   | `:memory:`    |
 | `NODE_UPDATE_INTERVAL` | How often the service should load the local Node database to the SQLite DB in minutes.           | `15`          |
@@ -45,7 +45,7 @@ docker-compose up -d --force-recreate --build
 ```
 
 > [!TIP]
->If you're using a I2C device such as the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat), you may need to add `network_mode: host` to your docker-compose.yml file and point your `DEVICE_INTERFACE` to `127.0.0.1` to properly connect to the local device hosted by the Raspberry Pi.
+>If you're using a I2C device such as the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat), you may need to add `network_mode: host` to your docker-compose.yml file and point your `DEVICE_IP` to `127.0.0.1` to properly connect to the local device hosted by the Raspberry Pi.
 
 ## Docker
 ### Build
@@ -55,7 +55,7 @@ docker build . -t meshtastic_listener:latest
 
 ### Run
 ```bash
-docker run -d --rm --name meshtastic_listener -e DEVICE_INTERFACE=192.168.3.185 -e DB_NAME=listener.db -v ./data:/home/meshtastic/data meshtastic_listener:latest
+docker run -d --rm --name meshtastic_listener -e DEVICE_IP=192.168.3.185 -e DB_NAME=listener.db -v ./data:/home/meshtastic/data meshtastic_listener:latest
 ```
 
 > [!Note]
