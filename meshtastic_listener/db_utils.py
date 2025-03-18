@@ -11,7 +11,7 @@ from meshtastic_listener.data_structures import (
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine, BigInteger, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.dialects.mysql import Insert
+from sqlalchemy.dialects.postgresql import Insert
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +189,7 @@ class Waypoints(Base):
 class ListenerDb:
     def __init__(self, hostname: str, username: str, password: str, db_name: str = 'listener_db', port: int = 5432) -> None:
         self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
+        self.session = sessionmaker(bind=self.engine)
         self.create_tables()
         logger.info(f'Connected to postgres database: {hostname}/{db_name}')
 
@@ -223,7 +224,7 @@ class ListenerDb:
             look_back = int(time() - (days_past * 24 * 3600))
             results = session.query(Annoucement).filter(
                 Annoucement.rxTime > look_back,
-                Annoucement.isDeleted == 0
+                Annoucement.isDeleted == False
             ).all()
             logger.info(f'Found {len(results)} annoucements from the last {days_past} days')
             [self.mark_annoucement_read([result.id]) for result in results]
@@ -232,7 +233,7 @@ class ListenerDb:
     def soft_delete_annoucements(self) -> None:
         with self.session() as session:
             session.query(Annoucement).filter(
-                Annoucement.isDeleted == 0
+                Annoucement.isDeleted == False
             ).update({Annoucement.isDeleted: 1})
             session.commit()
 
@@ -249,17 +250,20 @@ class ListenerDb:
                     nodeRole=node.user.role,
                     lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
-                ).on_duplicate_key_update(
-                    longName=node.user.longName,
-                    shortName=node.user.shortName,
-                    macAddr=node.user.macaddr,
-                    hwModel=node.user.hwModel,
-                    publicKey=node.user.publicKey,
-                    nodeRole=node.user.role,
-                    lastHeard=node.lastHeard,
-                    hopsAway=node.hopsAway,
+                ).on_conflict_do_update(
+                    index_elements=['nodeNum'],
+                    set_={
+                        'longName': node.user.longName,
+                        'shortName': node.user.shortName,
+                        'macAddr': node.user.macaddr,
+                        'hwModel': node.user.hwModel,
+                        'publicKey': node.user.publicKey,
+                        'nodeRole': node.user.role,
+                        'lastHeard': node.lastHeard,
+                        'hopsAway': node.hopsAway,
+                    }
                 )
-                
+
                 session.execute(stmt)
 
             session.commit()
@@ -402,7 +406,12 @@ class ListenerDb:
 
     def get_pending_notifications(self, max_attempts: int = 5) -> list[OutgoingNotifications]:
         with self.session() as session:
-            return session.query(OutgoingNotifications).filter(OutgoingNotifications.received == 0, OutgoingNotifications.attempts < max_attempts).all()
+            return session.query(
+                OutgoingNotifications
+            ).filter(
+                OutgoingNotifications.received == True,
+                OutgoingNotifications.attempts < max_attempts
+            ).all()
 
     def increment_notification_attempts(self, notification_id: int, notif_tx_id: int) -> None:
         """
@@ -426,9 +435,9 @@ class ListenerDb:
         Returns True if there are pending notifications, False otherwise
         '''
         with self.session() as session:
-            # check if received == 0 AND notif_xt_id is not None
+            # check if received == False AND notif_xt_id is not None
             return session.query(OutgoingNotifications).filter(
-                OutgoingNotifications.received == 0,
+                OutgoingNotifications.received == False,
                 OutgoingNotifications.txId.isnot(None)
             ).count() > 0
 
@@ -505,12 +514,15 @@ class ListenerDb:
                 icon=waypoint.icon,
                 latitudeI=waypoint.latitudeI,
                 longitudeI=waypoint.longitudeI,
-            ).on_duplicate_key_update(
-                name=waypoint.name,
-                description=waypoint.description,
-                icon=waypoint.icon,
-                latitudeI=waypoint.latitudeI,
-                longitudeI=waypoint.longitudeI
+            ).on_conflict_do_update(
+                index_elements=['id'],
+                set_={
+                    'name': waypoint.name,
+                    'description': waypoint.description,
+                    'icon': waypoint.icon,
+                    'latitudeI': waypoint.latitudeI,
+                    'longitudeI': waypoint.longitudeI
+                }
             )
             session.execute(stmt)
             session.commit()

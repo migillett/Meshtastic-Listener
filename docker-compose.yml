@@ -1,15 +1,15 @@
 services:
-  # meshtastic_listener:
-  #   depends_on:
-  #     - listener_db
-  #   build:
-  #     context: .
-  #     dockerfile: dockerfile
-  #   container_name: meshtastic_listener
-  #   user: "1000:1000"
-  #   env_file:
-  #     - .env
-  #   restart: unless-stopped
+  meshtastic_listener:
+    depends_on:
+      - listener_db
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: meshtastic_listener
+    user: "1000:1000"
+    env_file:
+      - .env
+    restart: unless-stopped
 
   listener_db:
     image: postgres:latest

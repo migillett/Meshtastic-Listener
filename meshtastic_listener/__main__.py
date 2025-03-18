@@ -391,7 +391,7 @@ class MeshtasticListener:
     def __sanitize_packet__(self, packet: dict) -> dict:
         response = {}
         for key in packet:
-            if isinstance(packet[key], bytes) or key is 'raw':
+            if isinstance(packet[key], bytes) or key == 'raw':
                 logging.debug(f'Dropping raw bytes from packet: {key}:{packet[key]}')
             elif isinstance(packet[key], dict):
                 response[key] = self.__sanitize_packet__(packet[key])
