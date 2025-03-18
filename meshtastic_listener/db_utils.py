@@ -187,9 +187,9 @@ class Waypoints(Base):
 
 
 class ListenerDb:
-    def __init__(self, hostname: str, username: str, password: str, db_name: str = 'listener_db') -> None:
+    def __init__(self, hostname: str, username: str, password: str, db_name: str = 'listener_db', port: int = 3306) -> None:
         self.engine = create_engine(
-            f'mariadb+mariadbconnector://{username}:{password}@{hostname}/{db_name}',
+            f'mariadb+mariadbconnector://{username}:{password}@{hostname}:{port}/{db_name}',
             echo=False, pool_pre_ping=True)
         self.session = sessionmaker(bind=self.engine)
         self.create_tables()
