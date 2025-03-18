@@ -391,6 +391,30 @@ files = [
 ]
 
 [[package]]
+name = "mariadb"
+version = "1.1.12"
+description = "Python MariaDB extension"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "mariadb-1.1.12-cp310-cp310-win32.whl", hash = "sha256:8cc4068bdd14f4907746ec3bb37005682e47f84438cf56bdc6d901c2587f792a"},
+    {file = "mariadb-1.1.12-cp310-cp310-win_amd64.whl", hash = "sha256:69b284ed12e6ef8dda6314cb1ca9d20d53b8a32a07bed2924beb25488e7d9502"},
+    {file = "mariadb-1.1.12-cp311-cp311-win32.whl", hash = "sha256:e3ce7c47be58897822d07f119461b2aa6aa41a53f3505bec517b14fc6c3611a6"},
+    {file = "mariadb-1.1.12-cp311-cp311-win_amd64.whl", hash = "sha256:5ae99af48ba92e3e2edad1dcda293f352c1b65e335007943b9def4cdde622fab"},
+    {file = "mariadb-1.1.12-cp312-cp312-win32.whl", hash = "sha256:194045d2f59b2c9100dad210dbd8ba3008120f8a434e792dae15b711e5449022"},
+    {file = "mariadb-1.1.12-cp312-cp312-win_amd64.whl", hash = "sha256:dd9d0ca112eb670dfa99a2fb7c4398bcc2a8c452dbf5507a8e4b5c4ae991bb2a"},
+    {file = "mariadb-1.1.12-cp313-cp313-win32.whl", hash = "sha256:ba43c42130d41352f32a5786c339cc931d05472ef7640fa3764d428dc294b88e"},
+    {file = "mariadb-1.1.12-cp313-cp313-win_amd64.whl", hash = "sha256:b69bc18418e72fcf359d17736cdc3f601a271203aff13ef7c57a415c8fd52ab0"},
+    {file = "mariadb-1.1.12-cp39-cp39-win32.whl", hash = "sha256:8b49fc1e8c38bf5a779d46f8cea61c99660adb08d5d15cb7dbc7911a6439ffc2"},
+    {file = "mariadb-1.1.12-cp39-cp39-win_amd64.whl", hash = "sha256:992064971e0ff4b4154b80b16589ec86237ce4bd33debe1be5212141c056858a"},
+    {file = "mariadb-1.1.12.tar.gz", hash = "sha256:50b02ff2c78b1b4f4628a054e3c8c7dd92972137727a5cc309a64c9ed20c878c"},
+]
+
+[package.dependencies]
+packaging = "*"
+
+[[package]]
 name = "meshtastic"
 version = "2.5.12"
 description = "Python API & client shell for talking to Meshtastic devices"
@@ -1321,4 +1345,4 @@ all = ["winrt-Windows.Foundation.Collections[all] (==2.3.0)", "winrt-Windows.Fou
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "ac9966f46b05559dfc03d468cefb9306e8806370ffb0c0cb5b1324e7a8f05e0d"
+content-hash = "03c42712f8fd2d8ea0fc99a86b136799720d7854c9cf0f9f0cc4314bdc7be5db"

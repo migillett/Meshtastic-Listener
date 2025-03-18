@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "meshtatic_listener"
-version = "1.7.0"
+version = "1.8.0"
 description = "A server for connecting to a Meshtastic device and responding to commands."
 authors = ["Michael Gillett <51103663+migillett@users.noreply.github.com>"]
 readme = "README.md"
@@ -19,6 +19,7 @@ pytest = "^8.3.4"
 sqlalchemy = "^2.0.37"
 meshtastic = "^2.5.11"
 tenacity = "^9.0.0"
+mariadb = "^1.1.12"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"

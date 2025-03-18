@@ -42,7 +42,8 @@ def test_listener():
     test_interface = TestInterface()
 
     handler_db = ListenerDb(
-        db_path=":memory:"
+        password='example',
+        hostname='127.0.0.1'
     )
 
     cmd_handler = CommandHandler(
@@ -68,8 +69,8 @@ def test_listener():
                 listener.__on_receive__(packet=message_received)
     
     test_commands = [
-        b'!help', b'!post Hello, World!', b'!read',
-        b'!reply', b'hello world', b'!clear', b'!uplink', b'!waypoints'
+        '!help', '!post Hello, World!', '!read',
+        '!reply', 'hello world', '!clear', '!waypoints'
     ]
 
     message_received = {
@@ -77,7 +78,6 @@ def test_listener():
         "to": 1234567890,
         "decoded": {
             "portnum": "TEXT_MESSAGE_APP",
-            "payload": b"",
             "bitfield": 0,
             "text": ""
         },
@@ -97,6 +97,5 @@ def test_listener():
     for message in test_commands:
         print(f'Sending message: {message}')
         message_received['rxTime'] = int(time())
-        message_received['decoded']['payload'] = message
-        message_received['decoded']['text'] = message.decode()
+        message_received['decoded']['text'] = message
         listener.__on_receive__(packet=message_received)
