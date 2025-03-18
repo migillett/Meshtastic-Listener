@@ -35,7 +35,7 @@ poetry install
 | `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |
 | `TRACEROUTE_NODE_ID`    | Node to traceroute to every n hours.                                                              | `None`        |
 | `TRACEROUTE_INTERVAL`| Interval (in hours) to traceroute the `TRACEROUTE_NODE_ID`.                                          | `24`          |
-| `POSTGRES_DB` | The name of the Postgres database. ` | `listener_db` |
+| `POSTGRES_DB` | The name of the Postgres database. | `listener_db` |
 | `POSTGRES_PASSWORD` | The password of the user to connect to the database | No default defined |
 
 ## Running Locally
