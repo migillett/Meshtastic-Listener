@@ -492,8 +492,10 @@ if __name__ == "__main__":
         exit(1)
 
     db_object = ListenerDb(
-        password=environ.get("DB_PASSWORD", 'example'),
-        hostname=environ.get("DB_HOSTNAME", 'listener_db')
+        hostname=environ.get("MARIADB_HOSTNAME", "127.0.0.1"),
+        username=environ.get("MARIADB_USER"),
+        password=environ.get("MARIADB_PASSWORD"),
+        db_name=environ.get("MARIADB_DATABASE", 'meshtastic_listener_db')
     )
 
     cmd_handler = CommandHandler(

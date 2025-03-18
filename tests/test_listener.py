@@ -42,8 +42,10 @@ def test_listener():
     test_interface = TestInterface()
 
     handler_db = ListenerDb(
+        hostname='127.0.0.1',
+        username='listener_user',
         password='example',
-        hostname='127.0.0.1'
+        db_name='listener_db'
     )
 
     cmd_handler = CommandHandler(

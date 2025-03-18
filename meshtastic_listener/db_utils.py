@@ -187,13 +187,7 @@ class Waypoints(Base):
 
 
 class ListenerDb:
-    def __init__(
-            self,
-            password: str,
-            username: str = 'listener_user',
-            hostname: str = 'meshtastic_db',
-            db_name: str = 'listener_db') -> None:
-
+    def __init__(self, hostname: str, username: str, password: str, db_name: str = 'listener_db') -> None:
         self.engine = create_engine(
             f'mariadb+mariadbconnector://{username}:{password}@{hostname}/{db_name}',
             echo=False, pool_pre_ping=True)
