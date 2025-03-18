@@ -10,9 +10,13 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 
 ## To Do:
 - Add support for user to pick their preferred database such as SqLite 3 -or- Postgres.
+- Update test scripts to work with Postgres DB instead of SqLite3
 
-## Database Choice
+## Database Information
 Yes, this repo does use a Postgres database on the backend. Yes, it's overkill. Why? Because I needed to learn how to interact with Postgres for a work project. This is how I learned it. Can SQLite3 also get the job done? Absolutely. In fact, that's what the project started with. See versions 1.5.0 if you want to use that. However, I need to learn a new DB and Postgres is the name of the game.
+
+### Viewing Database Objects
+One of the main reasons for switching to Postgres was to allow for a full API frontend and database browser that was independent from the Meshtastic Listener code. The docker-compose file currently includes a conatainer for [Adminer](https://www.adminer.org/). This allows you to view the DB quickly without any additional software. This may change in the future, but it works for now.
 
 ## Installation
 ```bash
@@ -50,7 +54,7 @@ docker-compose up -d --force-recreate --build
 ```
 
 > [!TIP]
->If you're using a I2C device such as the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat), you may need to add `network_mode: host` to your docker-compose.yml file and point your `DEVICE_IP` to `127.0.0.1` to properly connect to the local device hosted by the Raspberry Pi.
+>If you're using an SPI device such as the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat), you may need to add `network_mode: host` to your docker-compose.yml file and point your `DEVICE_IP` to `127.0.0.1` to properly connect to the local device hosted by the Raspberry Pi. You can also run [Meshtasticd](https://github.com/meshtastic/firmware) inside a Docker container alongside the Meshtastic Listener too if you don't want to modify the `network_mode`.
 
 ## Docker
 ### Build
