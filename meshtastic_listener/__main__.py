@@ -492,8 +492,8 @@ if __name__ == "__main__":
         exit(1)
 
     db_object = ListenerDb(
-        hostname=environ.get("MARIADB_HOSTNAME", "127.0.0.1"),
-        username=environ.get("MARIADB_USER"),
+        hostname=environ.get("MARIADB_HOSTNAME", "mariadb"),
+        username=environ.get("MARIADB_USER", 'listener_user'),
         password=environ.get("MARIADB_PASSWORD"),
         db_name=environ.get("MARIADB_DATABASE", 'meshtastic_listener_db')
     )
