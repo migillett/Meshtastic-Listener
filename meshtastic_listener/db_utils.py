@@ -97,7 +97,7 @@ class EnvironmentMetrics(Base):
     __tablename__ = 'environment_metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
     rxTime = Column(BigInteger, nullable=False)
-    nodeNum = Column(Integer, nullable=False)
+    nodeNum = Column(BigInteger, nullable=False)
     temperature = Column(Float, default=None)
     relativeHumidity = Column(Float, default=None)
     barometricPressure = Column(Float, default=None)
@@ -164,7 +164,7 @@ class OutgoingNotifications(Base):
 
 class Lockout(Base):
     __tablename__ = 'node_lockout'
-    nodeNum = Column(Integer, primary_key=True)
+    nodeNum = Column(BigInteger, primary_key=True)
     failedAttempts = Column(Integer, default=0)
     lastFailedAttempt = Column(Integer, default=0)
     locked = Column(Boolean, default=False)
