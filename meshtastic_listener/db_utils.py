@@ -187,13 +187,10 @@ class Waypoints(Base):
 
 
 class ListenerDb:
-    def __init__(self, hostname: str, username: str, password: str, db_name: str = 'listener_db', port: int = 3306) -> None:
-        self.engine = create_engine(
-            f'mariadb+mariadbconnector://{username}:{password}@{hostname}:{port}/{db_name}',
-            echo=False, pool_pre_ping=True)
-        self.session = sessionmaker(bind=self.engine)
+    def __init__(self, hostname: str, username: str, password: str, db_name: str = 'listener_db', port: int = 5432) -> None:
+        self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
         self.create_tables()
-        logger.info(f'Connected to database: {hostname}/{db_name}')
+        logger.info(f'Connected to postgres database: {hostname}/{db_name}')
 
     def create_tables(self) -> None:
         Base.metadata.create_all(self.engine)
