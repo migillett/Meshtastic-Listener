@@ -147,7 +147,7 @@ class MeshtasticListener:
             except UnauthorizedError as e:
                 logging.error(f'User unauthorized to execute command: {e}')
                 if self.admin_node is not None:
-                    self.db.insert_notification(
+                    self.db.insert_outoing_message(
                         to_id=self.admin_node,
                         message=f"Unauthorized command execution attempt from {payload.fromId}: {e}")
                 self.db.increment_failed_attempts(payload.fromId)
@@ -239,7 +239,7 @@ class MeshtasticListener:
             # add a slight delay to give time for the db to update
             self.notification_ts = time.time() + timedelta(seconds=30).total_seconds()
             from_shortname = self.db.get_shortname(packet['from'])
-            self.db.insert_notification(
+            self.db.insert_outoing_message(
                 to_id=self.admin_node,
                 message=f"Received traceroute from {from_shortname}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
             logging.info(f'Queued traceroute notification delivery for node: {self.admin_node}')
@@ -347,7 +347,7 @@ class MeshtasticListener:
         if self.notification_ts < time.time():
             logging.debug(f'Packet received from notify_node {self.admin_node}. Triggering notifications...')
 
-            notifications = self.db.get_pending_notifications()
+            notifications = self.db.get_pending_messages()
             if len(notifications) == 0:
                 logging.debug("No notifications to send to admin node.")
                 return
@@ -364,8 +364,8 @@ class MeshtasticListener:
                 # whenever we receive an ROUTER_APP packet from the notify_node
                 # we check for the request_id in the notifications table
                 try:
-                    self.db.increment_notification_attempts(
-                        notification_id=notif.id,
+                    self.db.increment_outgoing_message_attempt(
+                        message_id=notif.id,
                         notif_tx_id=int(message_metadata.id)
                     )
                 except ItemNotFound as e:
@@ -379,11 +379,11 @@ class MeshtasticListener:
         return False
 
     def __check_notification_received__(self, packet: dict) -> None:
-        if self.__sender_is_notify_node__(packet['from']) and self.db.check_pending_notifications():
+        if self.__sender_is_notify_node__(packet['from']) and self.db.check_pending_outbound_messages():
             decoded = packet.get('decoded', {})
             try:
                 request_id = decoded['requestId'] # throws KeyError if not found
-                self.db.mark_notification_received(notif_tx_id=request_id)
+                self.db.mark_outbound_message_received(notif_tx_id=request_id)
                 logging.info(f"Notification message with id {request_id} confirmed by admin node: {packet['from']}")
             except KeyError:
                 logging.warning(f"Received ROUTER_APP packet from {packet['from']} without a request_id: {decoded}")

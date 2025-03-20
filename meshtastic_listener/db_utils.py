@@ -148,18 +148,18 @@ class Neighbor(Base):
         return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
 
 
-class OutgoingNotifications(Base):
-    __tablename__ = 'outgoing_notifications'
+class OutgoingMessages(Base):
+    __tablename__ = 'outgoing_messages'
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(Integer, nullable=False)
     toId = Column(BigInteger, nullable=False)
     message = Column(String(length=200), nullable=False)
     received = Column(Boolean, default=False)
     attempts = Column(Integer, default=0)
-    txId = Column(BigInteger, default=None) # id of the notification message sent to the node
+    txId = Column(BigInteger, default=None) # id of the message sent to the node
 
     def __repr__(self):
-        return f'<OutgoingNotifications(id={self.id}, timestamp={self.timestamp}, toId={self.toId}, message={self.message}, received={self.received}, attempts={self.attempts})>'
+        return f'<OutgoingMessages(id={self.id}, timestamp={self.timestamp}, toId={self.toId}, message={self.message}, received={self.received}, attempts={self.attempts})>'
 
 
 class Lockout(Base):
@@ -395,61 +395,61 @@ class ListenerDb:
             )
             session.commit()
 
-    def insert_notification(self, to_id: int, message: str) -> None:
+    def insert_outoing_message(self, to_id: int, message: str) -> None:
         with self.session() as session:
-            session.add(OutgoingNotifications(
+            session.add(OutgoingMessages(
                 toId=to_id,
                 message=message,
                 timestamp=int(time()),
             ))
             session.commit()
 
-    def get_pending_notifications(self, max_attempts: int = 5) -> list[OutgoingNotifications]:
+    def get_pending_messages(self, max_attempts: int = 5) -> list[OutgoingMessages]:
         with self.session() as session:
             return session.query(
-                OutgoingNotifications
+                OutgoingMessages
             ).filter(
-                OutgoingNotifications.received == True,
-                OutgoingNotifications.attempts < max_attempts
+                OutgoingMessages.received == True,
+                OutgoingMessages.attempts < max_attempts
             ).all()
 
-    def increment_notification_attempts(self, notification_id: int, notif_tx_id: int) -> None:
+    def increment_outgoing_message_attempt(self, message_id: int, notif_tx_id: int) -> None:
         """
-        notification_id: the unique, auto-incremented value of the notificaiton in the db
-        notif_tx_id: the unique message ID of the most recent notification message sent to the node
+        message_id: the unique, auto-incremented value of the message in the db
+        notif_tx_id: the unique message ID of the most recent message sent to the node
         """
         with self.session() as session:
-            notif = session.query(OutgoingNotifications).filter(OutgoingNotifications.id == notification_id).first()
+            notif = session.query(OutgoingMessages).filter(OutgoingMessages.id == message_id).first()
             if notif is not None:
                 notif.txId = notif_tx_id
                 notif.attempts = notif.attempts + 1
                 session.add(notif)
                 session.commit()
             else:
-                raise ItemNotFound(f'Notification with id {notification_id} not found in db')
+                raise ItemNotFound(f'Outgoing message with id {message_id} not found in db')
             
-    def check_pending_notifications(self) -> bool:
+    def check_pending_outbound_messages(self) -> bool:
         '''
-        checks for any notifications that have been sent but not confirmed received by the end-user
+        checks for any outbound messages that have been sent but not confirmed received by the end-user
 
-        Returns True if there are pending notifications, False otherwise
+        Returns True if there are pending messages, False otherwise
         '''
         with self.session() as session:
             # check if received == False AND notif_xt_id is not None
-            return session.query(OutgoingNotifications).filter(
-                OutgoingNotifications.received == False,
-                OutgoingNotifications.txId.isnot(None)
+            return session.query(OutgoingMessages).filter(
+                OutgoingMessages.received == False,
+                OutgoingMessages.txId.isnot(None)
             ).count() > 0
 
-    def mark_notification_received(self, notif_tx_id: int) -> None:
+    def mark_outbound_message_received(self, notif_tx_id: int) -> None:
         '''
         Takes the request_id from the packet and marks it as received by the end-user
         '''
         with self.session() as session:
-            notification = session.query(OutgoingNotifications).filter(OutgoingNotifications.txId == notif_tx_id).first()
-            if notification:
-                notification.received = True
-                session.add(notification)
+            message = session.query(OutgoingMessages).filter(OutgoingMessages.txId == notif_tx_id).first()
+            if message:
+                message.received = True
+                session.add(message)
                 session.commit()
 
     def check_node_lockout(self, node_num: int) -> bool:
