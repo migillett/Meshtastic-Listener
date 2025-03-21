@@ -1,0 +1,49 @@
+services:
+  meshtasticd:
+    image: meshtastic/meshtasticd:beta-debian
+    container_name: meshtasticd
+    devices:
+      - "/dev/spidev0.0"
+      - "/dev/gpiochip0"
+    cap_add:
+      - SYS_RAWIO
+    ports:
+      - 4403:4403
+    volumes:
+      - ./meshtasticd/config.yaml:/etc/meshtasticd/config.yaml:ro
+      - ./meshtasticd/data:/var/lib/meshtasticd
+    restart: unless-stopped
+
+  meshtastic_listener:
+    depends_on:
+      - listener_db
+      - meshtasticd
+    build:
+      context: ./Meshtastic-Listener
+      dockerfile: dockerfile
+    container_name: meshtastic_listener
+    user: "1000:1000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  listener_db:
+    image: postgres:latest
+    container_name: listener_db
+    ports:
+      - 5432:5432
+    shm_size: 256mb
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    depends_on:
+      - listener_db
+    restart: unless-stopped
+    ports:
+      - 8080:8080
