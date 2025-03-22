@@ -42,11 +42,6 @@ poetry install
 | `POSTGRES_DB` | The name of the Postgres database. | `listener_db` |
 | `POSTGRES_PASSWORD` | The password of the user to connect to the database | No default defined |
 
-## Running Locally
-```bash
-poetry run python -m meshtastic_listener
-```
-
 ## Docker Compose
 This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You'll also want to modify the [environment secrets](secrets_example.env) for your specific use as well. For examples on docker deployments, see the [Docker Compose Readme](docker-examples.me)
 
