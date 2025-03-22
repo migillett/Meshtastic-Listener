@@ -81,7 +81,6 @@ class MeshtasticListener:
 
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
-        logging.info(f'ListenerDb initialized with db_path: {self.db.db_path}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
         if self.admin_node is not None:
             logging.info(f'Admin node ID set to: {self.admin_node}')
@@ -314,9 +313,9 @@ class MeshtasticListener:
         self.__print_packet_received__(logging.info, packet)
         for neighbor in neighbor_info.get('neighbors', []):
             self.db.insert_neighbor(
-                source_node_id=packet['from'],
-                neighbor_id=neighbor['nodeId'],
-                snr=neighbor['snr'],
+                source_node_id=int(packet['from']),
+                neighbor_id=int(neighbor['nodeId']),
+                snr=float(neighbor['snr']),
                 rx_time=int(time.time())
             )
 
@@ -389,6 +388,17 @@ class MeshtasticListener:
             except KeyError:
                 logging.warning(f"Received ROUTER_APP packet from {packet['from']} without a request_id: {decoded}")
 
+    def __sanitize_packet__(self, packet: dict) -> dict:
+        response = {}
+        for key in packet:
+            if isinstance(packet[key], bytes) or key == 'raw':
+                logging.debug(f'Dropping raw bytes from packet: {key}:{packet[key]}')
+            elif isinstance(packet[key], dict):
+                response[key] = self.__sanitize_packet__(packet[key])
+            else:
+                response[key] = packet[key]
+        return response
+
     def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:
             if 'encrypted' in packet:
@@ -398,6 +408,8 @@ class MeshtasticListener:
             if self.db.check_node_lockout(packet['from']):
                 logging.info(f"Node {packet['from']} is locked out due to too many malicious requests. Ignoring packet.")
                 return
+            
+            packet = self.__sanitize_packet__(packet)
             
             self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
@@ -479,16 +491,11 @@ if __name__ == "__main__":
         logging.warning(f"Connection to {device_ip} refused. Exiting...")
         exit(1)
 
-    # sanitizing the db_path
-    db_path = environ.get("DB_NAME", ':memory:')
-    if db_path != ':memory:':
-        if not db_path.endswith('.db'):
-            db_path += '.db'  # append .db if not present
-        if '/' in db_path or '\\' in db_path:
-            raise EnvironmentError("DB_NAME must be a filename only")
-
     db_object = ListenerDb(
-        db_path=path.join(data_dir, db_path) if db_path != ':memory:' else ':memory:'
+        hostname=environ.get("POSTGRES_HOSTNAME", "listener_db"),
+        username=environ.get("POSTGRES_USER", 'postgres'),
+        password=environ.get("POSTGRES_PASSWORD"),
+        db_name=environ.get("POSTGRES_DATABASE", 'listener_db')
     )
 
     cmd_handler = CommandHandler(

@@ -9,10 +9,9 @@ from meshtastic_listener.data_structures import (
     WaypointPayload
 )
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine, func
+from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine, BigInteger, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.dialects.sqlite import insert
-
+from sqlalchemy.dialects.postgresql import Insert
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +25,10 @@ class Annoucement(Base):
     __tablename__ = 'annoucements'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    fromId = Column(Integer, nullable=False)
-    toId = Column(Integer, nullable=False)
-    message = Column(String, nullable=False)
+    rxTime = Column(BigInteger, nullable=False)
+    fromId = Column(BigInteger, nullable=False)
+    toId = Column(BigInteger, nullable=False)
+    message = Column(String(length=200), nullable=False)
     rxSnr = Column(Float, nullable=False)
     rxRssi = Column(Integer, nullable=False)
     hopStart = Column(Integer, nullable=False)
@@ -43,14 +42,14 @@ class Annoucement(Base):
 class Node(Base):
     __tablename__ = 'nodes'
 
-    num = Column(Integer, primary_key=True)
-    longName = Column(String, default=None)
-    shortName = Column(String, default=None)
-    macaddr = Column(String, default=None)
-    hwModel = Column(String, default=None)
-    publicKey = Column(String, default=None)
-    role = Column(String, default=None)
-    lastHeard = Column(Integer, default=None)
+    nodeNum = Column(BigInteger, primary_key=True)
+    longName = Column(String(length=100), default=None)
+    shortName = Column(String(length=4), default=None)
+    macAddr = Column(String(length=100), default=None)
+    hwModel = Column(String(length=100), default=None)
+    publicKey = Column(String(length=100), default=None)
+    nodeRole = Column(String(length=100), default=None)
+    lastHeard = Column(BigInteger, default=None)
     latitude = Column(Float, default=None)
     longitude = Column(Float, default=None)
     distance = Column(Float, default=None)
@@ -59,18 +58,18 @@ class Node(Base):
     hopsAway = Column(Integer, default=None)
 
     def __repr__(self):
-        return f'<Node(num={self.num}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macaddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.role}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
+        return f'<Node(num={self.nodeNum}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macAddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.nodeRole}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
 
 
 class DeviceMetrics(Base):
     __tablename__ = 'device_metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    nodeNum = Column(Integer, nullable=False)
+    rxTime = Column(BigInteger, nullable=False)
+    nodeNum = Column(BigInteger, nullable=False)
     batteryLevel = Column(Integer, default=None)
     voltage = Column(Float, default=None)
     channelUtilization = Column(Float, default=None)
-    uptimeSeconds = Column(Integer, default=None)
+    uptimeSeconds = Column(BigInteger, default=None)
 
     def __repr__(self):
         return f'<DeviceMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, batteryLevel={self.batteryLevel}, voltage={self.voltage}, channelUtilization={self.channelUtilization}, uptimeSeconds={self.uptimeSeconds})>'
@@ -78,8 +77,8 @@ class DeviceMetrics(Base):
 class TransmissionMetrics(Base):
     __tablename__ = 'transmission_metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    nodeNum = Column(Integer, nullable=False)
+    rxTime = Column(BigInteger, nullable=False)
+    nodeNum = Column(BigInteger, nullable=False)
     airUtilTx = Column(Float, default=None)
     numPacketsTx = Column(Integer, default=None)
     numPacketsRx = Column(Integer, default=None)
@@ -97,8 +96,8 @@ class TransmissionMetrics(Base):
 class EnvironmentMetrics(Base):
     __tablename__ = 'environment_metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    nodeNum = Column(Integer, nullable=False)
+    rxTime = Column(BigInteger, nullable=False)
+    nodeNum = Column(BigInteger, nullable=False)
     temperature = Column(Float, default=None)
     relativeHumidity = Column(Float, default=None)
     barometricPressure = Column(Float, default=None)
@@ -112,10 +111,10 @@ class EnvironmentMetrics(Base):
 class Traceroute(Base):
     __tablename__ = 'traceroutes'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    fromId = Column(Integer, nullable=False)
-    toId = Column(Integer, nullable=False)
-    tracerouteDetails = Column(String, default=None)
+    rxTime = Column(BigInteger, nullable=False)
+    fromId = Column(BigInteger, nullable=False)
+    toId = Column(BigInteger, nullable=False)
+    tracerouteDetails = Column(String(length=200), default=None)
     snrAvg = Column(Float, default=None)
     directConnection = Column(Boolean, default=False)
 
@@ -126,11 +125,11 @@ class Traceroute(Base):
 class MessageHistory(Base):
     __tablename__ = 'message_history'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    fromId = Column(Integer, nullable=False)
-    toId = Column(Integer, nullable=False)
-    portnum = Column(String, nullable=False)
-    packetRaw = Column(String, nullable=False)
+    rxTime = Column(BigInteger, nullable=False)
+    fromId = Column(BigInteger, nullable=False)
+    toId = Column(BigInteger, nullable=False)
+    portnum = Column(String(length=75), nullable=False)
+    packetRaw = Column(JSON, nullable=False)
     rxSnr = Column(Float, default=None)
     rxRssi = Column(Integer, default=None)
 
@@ -142,8 +141,8 @@ class Neighbor(Base):
     __tablename__ = 'neighbors'
     id = Column(Integer, primary_key=True, autoincrement=True)
     rxTime = Column(Integer, nullable=False)
-    sourceNodeId = Column(Integer, nullable=False)
-    neighborNodeId = Column(Integer, nullable=False)
+    sourceNodeId = Column(BigInteger, nullable=False)
+    neighborNodeId = Column(BigInteger, nullable=False)
     snr = Column(Float, nullable=False)
     def __repr__(self):
         return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
@@ -153,11 +152,11 @@ class OutgoingNotifications(Base):
     __tablename__ = 'outgoing_notifications'
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(Integer, nullable=False)
-    toId = Column(Integer, nullable=False)
-    message = Column(String, nullable=False)
+    toId = Column(BigInteger, nullable=False)
+    message = Column(String(length=200), nullable=False)
     received = Column(Boolean, default=False)
     attempts = Column(Integer, default=0)
-    txId = Column(Integer, default=None) # id of the notification message sent to the node
+    txId = Column(BigInteger, default=None) # id of the notification message sent to the node
 
     def __repr__(self):
         return f'<OutgoingNotifications(id={self.id}, timestamp={self.timestamp}, toId={self.toId}, message={self.message}, received={self.received}, attempts={self.attempts})>'
@@ -165,7 +164,7 @@ class OutgoingNotifications(Base):
 
 class Lockout(Base):
     __tablename__ = 'node_lockout'
-    nodeNum = Column(Integer, primary_key=True)
+    nodeNum = Column(BigInteger, primary_key=True)
     failedAttempts = Column(Integer, default=0)
     lastFailedAttempt = Column(Integer, default=0)
     locked = Column(Boolean, default=False)
@@ -177,8 +176,8 @@ class Lockout(Base):
 class Waypoints(Base):
     __tablename__ = 'waypoints'
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    description = Column(String, default=None)
+    name = Column(String(length=30), nullable=False)
+    description = Column(String(length=100), default=None)
     icon = Column(Integer, nullable=False)
     latitudeI = Column(Integer, default=None)
     longitudeI = Column(Integer, default=None)
@@ -188,11 +187,11 @@ class Waypoints(Base):
 
 
 class ListenerDb:
-    def __init__(self, db_path: str = ':memory:') -> None:
-        self.db_path = db_path
-        self.engine = create_engine(f'sqlite:///{self.db_path}')
+    def __init__(self, hostname: str, username: str, password: str, db_name: str = 'listener_db', port: int = 5432) -> None:
+        self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
         self.session = sessionmaker(bind=self.engine)
         self.create_tables()
+        logger.info(f'Connected to postgres database: {hostname}/{db_name}')
 
     def create_tables(self) -> None:
         Base.metadata.create_all(self.engine)
@@ -225,7 +224,7 @@ class ListenerDb:
             look_back = int(time() - (days_past * 24 * 3600))
             results = session.query(Annoucement).filter(
                 Annoucement.rxTime > look_back,
-                Annoucement.isDeleted == 0
+                Annoucement.isDeleted == False
             ).all()
             logger.info(f'Found {len(results)} annoucements from the last {days_past} days')
             [self.mark_annoucement_read([result.id]) for result in results]
@@ -234,37 +233,37 @@ class ListenerDb:
     def soft_delete_annoucements(self) -> None:
         with self.session() as session:
             session.query(Annoucement).filter(
-                Annoucement.isDeleted == 0
+                Annoucement.isDeleted == False
             ).update({Annoucement.isDeleted: 1})
             session.commit()
 
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         with self.session() as session:
             for node in nodes:
-                stmt = insert(Node).values(
-                    num=node.num,
+                stmt = Insert(Node).values(
+                    nodeNum=node.num,
                     longName=node.user.longName,
                     shortName=node.user.shortName,
-                    macaddr=node.user.macaddr,
+                    macAddr=node.user.macaddr,
                     hwModel=node.user.hwModel,
                     publicKey=node.user.publicKey,
-                    role=node.user.role,
+                    nodeRole=node.user.role,
                     lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
                 ).on_conflict_do_update(
-                    index_elements=['num'],
+                    index_elements=['nodeNum'],
                     set_={
                         'longName': node.user.longName,
                         'shortName': node.user.shortName,
-                        'macaddr': node.user.macaddr,
+                        'macAddr': node.user.macaddr,
                         'hwModel': node.user.hwModel,
                         'publicKey': node.user.publicKey,
-                        'role': node.user.role,
+                        'nodeRole': node.user.role,
                         'lastHeard': node.lastHeard,
                         'hopsAway': node.hopsAway,
                     }
                 )
-                
+
                 session.execute(stmt)
 
             session.commit()
@@ -272,7 +271,7 @@ class ListenerDb:
 
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
-            return session.query(Node).filter(Node.num == node_num).first()
+            return session.query(Node).filter(Node.nodeNum == node_num).first()
         
     def get_closest_nodes(self, n_nodes: int = 5) -> list[Node]:
         with self.session() as session:
@@ -370,25 +369,30 @@ class ListenerDb:
 
     def insert_message_history(self, rx_time: int, from_id: int, to_id: int, portnum: str, packet_raw: dict) -> None:
         with self.session() as session:
-            session.add(MessageHistory(
-                rxTime=rx_time,
-                fromId=from_id,
-                toId=to_id,
-                portnum=portnum,
-                rxSnr=packet_raw.get('rxSnr', None),
-                rxRssi=packet_raw.get('rxRssi', None),
-                packetRaw=json.dumps(packet_raw, default=str, indent=2),
-            ))
+            session.add(
+                MessageHistory(
+                    rxTime=rx_time,
+                    fromId=from_id,
+                    toId=to_id,
+                    portnum=portnum,
+                    rxSnr=packet_raw.get('rxSnr', None),
+                    rxRssi=packet_raw.get('rxRssi', None),
+                    packetRaw=packet_raw
+                )
+            )
             session.commit()
 
-    def insert_neighbor(self, source_node_id: int, neighbor_id: str, snr: float, rx_time: int) -> None:
+    def insert_neighbor(self, source_node_id: int, neighbor_id: int, snr: float, rx_time: int) -> None:
         with self.session() as session:
-            session.add(Neighbor(
-                sourceNodeId=source_node_id,
-                neighborNodeId=neighbor_id,
-                snr=snr,
-                rxTime=rx_time,
-            ))
+            logger.debug(f'Inserting neighbor: {neighbor_id} with SNR: {snr} for source node: {source_node_id} at time: {rx_time}')
+            session.add(
+                Neighbor(
+                    rxTime=rx_time,
+                    sourceNodeId=source_node_id,
+                    neighborNodeId=neighbor_id,
+                    snr=snr
+                )
+            )
             session.commit()
 
     def insert_notification(self, to_id: int, message: str) -> None:
@@ -402,7 +406,12 @@ class ListenerDb:
 
     def get_pending_notifications(self, max_attempts: int = 5) -> list[OutgoingNotifications]:
         with self.session() as session:
-            return session.query(OutgoingNotifications).filter(OutgoingNotifications.received == 0, OutgoingNotifications.attempts < max_attempts).all()
+            return session.query(
+                OutgoingNotifications
+            ).filter(
+                OutgoingNotifications.received == True,
+                OutgoingNotifications.attempts < max_attempts
+            ).all()
 
     def increment_notification_attempts(self, notification_id: int, notif_tx_id: int) -> None:
         """
@@ -426,9 +435,9 @@ class ListenerDb:
         Returns True if there are pending notifications, False otherwise
         '''
         with self.session() as session:
-            # check if received == 0 AND notif_xt_id is not None
+            # check if received == False AND notif_xt_id is not None
             return session.query(OutgoingNotifications).filter(
-                OutgoingNotifications.received == 0,
+                OutgoingNotifications.received == False,
                 OutgoingNotifications.txId.isnot(None)
             ).count() > 0
 
@@ -498,7 +507,7 @@ class ListenerDb:
 
     def insert_waypoint(self, waypoint: WaypointPayload) -> None:
         with self.session() as session:
-            stmt = insert(Waypoints).values(
+            stmt = Insert(Waypoints).values(
                 id=waypoint.id,
                 name=waypoint.name,
                 description=waypoint.description,
@@ -512,7 +521,7 @@ class ListenerDb:
                     'description': waypoint.description,
                     'icon': waypoint.icon,
                     'latitudeI': waypoint.latitudeI,
-                    'longitudeI': waypoint.longitudeI,
+                    'longitudeI': waypoint.longitudeI
                 }
             )
             session.execute(stmt)

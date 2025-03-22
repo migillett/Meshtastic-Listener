@@ -3,7 +3,6 @@ from pydantic import BaseModel
 
 class Decoded(BaseModel):
     portnum: str
-    payload: str # Message content
     bitfield: Optional[int] = None
     text: str
 

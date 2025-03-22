@@ -1,21 +1,33 @@
 services:
   meshtastic_listener:
+    depends_on:
+      - listener_db
     build:
       context: .
       dockerfile: dockerfile
     container_name: meshtastic_listener
-    volumes:
-      - ./data:/home/meshtastic/data
     user: "1000:1000"
-    environment:
-      - DB_NAME=listener.db
-      # Change this to your device's IP address
-      - DEVICE_IP=192.168.2.147
-    # Uncomment if you want to connect to your local device (e.g., Raspberry Pi meshtasticd) directly
-    # network_mode: host
-    # Uncomment if you need to access the serial port for a Meshtastic device
-    # devices:
-    #   - /dev/ttyUSB0:/dev/ttyUSB0
-    # group_add:
-    #   - dialout
+    env_file:
+      - .env
     restart: unless-stopped
+
+  listener_db:
+    image: postgres:latest
+    container_name: listener_db
+    expose:
+      - 5432:5432
+    shm_size: 256mb
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    depends_on:
+      - listener_db
+    restart: unless-stopped
+    ports:
+      - 8080:8080

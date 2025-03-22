@@ -5,7 +5,12 @@ from meshtastic_listener.data_structures import MessageReceived
 
 
 def test_db_functions():
-    db = ListenerDb(':memory:')
+    db = ListenerDb(
+        hostname='127.0.0.1',
+        username='listener_user',
+        password='example',
+        db_name='listener_db'
+    )
 
     message = {
         "from": 1128078592,
