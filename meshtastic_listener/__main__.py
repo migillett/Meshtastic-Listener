@@ -125,8 +125,6 @@ class MeshtasticListener:
             return
         
         packet = message.get('decoded', {})
-        if 'raw' in packet:
-            packet.pop('raw')
 
         snr = message.get('rxSnr', "N/A")
         rx_rssi = message.get('rxRssi', "N/A")
@@ -217,7 +215,6 @@ class MeshtasticListener:
 
     def __handle_traceroute__(self, packet: dict) -> None:
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})
-        traceroute_details.pop('raw', None)
         
         self.__print_packet_received__(logging.info, packet)
 
@@ -333,7 +330,6 @@ class MeshtasticListener:
         if sender == self.admin_node:
             self.__print_packet_received__(logging.info, packet)
             waypoint_data = packet.get('decoded', {}).get('waypoint', {})
-            waypoint_data.pop('raw')
             waypoint = WaypointPayload(**waypoint_data)
             self.db.insert_waypoint(waypoint)
         else:

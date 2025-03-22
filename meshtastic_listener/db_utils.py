@@ -175,12 +175,12 @@ class Lockout(Base):
 
 class Waypoints(Base):
     __tablename__ = 'waypoints'
-    id = Column(Integer, primary_key=True)
+    id = Column(BigInteger, primary_key=True)
     name = Column(String(length=30), nullable=False)
     description = Column(String(length=100), default=None)
-    icon = Column(Integer, nullable=False)
-    latitudeI = Column(Integer, default=None)
-    longitudeI = Column(Integer, default=None)
+    icon = Column(BigInteger, nullable=False)
+    latitudeI = Column(BigInteger, default=None)
+    longitudeI = Column(BigInteger, default=None)
 
     def __repr__(self):
         return f'<Waypoints(id={self.id}, name={self.name}, description={self.description}, icon={self.icon}, latitudeI={self.latitudeI}, longitudeI={self.longitudeI})>'
