@@ -48,27 +48,7 @@ poetry run python -m meshtastic_listener
 ```
 
 ## Docker Compose
-This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. Just modify that file with your specific environment variables and run the following command:
-```bash
-docker-compose up -d --force-recreate --build
-```
-
-> [!TIP]
->If you're using an SPI device such as the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat), you may need to add `network_mode: host` to your docker-compose.yml file and point your `DEVICE_IP` to `127.0.0.1` to properly connect to the local device hosted by the Raspberry Pi. You can also run [Meshtasticd](https://github.com/meshtastic/firmware) inside a Docker container alongside the Meshtastic Listener too if you don't want to modify the `network_mode`.
-
-## Docker
-### Build
-```bash
-docker build . -t meshtastic_listener:latest
-```
-
-### Run
-```bash
-docker run -d --rm --name meshtastic_listener -e DEVICE_IP=192.168.3.185 -e DB_NAME=listener.db -v ./data:/home/meshtastic/data meshtastic_listener:latest
-```
-
-> [!Note]
-> You'll need to pass in the USB device to the container if you wish to use USB serial. For instance: `--device /dev/tty0`. Serial connections are usually `/dev/ttyUSB0` or `/dev/ttyACM0` on Linux, or `COM{x}` on Windows.
+This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You'll also want to modify the [environment secrets](secrets_example.env) for your specific use as well. For examples on docker deployments, see the [Docker Compose Readme](docker-examples.me)
 
 ## Testing
 All test scripts can be found in the `tests` directory. To run tests, use the following command:
