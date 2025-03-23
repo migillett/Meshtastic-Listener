@@ -396,6 +396,8 @@ class MeshtasticListener:
         return response
 
     def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
+        self.interface = interface if interface is not None else self.interface
+        
         try:
             if 'encrypted' in packet:
                 logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
