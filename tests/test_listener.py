@@ -41,24 +41,24 @@ class TestInterface(MeshInterface):
 def test_listener():
     test_interface = TestInterface()
 
-    handler_db = ListenerDb(
+    db = ListenerDb(
         hostname='127.0.0.1',
-        username='listener_user',
-        password='example',
-        db_name='listener_db'
+        username='postgres',
+        password='test_user',
+        db_name='test_db'
     )
 
     cmd_handler = CommandHandler(
         prefix='!',
         server_node_id=1234567890,
-        cmd_db=handler_db,
+        cmd_db=db,
         admin_node_id=1234567890,
     )
     
     listener = MeshtasticListener(
         interface=test_interface,
         cmd_handler=cmd_handler,
-        db_object=handler_db,
+        db_object=db,
         admin_node=1234567890
     )
 

@@ -33,6 +33,8 @@ services:
     depends_on:
       - listener_db
       - meshtasticd
+    volumes:
+      - ./logs:/home/meshtastic/logs
     build:
       context: ./Meshtastic-Listener
       dockerfile: dockerfile
@@ -78,6 +80,8 @@ services:
       - meshtasticd
     devices:
       - /dev/tty0:/dev/tty0
+    volumes:
+      - ./logs:/home/meshtastic/logs
     build:
       context: ./Meshtastic-Listener
       dockerfile: dockerfile
@@ -118,6 +122,8 @@ services:
     depends_on:
       - listener_db
       - meshtasticd
+    volumes:
+      - ./logs:/home/meshtastic/logs
     build:
       context: ./Meshtastic-Listener
       dockerfile: dockerfile

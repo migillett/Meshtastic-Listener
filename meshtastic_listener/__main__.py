@@ -23,9 +23,9 @@ import toml
 
 # the `/data` directory is for storing logs and .db files
 abs_path = path.dirname(path.abspath(__file__))
-data_dir = path.join(abs_path, '..', 'data')
-if not path.exists(data_dir):
-    mkdir(data_dir)
+logs_dir = path.join(abs_path, '..', 'logs')
+if not path.exists(logs_dir):
+    mkdir(logs_dir)
 
 enable_debug: bool = environ.get('ENABLE_DEBUG', 'false').lower() == 'true'
 
@@ -33,7 +33,7 @@ logging.basicConfig(
     level=logging.DEBUG if enable_debug else logging.INFO,
     format='%(asctime)s - %(levelname)s : %(message)s',
     handlers=[
-        logging.FileHandler(path.join(data_dir, 'listener.log')),
+        logging.FileHandler(path.join(logs_dir, 'listener.log')),
         logging.StreamHandler(sys.stdout)
     ],
     datefmt='%Y-%m-%d %H:%M:%S'
