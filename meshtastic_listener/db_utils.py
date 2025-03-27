@@ -8,6 +8,7 @@ from meshtastic_listener.data_structures import (
     EnvironmentPayload, MessageReceived, NeighborSnr,
     WaypointPayload
 )
+from meshtastic_listener.hashing_utils import hash_incoming_message
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine, BigInteger, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -35,6 +36,7 @@ class Annoucement(Base):
     hopLimit = Column(Integer, nullable=False)
     readCount = Column(Integer, default=0)
     isDeleted = Column(Boolean, default=0)
+    messageHash = Column(String(length=100), default=None)
 
     def __repr__(self):
         return f'<Annoucement(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
@@ -207,6 +209,7 @@ class ListenerDb:
             rxRssi=payload.rxRssi,
             hopStart=payload.hopStart,
             hopLimit=payload.hopLimit,
+            messageHash=hash_incoming_message(payload.decoded.text, payload.fromId)
         ))
         session.commit()
         session.close()
