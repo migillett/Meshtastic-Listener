@@ -21,8 +21,8 @@ Base = declarative_base()
 class ItemNotFound(Exception):
     pass
 
-class DbState(Base):
-    __tablename__ = 'db_state'
+class DbHashTable(Base):
+    __tablename__ = 'db_hash_table'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     hash_value = Column(String(length=64), nullable=False)
@@ -227,21 +227,21 @@ class ListenerDb:
                 return
 
             session.add(
-                DbState(
+                DbHashTable(
                     hash_value=db_state,
                     timestamp=int(time())
                 )
             )
             session.commit()
 
-    def get_latest_db_hash(self) -> DbState | None:
+    def get_latest_db_hash(self) -> DbHashTable | None:
         '''
         Retrieves the lastest hash of the database state from the `db_state_hash_table`.
         This is used to check if the database state has changed since the last time it was hashed.
         '''
         with self.session() as session:
             # Get the most recent hash from the db_state_hash_table
-            last_hash = session.query(DbState).order_by(DbState.timestamp.desc()).first()
+            last_hash = session.query(DbHashTable).order_by(DbHashTable.timestamp.desc()).first()
             if last_hash:
                 return last_hash
             else:
@@ -254,7 +254,7 @@ class ListenerDb:
         '''
         with self.session() as session:
             # Get the timestamp of the given hash value
-            hash_entry = session.query(DbState).filter(DbState.hash_value == hash_string).first()
+            hash_entry = session.query(DbHashTable).filter(DbHashTable.hash_value == hash_string).first()
             if hash_entry:
                 return hash_entry.timestamp
             else:
@@ -288,7 +288,6 @@ class ListenerDb:
                 messageHash=msg_hash
             ))
             session.commit()
-            session.close()
         self.hash_bbs_state()
 
     def mark_annoucement_read(self, annoucement_ids: list[int]) -> None:
