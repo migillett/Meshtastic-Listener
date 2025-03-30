@@ -5,6 +5,10 @@ I've included a few docker-compose examples for how to run the Meshtastic-Listen
 > [!TIP]
 > Make sure you rename your `secrets_example.env` either to `.env` or rename the `.env` file below to make sure you're pulling in the correct file. I'd also recommend modify the permissions of this file to something like `chmod 600 ./.env` to prevent any unwanted eyes at your configuration and passwords.
 
+## Image Tags
+There are 2 main docker image tags for this repo:
+- `main` - The most current "stable" branch of the BBS.
+- `developing` - Where I do my development work. Unstable, but the cutting edge of what's currently being worked on. I wouldn't use `latest` as that might be a little unreliable.
 
 ## Full-Stack with Meshtasticd Firmware
 There are some instances where you need to run the [Meshtastic firmware](https://github.com/meshtastic/firmware) and have it control local hardware. For example, the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat). I have this exact setup for my local node and here's what I have running.
