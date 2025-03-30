@@ -37,9 +37,7 @@ services:
       - meshtasticd
     volumes:
       - ./logs:/home/meshtastic/logs
-    build:
-      context: ./Meshtastic-Listener
-      dockerfile: dockerfile
+    image: michaelgillett/meshtastic-listener:main
     container_name: meshtastic_listener
     user: "1000:1000"
     env_file:
@@ -84,9 +82,7 @@ services:
       - /dev/tty0:/dev/tty0
     volumes:
       - ./logs:/home/meshtastic/logs
-    build:
-      context: ./Meshtastic-Listener
-      dockerfile: dockerfile
+    image: michaelgillett/meshtastic-listener:main
     container_name: meshtastic_listener
     user: "1000:1000"
     env_file:
@@ -126,9 +122,7 @@ services:
       - meshtasticd
     volumes:
       - ./logs:/home/meshtastic/logs
-    build:
-      context: ./Meshtastic-Listener
-      dockerfile: dockerfile
+    image: michaelgillett/meshtastic-listener:main
     container_name: meshtastic_listener
     user: "1000:1000"
     env_file:
@@ -155,4 +149,12 @@ services:
     restart: unless-stopped
     ports:
       - 8080:8080
+```
+
+### Building Locally
+If you want to build the meshtastic-listener docker container from the source code, just replace `image: michaelgillett/meshtastic-listener:main` with:
+```
+build:
+  context: ./Meshtastic-Listener
+  dockerfile: dockerfile
 ```
