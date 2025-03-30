@@ -24,7 +24,7 @@ WORKDIR /home/meshtastic
 # Copy over project files
 COPY --chown=meshtastic:meshtastic ./pyproject.toml .
 COPY --chown=meshtastic:meshtastic ./meshtastic_listener ./meshtastic_listener
-RUN mkdir ./data && chown -R meshtastic:meshtastic /home/meshtastic/data
+RUN mkdir ./logs && chown -R meshtastic:meshtastic /home/meshtastic/logs
 
 # install depdendencies
 RUN pip3 install --user poetry && poetry install --only main

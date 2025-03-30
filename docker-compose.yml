@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: dockerfile
+    volumes:
+      - ./logs:/home/meshtastic/logs
     container_name: meshtastic_listener
     user: "1000:1000"
     env_file:

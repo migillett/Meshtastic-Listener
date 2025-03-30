@@ -34,7 +34,7 @@ class Annoucement(Base):
     hopStart = Column(Integer, nullable=False)
     hopLimit = Column(Integer, nullable=False)
     readCount = Column(Integer, default=0)
-    isDeleted = Column(Integer, default=0)
+    isDeleted = Column(Boolean, default=0)
 
     def __repr__(self):
         return f'<Annoucement(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
