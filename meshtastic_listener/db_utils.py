@@ -236,7 +236,7 @@ class ListenerDb:
 
     def get_latest_db_hash(self) -> DbHashTable | None:
         '''
-        Retrieves the lastest hash of the database state from the `db_state_hash_table`.
+        Retrieves the latest hash of the database state from the `db_state_hash_table`.
         This is used to check if the database state has changed since the last time it was hashed.
         '''
         with self.session() as session:
