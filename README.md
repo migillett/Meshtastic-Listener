@@ -46,8 +46,13 @@ poetry install
 This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You'll also want to modify the [environment secrets](secrets_example.env) for your specific use as well. For examples on docker deployments, see the [Docker Compose Readme](docker-examples.me)
 
 ## Testing
-All test scripts can be found in the `tests` directory. To run tests, use the following command:
+All test scripts can be found in the `tests` directory. To run tests, you will need to startup the test database using:
 
+```bash
+docker compose -f ./tests/docker-compose.yml up -d
+```
+
+Then run the test scripts using:
 ```bash
 poetry run pytest -s
 ```
