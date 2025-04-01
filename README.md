@@ -49,7 +49,7 @@ This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You
 All test scripts can be found in the `tests` directory. To run tests, you will need to startup the test database using:
 
 ```bash
-docker compose -f ./tests/docker-compose.yml up -d
+docker compose -f ./tests/docker-compose.yml up
 ```
 
 Then run the test scripts using:
