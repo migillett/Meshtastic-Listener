@@ -81,7 +81,7 @@ class CommandHandler:
             logger.info(f'{len(bbs_messages)} BBS messages found: {bbs_messages}')
             for i, bbs_message in enumerate(bbs_messages):
                 shortname = self.db.get_shortname(bbs_message.fromId)
-                response_str += f'{i+1:<2}. {shortname:<5}: {bbs_message.message}\n'
+                response_str += f'{i+1:>2}. {shortname:<5}: {bbs_message.message}\n'
             return response_str.strip('\n')
         else:
             return f'No BBS messages posted in the last {self.bbs_lookback} days in category {user_category}'

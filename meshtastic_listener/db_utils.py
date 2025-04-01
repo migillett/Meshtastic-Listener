@@ -224,7 +224,7 @@ class ListenerDb:
             password: str,
             db_name: str = 'listener_db',
             port: int = 5432,
-            default_categories: list[str] = ['General']
+            default_categories: list[str] = ['General', 'Annoucements']
         ) -> None:
 
         self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
@@ -338,7 +338,7 @@ class ListenerDb:
             results = session.query(BulletinBoardMessage).filter(
                 BulletinBoardMessage.rxTime > look_back,
                 BulletinBoardMessage.isDeleted == False,
-                BulletinBoardCategory.id == category_id
+                BulletinBoardMessage.categoryId == category_id
             ).all()
 
             logger.info(f'Found {len(results)} bbs messages from the last {days_past} days in category {category_id}')
@@ -351,6 +351,15 @@ class ListenerDb:
                 BulletinBoardMessage.isDeleted == False
             ).update({BulletinBoardMessage.isDeleted: 1})
             session.commit()
+
+    def purge_messages(self) -> None:
+        '''
+        only for testing purposes
+        '''
+        with self.session() as session:
+            session.query(BulletinBoardMessage).delete()
+            session.commit()
+        logger.info('Purged all messages from the database')
 
     ### CATEGORIES ###
     def list_categories(self) -> list[BulletinBoardCategory]:

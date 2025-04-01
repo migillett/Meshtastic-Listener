@@ -72,9 +72,11 @@ def test_listener():
     
     test_commands = [
         '!help', '!reply', 'hello world', '!clear', '!waypoints',
-        '!categories', '!select 1', '!select General',
-        '!post posting to general', '!post posting to category 1',
-        '!read', '!select 0'
+        '!categories',
+        '!select 1', '!select General', '!post posting to general', '!post posting to category 1', '!read',
+        '!select 2', '!read', '!post posting to category 2', '!read',
+        '!clear', '!read',
+        '!select 0'
     ]
 
     message_received = {
@@ -103,3 +105,6 @@ def test_listener():
         message_received['rxTime'] = int(time())
         message_received['decoded']['text'] = message
         listener.__on_receive__(packet=message_received)
+
+    input('Press enter to continue...')
+    db.purge_messages()

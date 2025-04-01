@@ -496,7 +496,7 @@ if __name__ == "__main__":
         username=environ.get("POSTGRES_USER", 'postgres'),
         password=environ.get("POSTGRES_PASSWORD"),
         db_name=environ.get("POSTGRES_DATABASE", 'listener_db'),
-        default_categories=[c.strip() for c in environ.get("DEFAULT_CATEGORIES", 'General').split(',')]
+        default_categories=[c.strip() for c in environ.get("DEFAULT_CATEGORIES", 'General,Annoucements').split(',')]
     )
 
     cmd_handler = CommandHandler(
