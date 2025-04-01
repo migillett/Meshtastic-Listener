@@ -44,8 +44,8 @@ def test_listener():
     db = ListenerDb(
         hostname='127.0.0.1',
         username='postgres',
-        password='test_user',
-        db_name='test_db'
+        password='listener_db',
+        db_name='listener_db'
     )
 
     cmd_handler = CommandHandler(

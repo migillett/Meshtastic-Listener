@@ -8,8 +8,8 @@ services:
       - 5432:5432
     shm_size: 256mb
     environment:
-      - POSTGRES_DB=test_db
-      - POSTGRES_PASSWORD=test_db
+      - POSTGRES_DB=listener_db
+      - POSTGRES_PASSWORD=listener_db
     restart: unless-stopped
 
   adminer:

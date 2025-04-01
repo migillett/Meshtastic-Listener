@@ -31,8 +31,8 @@ class DbHashTable(Base):
     def __repr__(self):
         return f'<DbHashTable(id={self.id}, hash_value={self.hash_value}), timestamp={self.timestamp})>'
 
-class Annoucement(Base):
-    __tablename__ = 'annoucements'
+class BulletinBoardMessage(Base):
+    __tablename__ = 'bbs_messages'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     rxTime = Column(BigInteger, nullable=False)
@@ -48,7 +48,7 @@ class Annoucement(Base):
     messageHash = Column(String(length=100), default=None)
 
     def __repr__(self):
-        return f'<Annoucement(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
+        return f'<BulletinBoardMessage(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
 
 class Node(Base):
     __tablename__ = 'nodes'
@@ -216,8 +216,8 @@ class ListenerDb:
         """
         with self.session() as session:
             hash = xxhash.xxh64()
-            for annoucement in session.query(Annoucement).all():
-                hash.update(str(annoucement.messageHash).encode('utf-8'))
+            for bbs_message in session.query(BulletinBoardMessage).all():
+                hash.update(str(bbs_message.messageHash).encode('utf-8'))
             db_state = hash.hexdigest()
 
             last_hash = self.get_latest_db_hash()
@@ -261,22 +261,22 @@ class ListenerDb:
                 logger.warning(f'No timestamp found for hash value: {hash_string}')
                 return 0
             
-    def retrieve_annoucements_since_timestamp(self, timestamp: int) -> list[Annoucement]:
+    def retrieve_bbs_messages_since_timestamp(self, timestamp: int) -> list[BulletinBoardMessage]:
         """
         Retrieve all announcements since a given timestamp.
         This is useful for synchronizing the state of the database with other instances.
         """
         with self.session() as session:
-            results = session.query(Annoucement).filter(
-                Annoucement.rxTime > timestamp
+            results = session.query(BulletinBoardMessage).filter(
+                BulletinBoardMessage.rxTime > timestamp
             ).all()
-            logger.info(f'Found {len(results)} annoucements since timestamp {timestamp}')
+            logger.info(f'Found {len(results)} bbs messages since timestamp {timestamp}')
             return results
 
-    def insert_annoucement(self, payload: MessageReceived) -> None:
+    def insert_bbs_message(self, payload: MessageReceived) -> None:
         with self.session() as session:
             msg_hash = xxhash.xxh64(f"{payload.decoded.text}{payload.fromId}{payload.rxTime}").hexdigest()
-            session.add(Annoucement(
+            session.add(BulletinBoardMessage(
                 rxTime=payload.rxTime,
                 fromId=payload.fromId,
                 toId=payload.toId,
@@ -290,30 +290,30 @@ class ListenerDb:
             session.commit()
         self.hash_bbs_state()
 
-    def mark_annoucement_read(self, annoucement_ids: list[int]) -> None:
+    def mark_bbs_message_read(self, bbs_message_ids: list[int]) -> None:
         with self.session() as session:
-            session.query(Annoucement).filter(
-                Annoucement.id.in_(annoucement_ids)
+            session.query(BulletinBoardMessage).filter(
+                BulletinBoardMessage.id.in_(bbs_message_ids)
             ).update(
-                {Annoucement.readCount: Annoucement.readCount + 1})
+                {BulletinBoardMessage.readCount: BulletinBoardMessage.readCount + 1})
             session.commit()
 
-    def get_annoucements(self, days_past: int = 7) -> list[Annoucement]:
+    def get_bbs_messages(self, days_past: int = 7) -> list[BulletinBoardMessage]:
         with self.session() as session:
             look_back = int(time() - (days_past * 24 * 3600))
-            results = session.query(Annoucement).filter(
-                Annoucement.rxTime > look_back,
-                Annoucement.isDeleted == False
+            results = session.query(BulletinBoardMessage).filter(
+                BulletinBoardMessage.rxTime > look_back,
+                BulletinBoardMessage.isDeleted == False
             ).all()
-            logger.info(f'Found {len(results)} annoucements from the last {days_past} days')
-            [self.mark_annoucement_read([result.id]) for result in results]
+            logger.info(f'Found {len(results)} bbs messages from the last {days_past} days')
+            [self.mark_bbs_message_read([result.id]) for result in results]
             return results
             
-    def soft_delete_annoucements(self) -> None:
+    def soft_delete_bbs_messages(self) -> None:
         with self.session() as session:
-            session.query(Annoucement).filter(
-                Annoucement.isDeleted == False
-            ).update({Annoucement.isDeleted: 1})
+            session.query(BulletinBoardMessage).filter(
+                BulletinBoardMessage.isDeleted == False
+            ).update({BulletinBoardMessage.isDeleted: 1})
             session.commit()
 
     def insert_nodes(self, nodes: list[NodeBase]) -> None:

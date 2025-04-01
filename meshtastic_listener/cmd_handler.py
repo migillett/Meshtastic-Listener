@@ -45,27 +45,27 @@ class CommandHandler:
 
     def cmd_post(self, context: MessageReceived) -> str:
         '''
-        !post <message> - Post a message to the board
+        !post <message> - Post BBS message
         '''
         context.decoded.text = context.decoded.text.replace('!post', '').strip()
         if len(context.decoded.text) > self.char_limit:
             return f'Message too long. Max {self.char_limit} characters'
         elif len(context.decoded.text) == 0:
             return 'Message is empty'
-        self.db.insert_annoucement(context)
+        self.db.insert_bbs_message(context)
         return 'message received'
     
     def cmd_read(self) -> str:
         '''
-        !read - Read board messages
+        !read - Read BBS messages
         '''
         response_str = 'BBS:\n'
-        annoucements = self.db.get_annoucements(days_past=self.bbs_lookback)
-        if len(annoucements) > 0:
-            logger.info(f'{len(annoucements)} BBS messages found: {annoucements}')
-            for i, annoucement in enumerate(annoucements):
-                shortname = self.db.get_shortname(annoucement.fromId)
-                response_str += f'{i+1}. {shortname}: {annoucement.message}\n'
+        bbs_messages = self.db.get_bbs_messages(days_past=self.bbs_lookback)
+        if len(bbs_messages) > 0:
+            logger.info(f'{len(bbs_messages)} BBS messages found: {bbs_messages}')
+            for i, bbs_message in enumerate(bbs_messages):
+                shortname = self.db.get_shortname(bbs_message.fromId)
+                response_str += f'{i+1}. {shortname}: {bbs_message.message}\n'
             return response_str.strip('\n')
         else:
             return f'No BBS messages posted in the last {self.bbs_lookback} days'
@@ -75,7 +75,7 @@ class CommandHandler:
         !clear - (admins only) Clear the BBS
         '''
         self.__is_admin__(context.fromId) # raises UnauthorizedError if not admin
-        self.db.soft_delete_annoucements()
+        self.db.soft_delete_bbs_messages()
         return 'BBS cleared'
     
     def cmd_waypoints(self) -> str | list[Waypoints]:
