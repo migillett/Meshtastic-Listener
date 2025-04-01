@@ -2,11 +2,14 @@ import logging
 import inspect
 
 from meshtastic_listener.data_structures import MessageReceived
-from meshtastic_listener.db_utils import ListenerDb, Waypoints
+from meshtastic_listener.db_utils import ListenerDb, Waypoints, InvalidCategory
 
 logger = logging.getLogger(__name__)
 
 class UnauthorizedError(Exception):
+    pass
+
+class UnknownCommandError(Exception):
     pass
 
 class CommandHandler:
@@ -52,24 +55,72 @@ class CommandHandler:
             return f'Message too long. Max {self.char_limit} characters'
         elif len(context.decoded.text) == 0:
             return 'Message is empty'
-        self.db.insert_bbs_message(context)
+        self.db.post_bbs_message(context)
         return 'message received'
     
-    def cmd_read(self) -> str:
+    def cmd_read(self, context: MessageReceived, user_category: int | None = None) -> str:
         '''
         !read - Read BBS messages
         '''
-        response_str = 'BBS:\n'
-        bbs_messages = self.db.get_bbs_messages(days_past=self.bbs_lookback)
+
+        if user_category is None:
+            try:
+                user_category = self.db.get_node(node_num=context.fromId).selectedCategory
+            except AttributeError:
+                logger.warning(f'User {context.fromId} has not selected a category. Defaulting to 1')
+                user_category = 1
+
+        response_str = f'{self.db.get_category_by_id(user_category).name}:\n'
+
+        bbs_messages = self.db.get_bbs_messages(
+            days_past=self.bbs_lookback,
+            category_id=user_category
+        )
+
         if len(bbs_messages) > 0:
             logger.info(f'{len(bbs_messages)} BBS messages found: {bbs_messages}')
             for i, bbs_message in enumerate(bbs_messages):
                 shortname = self.db.get_shortname(bbs_message.fromId)
-                response_str += f'{i+1}. {shortname}: {bbs_message.message}\n'
+                response_str += f'{i+1:<2}. {shortname:<5}: {bbs_message.message}\n'
             return response_str.strip('\n')
         else:
-            return f'No BBS messages posted in the last {self.bbs_lookback} days'
+            return f'No BBS messages posted in the last {self.bbs_lookback} days in category {user_category}'
+    
+    def cmd_list_categories(self) -> str:
+        '''
+        !categories - List available categories
+        '''
+        response = 'Categories:\n'
+        categories = self.db.list_categories()
+        if len(categories) == 0:
+            return 'No categories found'
         
+        for category in categories:
+            response += f'{category.id}: {category.name}\n'
+
+        return response.strip()
+
+    def cmd_select_category(self, context: MessageReceived) -> str:
+        '''
+        !select <id / name> - Select a bbs category
+        '''
+        category = context.decoded.text.replace('!select', '').strip()
+        if category.isdigit():
+            category_id = int(category)
+        else:
+            category = self.db.get_category_by_name(category)
+            if category is None:
+                return 'Category not found'
+            category_id = category.id
+
+        try:
+            self.db.select_category(node_num=context.fromId, category_id=category_id)
+            logger.info(f'User {context.fromId} navigated to category {category_id}')
+            return self.cmd_read(context=context, user_category=category_id)
+
+        except InvalidCategory as e:
+            return str(e)
+
     def cmd_clear(self, context: MessageReceived) -> str:
         '''
         !clear - (admins only) Clear the BBS
@@ -113,10 +164,16 @@ class CommandHandler:
                     return self.cmd_post(context)
                 
                 case 'read':
-                    return self.cmd_read()
+                    return self.cmd_read(context)
                 
                 case 'clear':
                     return self.cmd_clear(context)
+                
+                case 'categories':
+                    return self.cmd_list_categories()
+                
+                case 'select':
+                    return self.cmd_select_category(context)
                 
                 case 'uplink':
                     return self.cmd_uplink()
@@ -131,6 +188,6 @@ class CommandHandler:
 
                 case _:
                     logger.warning(f'Unknown command: {command}')
-                    return f'Unknown command: {command}'
+                    raise UnknownCommandError(f'Unknown command: {command}')
         else:
             return None

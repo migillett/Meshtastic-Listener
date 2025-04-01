@@ -35,7 +35,7 @@ class TestInterface(MeshInterface):
         pass
 
     def sendText(self, text=str, destinationId=int, channelIndex=int) -> None:
-        print(f'Sending text: {text} to {destinationId} on channel {channelIndex}')
+        print(f'Sending text:\n\n{text}\n\nto {destinationId} on channel {channelIndex}')
 
 
 def test_listener():
@@ -71,8 +71,10 @@ def test_listener():
                 listener.__on_receive__(packet=message_received)
     
     test_commands = [
-        '!help', '!post Hello, World!', '!read',
-        '!reply', 'hello world', '!clear', '!waypoints'
+        '!help', '!reply', 'hello world', '!clear', '!waypoints',
+        '!categories', '!select 1', '!select General',
+        '!post posting to general', '!post posting to category 1',
+        '!read', '!select 0'
     ]
 
     message_received = {

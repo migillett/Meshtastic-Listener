@@ -41,6 +41,7 @@ poetry install
 | `TRACEROUTE_INTERVAL`| Interval (in hours) to traceroute the `TRACEROUTE_NODE_ID`.                                          | `24`          |
 | `POSTGRES_DB` | The name of the Postgres database. | `listener_db` |
 | `POSTGRES_PASSWORD` | The password of the user to connect to the database | No default defined |
+| `DEFAULT_CATEGORIES` | The BBS categories (pages) you wish to create by default. Comma-deleniated | `General` |
 
 ## Docker Compose
 This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You'll also want to modify the [environment secrets](secrets_example.env) for your specific use as well. For examples on docker deployments, see the [Docker Compose Readme](docker-examples.me)

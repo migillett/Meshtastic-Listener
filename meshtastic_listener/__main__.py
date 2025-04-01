@@ -6,7 +6,7 @@ import logging
 import signal
 
 from meshtastic_listener.db_utils import ListenerDb, ItemNotFound
-from meshtastic_listener.cmd_handler import CommandHandler, UnauthorizedError
+from meshtastic_listener.cmd_handler import CommandHandler, UnauthorizedError,UnknownCommandError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload
@@ -142,6 +142,7 @@ class MeshtasticListener:
             payload = MessageReceived(**packet)
             try:
                 response = self.cmd_handler.handle_command(context=payload)
+
             except UnauthorizedError as e:
                 logging.error(f'User unauthorized to execute command: {e}')
                 if self.admin_node is not None:
@@ -150,6 +151,9 @@ class MeshtasticListener:
                         message=f"Unauthorized command execution attempt from {payload.fromId}: {e}")
                 self.db.increment_failed_attempts(payload.fromId)
                 return 'You are not authorized to run this command.'
+            
+            except UnknownCommandError as e:
+                return e
 
             if isinstance(response, str):
                 logging.info(f'Replying to {payload.fromId}: {response}')
@@ -491,7 +495,8 @@ if __name__ == "__main__":
         hostname=environ.get("POSTGRES_HOSTNAME", "listener_db"),
         username=environ.get("POSTGRES_USER", 'postgres'),
         password=environ.get("POSTGRES_PASSWORD"),
-        db_name=environ.get("POSTGRES_DATABASE", 'listener_db')
+        db_name=environ.get("POSTGRES_DATABASE", 'listener_db'),
+        default_categories=[c.strip() for c in environ.get("DEFAULT_CATEGORIES", 'General').split(',')]
     )
 
     cmd_handler = CommandHandler(
