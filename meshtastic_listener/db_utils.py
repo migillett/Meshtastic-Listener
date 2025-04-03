@@ -383,7 +383,7 @@ class ListenerDb:
             return session.query(
                 BulletinBoardCategory
             ).filter(
-                BulletinBoardCategory.name == category_name
+                BulletinBoardCategory.name == category_name.title()
             ).first()
         
     def select_category(self, node_num: int, category_id: int) -> list[BulletinBoardMessage]:

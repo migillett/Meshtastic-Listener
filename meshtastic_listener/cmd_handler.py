@@ -70,7 +70,8 @@ class CommandHandler:
                 logger.warning(f'User {context.fromId} has not selected a category. Defaulting to 1')
                 user_category = 1
 
-        response_str = f'{self.db.get_category_by_id(user_category).name}:\n'
+        category_name = self.db.get_category_by_id(user_category).name
+        response_str = f'{category_name}:\n'
 
         bbs_messages = self.db.get_bbs_messages(
             days_past=self.bbs_lookback,
@@ -84,7 +85,7 @@ class CommandHandler:
                 response_str += f'{i+1:>2}. {shortname:<5}: {bbs_message.message}\n'
             return response_str.strip('\n')
         else:
-            return f'No BBS messages posted in the last {self.bbs_lookback} days in category {user_category}'
+            return f'No BBS messages posted in the last {self.bbs_lookback} days in category {category_name}'
     
     def cmd_list_categories(self) -> str:
         '''
@@ -102,7 +103,7 @@ class CommandHandler:
 
     def cmd_select_category(self, context: MessageReceived) -> str:
         '''
-        !select <id / name> - Select a bbs category
+        !select <number / name> - Select a bbs category
         '''
         category = context.decoded.text.replace('!select', '').strip()
         if category.isdigit():
@@ -110,7 +111,7 @@ class CommandHandler:
         else:
             category = self.db.get_category_by_name(category)
             if category is None:
-                return 'Category not found'
+                return f'Category {category} not found'
             category_id = category.id
 
         try:
@@ -139,7 +140,7 @@ class CommandHandler:
 
         return waypoints
     
-    def cmd_help(self) -> str:
+    def cmd_help(self, context: MessageReceived) -> str:
         '''
         !help - Display this help message
         '''
@@ -148,7 +149,9 @@ class CommandHandler:
             # Check if it's a method and has a docstring
             if name.startswith('cmd_'):
                 doc = inspect.getdoc(member)
-                if doc:
+                if '(admins only)' in doc and context.fromId != self.admin_node_id:
+                    continue
+                elif doc:
                     help_str += f'\n  {doc}'
         return help_str
 
@@ -175,16 +178,13 @@ class CommandHandler:
                 case 'select':
                     return self.cmd_select_category(context)
                 
-                case 'uplink':
-                    return self.cmd_uplink()
-                
                 case 'waypoints':
                     # either returns an message "no waypoints found" or a list of Waypoints data
                     # we'll need to send that data using the interface in the __main__.py file
                     return self.cmd_waypoints()
                 
                 case 'help':
-                    return self.cmd_help()
+                    return self.cmd_help(context)
 
                 case _:
                     logger.warning(f'Unknown command: {command}')
