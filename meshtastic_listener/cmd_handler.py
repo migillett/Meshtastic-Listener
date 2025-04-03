@@ -85,7 +85,7 @@ class CommandHandler:
                 response_str += f'{i+1:>2}. {shortname:<5}: {bbs_message.message}\n'
             return response_str.strip('\n')
         else:
-            return f'No BBS messages posted in the last {self.bbs_lookback} days in category {category_name}'
+            return f'No active BBS messages posted in {category_name}'
     
     def cmd_list_categories(self) -> str:
         '''

@@ -352,13 +352,12 @@ class ListenerDb:
             ).update({BulletinBoardMessage.isDeleted: 1})
             session.commit()
 
-    def purge_messages(self) -> None:
+    def reset(self) -> None:
         '''
         only for testing purposes
         '''
         with self.session() as session:
             session.query(DbHashTable).delete()
-            session.query(BulletinBoardCategory).delete()
             session.query(BulletinBoardMessage).delete()
             session.query(Node).delete()
             session.query(DeviceMetrics).delete()
