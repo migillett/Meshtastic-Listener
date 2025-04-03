@@ -75,7 +75,7 @@ def test_listener():
         '!categories',
         '!select 1', '!select General', '!post posting to general', '!post posting to category 1', '!read',
         '!select 2', '!read', '!post posting to category 2', '!read',
-        '!clear', '!read',
+        '!read',
         '!select 0'
     ]
 
@@ -106,5 +106,6 @@ def test_listener():
         message_received['decoded']['text'] = message
         listener.__on_receive__(packet=message_received)
 
-    input('Press enter to continue...')
+    input('Press enter to purge test database...')
+    # wipe the test DB for the next test run
     db.purge_messages()

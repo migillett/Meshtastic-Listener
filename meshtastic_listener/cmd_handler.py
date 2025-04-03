@@ -103,32 +103,19 @@ class CommandHandler:
 
     def cmd_select_category(self, context: MessageReceived) -> str:
         '''
-        !select <number / name> - Select a bbs category
+        !select <number> - Select a bbs category
         '''
-        category = context.decoded.text.replace('!select', '').strip()
-        if category.isdigit():
-            category_id = int(category)
-        else:
-            category = self.db.get_category_by_name(category)
-            if category is None:
-                return f'Category {category} not found'
-            category_id = category.id
-
         try:
-            self.db.select_category(node_num=context.fromId, category_id=category_id)
-            logger.info(f'User {context.fromId} navigated to category {category_id}')
-            return self.cmd_read(context=context, user_category=category_id)
+            category = int(context.decoded.text.replace('!select', '').strip())
+            self.db.select_category(node_num=context.fromId, category_id=int(category))
+            logger.info(f'User {context.fromId} navigated to category {category}')
+            return self.cmd_read(context=context, user_category=category)
 
         except InvalidCategory as e:
             return str(e)
-
-    def cmd_clear(self, context: MessageReceived) -> str:
-        '''
-        !clear - (admins only) Clear the BBS
-        '''
-        self.__is_admin__(context.fromId) # raises UnauthorizedError if not admin
-        self.db.soft_delete_bbs_messages()
-        return 'BBS cleared'
+        
+        except ValueError:
+            return 'Invalid category. Please select a number from the list of categories using !categories'
     
     def cmd_waypoints(self) -> str | list[Waypoints]:
         '''
@@ -149,9 +136,7 @@ class CommandHandler:
             # Check if it's a method and has a docstring
             if name.startswith('cmd_'):
                 doc = inspect.getdoc(member)
-                if '(admins only)' in doc and context.fromId != self.admin_node_id:
-                    continue
-                elif doc:
+                if doc:
                     help_str += f'\n  {doc}'
         return help_str
 
@@ -168,9 +153,6 @@ class CommandHandler:
                 
                 case 'read':
                     return self.cmd_read(context)
-                
-                case 'clear':
-                    return self.cmd_clear(context)
                 
                 case 'categories':
                     return self.cmd_list_categories()

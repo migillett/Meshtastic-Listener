@@ -357,9 +357,20 @@ class ListenerDb:
         only for testing purposes
         '''
         with self.session() as session:
+            session.query(DbHashTable).delete()
+            session.query(BulletinBoardCategory).delete()
             session.query(BulletinBoardMessage).delete()
+            session.query(Node).delete()
+            session.query(DeviceMetrics).delete()
+            session.query(TransmissionMetrics).delete()
+            session.query(EnvironmentMetrics).delete()
+            session.query(Traceroute).delete()
+            session.query(MessageHistory).delete()
+            session.query(Neighbor).delete()
+            session.query(OutgoingNotifications).delete()
+            session.query(Waypoints).delete()
             session.commit()
-        logger.info('Purged all messages from the database')
+        logger.info('Reset database to initial state.')
 
     ### CATEGORIES ###
     def list_categories(self) -> list[BulletinBoardCategory]:
