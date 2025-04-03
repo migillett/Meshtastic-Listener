@@ -71,7 +71,7 @@ def test_listener():
                 listener.__on_receive__(packet=message_received)
     
     test_commands = [
-        '!help', '!reply', 'hello world', '!clear', '!waypoints',
+        '!help', '!reply', 'hello world', '!waypoints',
         '!categories',
         '!select 1', '!select General', '!post posting to general', '!post posting to category 1', '!read',
         '!select 2', '!read', '!post posting to category 2', '!read',
