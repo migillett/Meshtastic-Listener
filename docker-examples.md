@@ -5,14 +5,18 @@ I've included a few docker-compose examples for how to run the Meshtastic-Listen
 > [!TIP]
 > Make sure you rename your `secrets_example.env` either to `.env` or rename the `.env` file below to make sure you're pulling in the correct file. I'd also recommend modify the permissions of this file to something like `chmod 600 ./.env` to prevent any unwanted eyes at your configuration and passwords.
 
+## Image Tags
+There are 2 main docker image tags for this repo:
+- `main` - The most current "stable" branch of the BBS.
+- `developing` - Where I do my development work. Unstable, but the cutting edge of what's currently being worked on. I wouldn't use `latest` as that might be a little unreliable.
 
 ## Full-Stack with Meshtasticd Firmware
 There are some instances where you need to run the [Meshtastic firmware](https://github.com/meshtastic/firmware) and have it control local hardware. For example, the [MeshAdv Pi Hat](https://github.com/chrismyers2000/MeshAdv-Pi-Hat). I have this exact setup for my local node and here's what I have running.
 
 One note is that you'll want to set the environment variable `DEVICE_IP` to the name of the `meshtasticd` firmware docker container. The hostname is more than sufficient, no inter-docker network IP required.
 
-> [!TIP]
-> There are other installation instructions besides this docker-compose file including SPI and I2C. See the [Meshtastic webiste](https://meshtastic.org/docs/software/linux/installation/) for more details on how to get that working.
+> [!NOTE]
+> There are other installation instructions besides this docker compose file including SPI and I2C. See the [Meshtastic webiste](https://meshtastic.org/docs/software/linux/installation/) for more details on how to get that working.
 
 ```yaml
 services:
@@ -151,9 +155,9 @@ services:
       - 8080:8080
 ```
 
-### Building Locally
+## Building Locally
 If you want to build the meshtastic-listener docker container from the source code, just replace `image: michaelgillett/meshtastic-listener:main` with:
-```
+```yaml
 build:
   context: ./Meshtastic-Listener
   dockerfile: dockerfile

@@ -2,11 +2,14 @@ import logging
 import inspect
 
 from meshtastic_listener.data_structures import MessageReceived
-from meshtastic_listener.db_utils import ListenerDb, Waypoints
+from meshtastic_listener.db_utils import ListenerDb, Waypoints, InvalidCategory
 
 logger = logging.getLogger(__name__)
 
 class UnauthorizedError(Exception):
+    pass
+
+class UnknownCommandError(Exception):
     pass
 
 class CommandHandler:
@@ -45,38 +48,74 @@ class CommandHandler:
 
     def cmd_post(self, context: MessageReceived) -> str:
         '''
-        !post <message> - Post a message to the board
+        !post <message> - Post BBS message
         '''
         context.decoded.text = context.decoded.text.replace('!post', '').strip()
         if len(context.decoded.text) > self.char_limit:
             return f'Message too long. Max {self.char_limit} characters'
         elif len(context.decoded.text) == 0:
             return 'Message is empty'
-        self.db.insert_annoucement(context)
+        self.db.post_bbs_message(context)
         return 'message received'
     
-    def cmd_read(self) -> str:
+    def cmd_read(self, context: MessageReceived, user_category: int | None = None) -> str:
         '''
-        !read - Read board messages
+        !read - Read BBS messages
         '''
-        response_str = 'BBS:\n'
-        annoucements = self.db.get_annoucements(days_past=self.bbs_lookback)
-        if len(annoucements) > 0:
-            logger.info(f'{len(annoucements)} BBS messages found: {annoucements}')
-            for i, annoucement in enumerate(annoucements):
-                shortname = self.db.get_shortname(annoucement.fromId)
-                response_str += f'{i+1}. {shortname}: {annoucement.message}\n'
+
+        if user_category is None:
+            try:
+                user_category = self.db.get_node(node_num=context.fromId).selectedCategory
+            except AttributeError:
+                logger.warning(f'User {context.fromId} has not selected a category. Defaulting to 1')
+                user_category = 1
+
+        category_name = self.db.get_category_by_id(user_category).name
+        response_str = f'{category_name}:\n'
+
+        bbs_messages = self.db.get_bbs_messages(
+            days_past=self.bbs_lookback,
+            category_id=user_category
+        )
+
+        if len(bbs_messages) > 0:
+            logger.info(f'{len(bbs_messages)} BBS messages found: {bbs_messages}')
+            for i, bbs_message in enumerate(bbs_messages):
+                shortname = self.db.get_shortname(bbs_message.fromId)
+                response_str += f'{i+1:>2}. {shortname:<5}: {bbs_message.message}\n'
             return response_str.strip('\n')
         else:
-            return f'No BBS messages posted in the last {self.bbs_lookback} days'
+            return f'No active BBS messages posted in {category_name}'
+    
+    def cmd_list_categories(self) -> str:
+        '''
+        !categories - List available categories
+        '''
+        response = 'Categories:\n'
+        categories = self.db.list_categories()
+        if len(categories) == 0:
+            return 'No categories found'
         
-    def cmd_clear(self, context: MessageReceived) -> str:
+        for category in categories:
+            response += f'{category.id}: {category.name}\n'
+
+        return response.strip()
+
+    def cmd_select_category(self, context: MessageReceived) -> str:
         '''
-        !clear - (admins only) Clear the BBS
+        !select <number> - Select a bbs category
         '''
-        self.__is_admin__(context.fromId) # raises UnauthorizedError if not admin
-        self.db.soft_delete_annoucements()
-        return 'BBS cleared'
+        try:
+            category = int(context.decoded.text.replace('!select', '').strip())
+            self.db.select_category(node_num=context.fromId, category_id=int(category))
+            logger.info(f'User {context.fromId} navigated to category {category}')
+            return self.cmd_read(context=context, user_category=category)
+
+        except InvalidCategory as e:
+            return str(e)
+        
+        except ValueError:
+            return 'Invalid category. Please select a number from the list of categories using !categories'
     
     def cmd_waypoints(self) -> str | list[Waypoints]:
         '''
@@ -88,7 +127,7 @@ class CommandHandler:
 
         return waypoints
     
-    def cmd_help(self) -> str:
+    def cmd_help(self, context: MessageReceived) -> str:
         '''
         !help - Display this help message
         '''
@@ -113,13 +152,13 @@ class CommandHandler:
                     return self.cmd_post(context)
                 
                 case 'read':
-                    return self.cmd_read()
+                    return self.cmd_read(context)
                 
-                case 'clear':
-                    return self.cmd_clear(context)
+                case 'categories':
+                    return self.cmd_list_categories()
                 
-                case 'uplink':
-                    return self.cmd_uplink()
+                case 'select':
+                    return self.cmd_select_category(context)
                 
                 case 'waypoints':
                     # either returns an message "no waypoints found" or a list of Waypoints data
@@ -127,10 +166,10 @@ class CommandHandler:
                     return self.cmd_waypoints()
                 
                 case 'help':
-                    return self.cmd_help()
+                    return self.cmd_help(context)
 
                 case _:
                     logger.warning(f'Unknown command: {command}')
-                    return f'Unknown command: {command}'
+                    raise UnknownCommandError(f'Unknown command: {command}')
         else:
             return None

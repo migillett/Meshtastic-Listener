@@ -1,13 +1,22 @@
 # Docker compose stack ONLY for testing purposes
 
 services:
-  testing_db:
+  test_db:
     image: postgres:latest
-    container_name: testing_db
+    container_name: test_db
     ports:
       - 5432:5432
     shm_size: 256mb
     environment:
-      - POSTGRES_DB=test_db
-      - POSTGRES_PASSWORD=test_user
+      - POSTGRES_DB=listener_db
+      - POSTGRES_PASSWORD=listener_db
     restart: unless-stopped
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    depends_on:
+      - test_db
+    restart: unless-stopped
+    ports:
+      - 8080:8080

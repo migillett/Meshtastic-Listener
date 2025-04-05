@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - developing
   pull_request:
 
 jobs:
