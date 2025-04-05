@@ -13,6 +13,7 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 ~~- Update test scripts to work with Postgres DB instead of SqLite3~~
 - Add support for syncing databases between 2 nodes both running the BBS software.
 - Experiment with running a MQTT server and Meshtastic Map inside the docker-compose files.
+- Add a way to add `BBS: DM !help` to the node longName upon boot (then remove it upon shutdown).
 
 ## Database Information
 Yes, this repo does use a Postgres database on the backend. Yes, it's overkill. Why? Because I needed to learn how to interact with Postgres for a work project. This is how I learned it. Can SQLite3 also get the job done? Absolutely. In fact, that's what the project started with. See versions 1.5.0 if you want to use that. However, I need to learn a new DB and Postgres is the name of the game.
@@ -46,7 +47,7 @@ poetry install
 | `DEFAULT_CATEGORIES` | The BBS categories (pages) you wish to create by default. Comma-deleniated | `General` |
 
 ## Docker Compose
-This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You'll also want to modify the [environment secrets](secrets_example.env) for your specific use as well. For examples on docker deployments, see the [Docker Compose Readme](docker-examples.me)
+This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You'll also want to modify the [environment secrets](secrets_example.env) for your specific use as well. For examples on various docker deployments, see the [Docker Compose Readme](docker-examples.md)
 
 ## Testing
 All test scripts can be found in the `tests` directory. To run tests, you will need to startup the test database using:
