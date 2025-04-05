@@ -2,7 +2,7 @@ services:
   meshtastic_listener:
     depends_on:
       - listener_db
-    image: michaelgillett/meshtastic-listener:developing
+    image: michaelgillett/meshtastic-listener:main
     volumes:
       - ./logs:/home/meshtastic/logs
     container_name: meshtastic_listener
