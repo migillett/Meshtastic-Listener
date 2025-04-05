@@ -253,7 +253,7 @@ class MeshtasticListener:
         message = packet.get('decoded', {}).get('text', None)
         if int(packet['to']) == int(self.interface.localNode.nodeNum) and message is not None:
             logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.admin_node}')
-            self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["to"])}: {message}', destinationId=self.admin_node)
+            self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["from"])}: {message}', destinationId=self.admin_node)
 
     def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:
         self.rx_stats.append([rx_rssi, snr])
