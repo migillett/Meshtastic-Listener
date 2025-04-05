@@ -1,16 +1,18 @@
 # Meshtastic-Listener
 This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli-receive-text), with some new features such as server commands and replies. This repo is meant to listen to [Meshtastic](https://meshtastic.org) nodes via TCP or Serial connections and act as a server for triggering commands. The current list of commands currently include:
 
-- `!help` - prints the list of commands
-- `!reply` - replies to the sender with transmission details
-- `!post <message>` - posts a message to the board
-- `!read` - get all posts to the message board from the past n days.
-- `!clear` - soft deletes all messages from the BBS. Only available when a node id matches the admin id set in the env vars.
-- `!waypoints` - adds a list of waypoints from the server to your local map with a ttl of 7 days.
+- `!help` - Prints the list of commands
+- `!reply` - Replies to the sender with transmission details
+- `!post <message>` - Posts a message to the board
+- `!list` - Lists all available categories on the BBS.
+- `!select <id>` - Allows you to change your default category to the ID selected. Returns all messages for that category.
+- `!read` - Get all posts to the message board from the past n days.
+- `!waypoints` - Adds a list of waypoints from the server to your local map with a ttl of 7 days.
 
 ## To Do:
-- Add support for user to pick their preferred database such as SqLite 3 -or- Postgres.
-- Update test scripts to work with Postgres DB instead of SqLite3
+~~- Update test scripts to work with Postgres DB instead of SqLite3~~
+- Add support for syncing databases between 2 nodes both running the BBS software.
+- Experiment with running a MQTT server and Meshtastic Map inside the docker-compose files.
 
 ## Database Information
 Yes, this repo does use a Postgres database on the backend. Yes, it's overkill. Why? Because I needed to learn how to interact with Postgres for a work project. This is how I learned it. Can SQLite3 also get the job done? Absolutely. In fact, that's what the project started with. See versions 1.5.0 if you want to use that. However, I need to learn a new DB and Postgres is the name of the game.
