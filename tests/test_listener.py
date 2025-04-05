@@ -86,7 +86,7 @@ def test_listener():
         ('!help', ''), # this message will be long, so just check for a basic response
         ('!reply', 'hops:'),
         ('hello world', None),
-        ('!waypoints', 'Sent 1 waypoints to your map'), # we created 1 waypoint using the JSON test above
+        ('!waypoints', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above
         ('!categories', 'Categories:'),
         ('!select 1', 'No active BBS messages posted in General'),
         ('!post posting to general', 'message received'),

@@ -173,10 +173,11 @@ class MeshtasticListener:
                         wantAck=False,
                         wantResponse=False
                     )
-                    
-                logging.info(f'Sent {len(response)} waypoints to {payload.fromId}')
+                
+                n_waypoints = len(response)
+                logging.info(f'Sent {n_waypoints} {"waypoints" if n_waypoints > 1 else "waypoint"} to {payload.fromId}')
                 self.__send_messages__(
-                    text=f'Sent {len(response)} {"waypoints" if len(response) > 0 else "waypoint"} to your map',
+                    text=f'Sent {n_waypoints} {"waypoints" if n_waypoints > 1 else "waypoint"} to your map',
                     destinationId=payload.fromId
                 )
 
