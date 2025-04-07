@@ -90,6 +90,24 @@ class Node(Base):
     def __repr__(self):
         return f'<Node(num={self.nodeNum}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macAddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.nodeRole}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
 
+    @staticmethod
+    def cascade_delete(session, node_num: int) -> None:
+        """
+        Deletes a node and cascades the deletion to all related tables.
+        """
+        session.query(DeviceMetrics).filter(DeviceMetrics.nodeNum == node_num).delete()
+        session.query(TransmissionMetrics).filter(TransmissionMetrics.nodeNum == node_num).delete()
+        session.query(EnvironmentMetrics).filter(EnvironmentMetrics.nodeNum == node_num).delete()
+        session.query(Subscriptions).filter(Subscriptions.nodeNum == node_num).delete()
+        session.query(Neighbor).filter(Neighbor.sourceNodeId == node_num).delete()
+        session.query(Neighbor).filter(Neighbor.neighborNodeId == node_num).delete()
+        session.query(MessageHistory).filter(MessageHistory.fromId == node_num).delete()
+        session.query(MessageHistory).filter(MessageHistory.toId == node_num).delete()
+        session.query(OutgoingNotifications).filter(OutgoingNotifications.toId == node_num).delete()
+        session.query(Lockout).filter(Lockout.nodeNum == node_num).delete()
+        session.query(Node).filter(Node.nodeNum == node_num).delete()
+        session.commit()
+
 
 class DeviceMetrics(Base):
     __tablename__ = 'device_metrics'
@@ -176,6 +194,16 @@ class Neighbor(Base):
     snr = Column(Float, nullable=False)
     def __repr__(self):
         return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
+
+
+class Subscriptions(Base):
+    __tablename__ = 'subscriptions'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nodeNum = Column(BigInteger, ForeignKey('nodes.nodeNum'), nullable=False)
+    # if categoryId is None, then the user is subscribed to all notifications
+    categoryId = Column(Integer, ForeignKey('bbs_categories.id'), nullable=True)
+    isSubscribed = Column(Boolean, default=True)
+    timestamp = Column(Integer, default=int(time()))
 
 
 class OutgoingNotifications(Base):
@@ -351,25 +379,6 @@ class ListenerDb:
                 BulletinBoardMessage.isDeleted == False
             ).update({BulletinBoardMessage.isDeleted: 1})
             session.commit()
-
-    def reset(self) -> None:
-        '''
-        only for testing purposes
-        '''
-        with self.session() as session:
-            session.query(DbHashTable).delete()
-            session.query(BulletinBoardMessage).delete()
-            session.query(Node).delete()
-            session.query(DeviceMetrics).delete()
-            session.query(TransmissionMetrics).delete()
-            session.query(EnvironmentMetrics).delete()
-            session.query(Traceroute).delete()
-            session.query(MessageHistory).delete()
-            session.query(Neighbor).delete()
-            session.query(OutgoingNotifications).delete()
-            session.query(Waypoints).delete()
-            session.commit()
-        logger.info('Reset database to initial state.')
 
     ### CATEGORIES ###
     def list_categories(self) -> list[BulletinBoardCategory]:
@@ -640,6 +649,68 @@ class ListenerDb:
                 notification.received = True
                 session.add(notification)
                 session.commit()
+
+    ### SUBSCRIPTIONS ###
+    def insert_subscription(self, node_num: int, category_id: int | None = None) -> None:
+        '''
+        Will raise IntegrityError if the categoryId is not valid.
+        '''
+        try:
+            with self.session() as session:
+                stmt = Insert(Subscriptions).values(
+                    nodeNum=node_num,
+                    categoryId=category_id,
+                    isSubscribed=True,
+                    timestamp=int(time())
+                )
+                session.execute(stmt)
+                session.commit()
+        except IntegrityError:
+            raise InvalidCategory(f'Category {category_id} does not exist.')
+
+    def unsubscribe_from_category(self, node_num: int, category_id: int | None = None) -> None:
+        with self.session() as session:
+            subscription = session.query(Subscriptions).filter(
+                Subscriptions.nodeNum == node_num,
+                Subscriptions.categoryId == category_id
+            ).first()
+            if subscription:
+                session.delete(subscription)
+                session.commit()
+            else:
+                logger.warning(f'No subscription found for node {node_num} in category {category_id}.')
+
+    def unsubscribe_all(self, node_num: int) -> None:
+        with self.session() as session:
+            subscriptions = session.query(Subscriptions).filter(Subscriptions.nodeNum == node_num).all()
+            for subscription in subscriptions:
+                subscription.isSubscribed = False
+                session.add(subscription)
+            session.commit()
+
+    def list_subscriptions(self, node_num: int) -> list[tuple[int, str]]:
+        with self.session() as session:
+            subscriptions = session.query(
+                Subscriptions.categoryId, BulletinBoardCategory.name
+            ).join(
+                BulletinBoardCategory, Subscriptions.categoryId == BulletinBoardCategory.id
+            ).filter(
+                Subscriptions.nodeNum == node_num,
+                Subscriptions.isSubscribed == True
+            ).order_by(
+                Subscriptions.timestamp.desc()
+            ).all()
+            return subscriptions
+
+    def is_subscribed(self, node_num: int, category_id: int | None = None) -> bool:
+        with self.session() as session:
+            subscription = session.query(Subscriptions).filter(
+                Subscriptions.nodeNum == node_num,
+                Subscriptions.categoryId == category_id
+            ).first()
+            if subscription:
+                return subscription.isSubscribed
+            return False
 
     ### LOCKOUTS ###
     def check_node_lockout(self, node_num: int) -> bool:

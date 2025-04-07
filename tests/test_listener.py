@@ -4,7 +4,7 @@ from time import time
 
 from meshtastic_listener.__main__ import MeshtasticListener
 from meshtastic_listener.cmd_handler import CommandHandler
-from meshtastic_listener.db_utils import ListenerDb
+from meshtastic_listener.db_utils import ListenerDb, Base
 from meshtastic.mesh_interface import MeshInterface
 
 import pytest
@@ -96,7 +96,19 @@ def test_listener():
         ('!read', 'No active BBS messages posted in Annoucements'),
         ('!post posting to category 2', 'message received'),
         ('!read', 'Annoucements:'),
-        ('!select 0', 'Category 0 does not exist')
+        ('!select 0', 'Category 0 does not exist'),
+
+        # SUBSCRIPTIONS
+        ('!sub', 'Subscription Commands:'),
+        ('!sub ls', 'You are not subscribed to any categories'),
+        ('!sub add a', 'Invalid topic. Please specify a valid category number.'),
+        ('!sub add 0', 'Category 0 does not exist.'),
+        ('!sub add 1', 'Subscribed to category 1'),
+        ('!sub ls', 'Active Subscriptions'),
+        ('!sub add 2', 'Subscribed to category 2'),
+        ('!sub ls', 'Active Subscriptions'),
+        ('!sub rm 1', 'Unsubscribed from category 1'),
+        ('!sub rm *', 'Unsubscribed from all topics'),
     ]
 
     message_received = {
@@ -132,4 +144,6 @@ def test_listener():
 def run_after_tests():
     yield # wait for tests to finish
     print('Testing complete. Cleaning up db.')
-    db.reset()
+    with db.session() as session:
+            Base.metadata.drop_all(db.engine)
+            session.commit()

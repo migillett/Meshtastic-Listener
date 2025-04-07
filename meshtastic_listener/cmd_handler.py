@@ -2,6 +2,7 @@ import logging
 import inspect
 
 from meshtastic_listener.data_structures import MessageReceived
+from meshtastic_listener.commands.subscriptions import handle_subscription_command
 from meshtastic_listener.db_utils import ListenerDb, Waypoints, InvalidCategory
 
 logger = logging.getLogger(__name__)
@@ -116,7 +117,7 @@ class CommandHandler:
         
         except ValueError:
             return 'Invalid category. Please select a number from the list of categories using !categories'
-    
+        
     def cmd_waypoints(self) -> str | list[Waypoints]:
         '''
         !waypoints - Get the waypoints of the server
@@ -160,6 +161,13 @@ class CommandHandler:
                 case 'select':
                     return self.cmd_select_category(context)
                 
+                case 'sub':
+                    return handle_subscription_command(
+                        context=context,
+                        db=self.db,
+                        prefix=f'{self.prefix}sub'
+                    )
+
                 case 'waypoints':
                     # either returns an message "no waypoints found" or a list of Waypoints data
                     # we'll need to send that data using the interface in the __main__.py file
