@@ -5,8 +5,8 @@ from datetime import timedelta
 import logging
 import signal
 
-from meshtastic_listener.db_utils import ListenerDb, ItemNotFound
-from meshtastic_listener.cmd_handler import CommandHandler, UnauthorizedError,UnknownCommandError
+from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
+from meshtastic_listener.cmd_handler import CommandHandler, UnknownCommandError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload
@@ -54,7 +54,7 @@ class MeshtasticListener:
             welcome_message: str | None = None,
             traceroute_interval: int = 24,
             traceroute_node: int | None = None,
-            admin_node: int | None = None
+            admin_nodes: list[int] | None = None
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -73,8 +73,16 @@ class MeshtasticListener:
         self.traceroute_ts: float = time.time() - self.traceroute_interval.total_seconds()
         self.traceroute_node = traceroute_node
 
-        # where to send notification messages
-        self.admin_node = admin_node
+        # where to send critical service notification messages
+        if admin_nodes is not None:
+            for node in admin_nodes:
+                if not isinstance(node, int):
+                    raise EnvironmentError(f"Invalid admin node ID: {node}. Must be an integer.")
+                self.db.insert_admin_node(node)
+            logging.info(f"Admin nodes set to: {admin_nodes}")
+        else:
+            logging.info("No admin nodes set. Some features will be disabled.")
+
         self.notification_ts = time.time()
 
         self.rx_stats = []
@@ -82,15 +90,21 @@ class MeshtasticListener:
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
-        if self.admin_node is not None:
-            logging.info(f'Admin node ID set to: {self.admin_node}')
-        else:
-            logging.info('Admin node ID not set. Admin commands will not be available.')
 
         if self.traceroute_node is not None:
             logging.info(f'Traceroute node set to: {self.traceroute_node} with interval: {self.traceroute_interval}')
 
         self.__load_local_nodes__(force=True)
+
+    def __notify_admins__(self, message: str) -> None:
+        admin_nodes = self.db.get_active_admin_nodes()
+        if admin_nodes is not None and len(admin_nodes) > 0:
+            for admin_node in admin_nodes:
+                self.db.insert_notification(
+                    to_id=admin_node.nodeNum,
+                    message=message
+                )
+            logging.info(f"Queued notification to admin nodes: {message}")
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
@@ -138,19 +152,12 @@ class MeshtasticListener:
     def __handle_text_message__(self, packet: dict) -> None:
         self.__print_packet_received__(logging.info, packet)
 
+        response = None
+
         if self.cmd_handler is not None:
             payload = MessageReceived(**packet)
             try:
                 response = self.cmd_handler.handle_command(context=payload)
-
-            except UnauthorizedError as e:
-                logging.error(f'User unauthorized to execute command: {e}')
-                if self.admin_node is not None:
-                    self.db.insert_notification(
-                        to_id=self.admin_node,
-                        message=f"Unauthorized command execution attempt from {payload.fromId}: {e}")
-                self.db.increment_failed_attempts(payload.fromId)
-                return 'You are not authorized to run this command.'
             
             except UnknownCommandError as e:
                 return e
@@ -186,12 +193,10 @@ class MeshtasticListener:
                     destinationId=payload.fromId
                 )
 
-            elif response is None and self.admin_node is not None:
-                # for those times when it's NOT a command, just forward the message to the admin node
-                self.__forward_direct_messages__(packet)
-
-        else:
-            logging.error("Command Handler not initialized. Cannot reply to message.")
+        if response is None and int(payload.toId) == int(self.interface.localNode.nodeNum):
+            self.__notify_admins__(
+                f"FWD from {self.db.get_shortname(payload.fromId)}: {payload.decoded.text}")
+           
 
     def __handle_telemetry__(self, packet: dict) -> None:
         telemetry = packet.get('decoded', {}).get('telemetry', {})
@@ -242,23 +247,10 @@ class MeshtasticListener:
             direct_connection=direct_connection,
         )
 
-        if self.admin_node is not None:
-            # add a slight delay to give time for the db to update
-            self.notification_ts = time.time() + timedelta(seconds=30).total_seconds()
-            from_shortname = self.db.get_shortname(packet['from'])
-            self.db.insert_notification(
-                to_id=self.admin_node,
-                message=f"Received traceroute from {from_shortname}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}")
-            logging.info(f'Queued traceroute notification delivery for node: {self.admin_node}')
-
-    def __forward_direct_messages__(self, packet: dict) -> None:
-        '''
-        Forwards messages sent directly to the server node (assumed headless) to the notify/admin node
-        '''
-        message = packet.get('decoded', {}).get('text', None)
-        if int(packet['to']) == int(self.interface.localNode.nodeNum) and message is not None:
-            logging.info(f'Forwarding direct message from {packet["from"]} to admin node: {self.admin_node}')
-            self.__send_messages__(text=f'FWD from {self.db.get_shortname(packet["from"])}: {message}', destinationId=self.admin_node)
+        self.__notify_admins__(
+            f"Received traceroute from {self.db.get_shortname(packet['from'])}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}"
+        )
+        
 
     def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:
         self.rx_stats.append([rx_rssi, snr])
@@ -337,32 +329,27 @@ class MeshtasticListener:
 
     def __handle_waypoint__(self, packet: dict) -> None:
         sender = int(packet.get('from', 0))
-        if sender == self.admin_node:
+        if self.db.is_admin_node(sender):
             self.__print_packet_received__(logging.info, packet)
             waypoint_data = packet.get('decoded', {}).get('waypoint', {})
             waypoint = WaypointPayload(**waypoint_data)
             self.db.insert_waypoint(waypoint)
+            logging.info(f"Received waypoint from admin node {sender}: {waypoint}")
         else:
-            logging.info(f'Waypoint packet received from {self.db.get_shortname(sender)}. Ignoring.')
+            logging.info(f'Waypoint packet received from non-admin node: {self.db.get_shortname(sender)}. Ignoring.')
 
-    def __trigger_notifications_to_admin__(self) -> None:
+    def __trigger_notifications__(self, node_num: int) -> None:
         '''
         if an incoming packet has the same `from` node as the `notify_node`,
         get all of the pending notifications from the DB and send them to the admin node
         '''
-        if self.notification_ts < time.time():
-            logging.debug(f'Packet received from notify_node {self.admin_node}. Triggering notifications...')
-
-            notifications = self.db.get_pending_notifications()
-            if len(notifications) == 0:
-                logging.debug("No notifications to send to admin node.")
-                return
-            
-            logging.info(f"Sending {len(notifications)} notifications to admin node: {self.admin_node}")
-            for notif in notifications:
+        pending_notifications = self.db.get_pending_notifications(to_id=node_num)
+        if len(pending_notifications) > 0 and self.notification_ts < time.time():     
+            logging.info(f"Sending {len(pending_notifications)} notifications to node: {node_num}")
+            for notif in pending_notifications:
                 message_metadata = self.interface.sendText(
                     text=notif.message,
-                    destinationId=self.admin_node,
+                    destinationId=node_num,
                     wantAck=True
                 )
 
@@ -377,22 +364,14 @@ class MeshtasticListener:
                 except ItemNotFound as e:
                     logging.warning(e)
 
-            self.notification_ts = time.time() + timedelta(minutes=5).total_seconds()
-    
-    def __sender_is_notify_node__(self, node_id: int) -> bool:
-        if self.admin_node is not None:
-            return int(self.admin_node) == int(node_id)
-        return False
+            self.notification_ts = time.time() + timedelta(seconds=30).total_seconds()
 
     def __check_notification_received__(self, packet: dict) -> None:
-        if self.__sender_is_notify_node__(packet['from']) and self.db.check_pending_notifications():
-            decoded = packet.get('decoded', {})
-            try:
-                request_id = decoded['requestId'] # throws KeyError if not found
-                self.db.mark_notification_received(notif_tx_id=request_id)
-                logging.info(f"Notification message with id {request_id} confirmed by admin node: {packet['from']}")
-            except KeyError:
-                logging.warning(f"Received ROUTER_APP packet from {packet['from']} without a request_id: {decoded}")
+        request_id = packet.get('decoded', {}).get('requestId')
+        if request_id is None:
+            logging.debug(f"Received ROUTER_APP packet with no valid requestId. Ignoring.")
+            return
+        self.db.mark_notification_received(notif_tx_id=request_id)
 
     def __sanitize_packet__(self, packet: dict) -> dict:
         response = {}
@@ -422,9 +401,10 @@ class MeshtasticListener:
             rx_rssi = packet.get('rxRssi')
             rx_snr = packet.get('rxSnr')
 
-            if self.__sender_is_notify_node__(packet['from']):
-                self.__trigger_notifications_to_admin__()
-            elif rx_rssi is not None and rx_snr is not None:
+            # checks if the sender has a pending notification
+            self.__trigger_notifications__(packet['from'])
+
+            if rx_rssi is not None and rx_snr is not None:
                 # only save rssi and snr values for non-notify_node packets
                 self.__print_message_stats__(float(rx_rssi), float(rx_snr))
             
@@ -511,8 +491,7 @@ if __name__ == "__main__":
         cmd_db=db_object,
         server_node_id=int(interface.localNode.nodeNum),
         prefix=environ.get("CMD_PREFIX", '!'),
-        bbs_lookback=int(environ.get("BBS_DAYS", 7)),
-        admin_node_id=load_node_env_var("ADMIN_NODE_ID")
+        bbs_lookback=int(environ.get("BBS_DAYS", 7))
     )
 
     listener = MeshtasticListener(
@@ -523,7 +502,7 @@ if __name__ == "__main__":
         welcome_message=environ.get("WELCOME_MESSAGE"),
         traceroute_interval=int(environ.get("TRACEROUTE_INTERVAL", 24)),
         traceroute_node=load_node_env_var("TRACEROUTE_NODE_ID"),
-        admin_node=load_node_env_var("ADMIN_NODE_ID")
+        admin_nodes=load_node_env_var("ADMIN_NODE_IDS")
     )
     
     listener.run()

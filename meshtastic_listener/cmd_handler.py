@@ -3,12 +3,9 @@ import inspect
 
 from meshtastic_listener.data_structures import MessageReceived
 from meshtastic_listener.commands.subscriptions import handle_subscription_command
-from meshtastic_listener.db_utils import ListenerDb, Waypoints, InvalidCategory
+from meshtastic_listener.listener_db.listener_db import ListenerDb, Waypoints, InvalidCategory
 
 logger = logging.getLogger(__name__)
-
-class UnauthorizedError(Exception):
-    pass
 
 class UnknownCommandError(Exception):
     pass
@@ -21,25 +18,14 @@ class CommandHandler:
             cmd_db: ListenerDb,
             server_node_id: int,
             prefix: str = '!',
-            bbs_lookback: int = 7,
-            admin_node_id: str | None = None,
+            bbs_lookback: int = 7
         ) -> None:
 
         self.prefix = prefix
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
         self.server_node_id = server_node_id
-        self.admin_node_id = admin_node_id
         self.char_limit = 200
-
-    def __is_admin__(self, node_id: str) -> None:
-        if self.admin_node_id is None:
-            logger.warning('Admin node not set. Cannot check if node is an admin.')
-            raise UnauthorizedError('Admin node not set. Cannot check if node is an admin.')
-        elif str(node_id) != str(self.admin_node_id):
-            raise UnauthorizedError(f'{node_id} is not authorized as admin')
-        else:
-            logger.info(f'{node_id} authenticated as admin')
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''

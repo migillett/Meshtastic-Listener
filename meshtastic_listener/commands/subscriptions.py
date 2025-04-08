@@ -1,7 +1,7 @@
 # this is a sub-function for the !sub command that allows you to CRUD user subscriptions
 
 from meshtastic_listener.data_structures import MessageReceived
-from meshtastic_listener.db_utils import ListenerDb, InvalidCategory
+from meshtastic_listener.listener_db.listener_db import ListenerDb, InvalidCategory
     
 
 def handle_subscription_command(context: MessageReceived, db: ListenerDb, prefix: str = '!sub') -> str:
