@@ -501,7 +501,7 @@ if __name__ == "__main__":
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
         welcome_message=environ.get("WELCOME_MESSAGE"),
         traceroute_interval=int(environ.get("TRACEROUTE_INTERVAL", 24)),
-        traceroute_node=load_node_env_var("TRACEROUTE_NODE_ID"),
+        traceroute_node=load_node_env_var("TRACEROUTE_NODE_ID")[0],
         admin_nodes=load_node_env_var("ADMIN_NODE_IDS")
     )
     
