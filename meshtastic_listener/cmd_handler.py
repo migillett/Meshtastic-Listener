@@ -29,9 +29,9 @@ class CommandHandler:
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''
-        !reply - Reply with the current hop count and signal strength
+        !reply - Reply with the rx hop count and signal strength
         '''
-        return f'hops: {context.hopStart} / {context.hopLimit}\nrxSnr: {context.rxSnr}\nrxRssi: {context.rxRssi}'
+        return f'hops: {context.hopLimit} / {context.hopStart}\nrxSnr: {context.rxSnr}\nrxRssi: {context.rxRssi}'
 
     def cmd_post(self, context: MessageReceived) -> str:
         '''
