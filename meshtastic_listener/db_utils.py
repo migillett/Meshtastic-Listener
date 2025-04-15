@@ -144,7 +144,7 @@ class Traceroute(Base):
     rxTime = Column(BigInteger, nullable=False)
     fromId = Column(BigInteger, nullable=False)
     toId = Column(BigInteger, nullable=False)
-    tracerouteDetails = Column(String(length=200), default=None)
+    tracerouteDetails = Column(JSON, default=None)
     snrAvg = Column(Float, default=None)
     directConnection = Column(Boolean, default=False)
 
@@ -527,7 +527,7 @@ class ListenerDb:
                 rxTime=rxTime,
                 fromId=fromId,
                 toId=toId,
-                tracerouteDetails=json.dumps(traceroute_dict, default=str, indent=2),
+                tracerouteDetails=traceroute_dict,
                 snrAvg=snr_avg,
                 directConnection=direct_connection,
             ))
