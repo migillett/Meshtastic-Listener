@@ -1,5 +1,6 @@
 import logging
 import inspect
+from datetime import datetime
 
 from meshtastic_listener.data_structures import MessageReceived
 from meshtastic_listener.commands.subscriptions import handle_subscription_command
@@ -42,8 +43,31 @@ class CommandHandler:
             return f'Message too long. Max {self.char_limit} characters'
         elif len(context.decoded.text) == 0:
             return 'Message is empty'
-        self.db.post_bbs_message(context)
-        return 'message received'
+        
+        # grab the poster's selected category from the db
+        category = self.db.get_node_selected_category(context.fromId)
+        self.db.post_bbs_message(payload=context, category_id=category.id)
+        # TODO - handle exception where node has never been seen before and they try to post - what exception does this raise?
+
+        # queue notifications to all subscribed users of a given category that a new message has been posted
+        subscribers = self.db.list_subscribers(category_id=category.id)
+        if len(subscribers) == 0:
+            logger.info(f'No subscribers found for category {category.id}: {category.name}. No notifications queued.')
+        else:
+            notification_message = f'{datetime.now().strftime("%d/%m/%Y: %H:%M")} | New message posted by {context.fromId} in {category.name}'
+            counter = 0
+            for node_num in subscribers:
+                if node_num != context.fromId:
+                    self.db.insert_notification(
+                        to_id=node_num,
+                        message=notification_message,
+                    )
+                    counter += 1
+                else:
+                    logger.info(f'Not queuing notification for {node_num} as they are the poster of the message')
+            logger.info(f'Queued notifications for {counter} subscribers to category {category.id}: {category.name}')
+
+        return f'Message posted to {category.name}'
     
     def cmd_read(self, context: MessageReceived, user_category: int | None = None) -> str:
         '''

@@ -107,21 +107,15 @@ class ListenerDb:
                 return 0
     
     ### MESSAGES ###
-    def post_bbs_message(self, payload: MessageReceived) -> None:
+    def post_bbs_message(self, payload: MessageReceived, category_id: int = 1) -> None:
         with self.session() as session:
-            try:
-                selected_category = self.get_node_selected_category(payload.fromId)
-            except ItemNotFound:
-                logger.warning(f'User {payload.fromId} has not selected a category. Defaulting to 1')
-                selected_category = 1
-
             msg_hash = xxhash.xxh64(f"{payload.decoded.text}{payload.fromId}{payload.rxTime}").hexdigest()
             session.add(BulletinBoardMessage(
                 rxTime=payload.rxTime,
                 fromId=payload.fromId,
                 toId=payload.toId,
                 message=payload.decoded.text,
-                categoryId=selected_category,
+                categoryId=category_id,
                 rxSnr=payload.rxSnr,
                 rxRssi=payload.rxRssi,
                 hopStart=payload.hopStart,
@@ -245,13 +239,13 @@ class ListenerDb:
             session.commit()
             logger.debug(f'Successfully upserted {len(nodes)} nodes into db')
 
-    def get_node_selected_category(self, node_num: int) -> int:
+    def get_node_selected_category(self, node_num: int) -> BulletinBoardCategory:
         with self.session() as session:
-            node = session.query(Node).filter(Node.nodeNum == node_num).first()
-            if node:
-                return node.selectedCategory
-            else:
-                raise ItemNotFound(f'Node {node_num} not found in db. Unable to get selected category.')
+            return session.query(BulletinBoardCategory).join(
+                Node, BulletinBoardCategory.id == Node.selectedCategory
+            ).filter(
+                Node.nodeNum == node_num
+            ).first()
 
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
@@ -488,7 +482,16 @@ class ListenerDb:
                 session.add(subscription)
             session.commit()
 
-    def list_subscriptions(self, node_num: int) -> list[tuple[int, str]]:
+    def list_subscribers(self, category_id: int) -> list[int]:
+        # returns a list of node numbers that are subscribed to the given category
+        with self.session() as session:
+            subscribers = session.query(Subscriptions.nodeNum).filter(
+                Subscriptions.categoryId == category_id,
+                Subscriptions.isSubscribed == True
+            ).all()
+            return [subscriber[0] for subscriber in subscribers]
+
+    def list_user_subscriptions(self, node_num: int) -> list[tuple[int, str]]:
         with self.session() as session:
             subscriptions = session.query(
                 Subscriptions.categoryId, BulletinBoardCategory.name

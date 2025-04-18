@@ -37,7 +37,7 @@ def handle_subscription_command(context: MessageReceived, db: ListenerDb, prefix
             return str(e)
         
     elif subcommand == 'ls':
-        subscriptions = db.list_subscriptions(node_num=context.fromId)
+        subscriptions = db.list_user_subscriptions(node_num=context.fromId)
         if len(subscriptions) == 0:
             return 'You are not subscribed to any categories'
         
