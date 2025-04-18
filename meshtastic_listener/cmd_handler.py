@@ -150,6 +150,16 @@ class CommandHandler:
                 if doc:
                     help_str += f'\n  {doc}'
         return help_str
+    
+    def cmd_subscriptions(self, context: MessageReceived) -> str:
+        '''
+        !sub - List subscription commands
+        '''
+        return handle_subscription_command(
+            context=context,
+            db=self.db,
+            prefix=f'{self.prefix}sub'
+        )
 
     def handle_command(self, context: MessageReceived) -> str | None | list[Waypoints]:
         if context.decoded.text.startswith(self.prefix):
@@ -172,11 +182,7 @@ class CommandHandler:
                     return self.cmd_select_category(context)
                 
                 case 'sub':
-                    return handle_subscription_command(
-                        context=context,
-                        db=self.db,
-                        prefix=f'{self.prefix}sub'
-                    )
+                    return self.cmd_subscriptions(context)
 
                 case 'waypoints':
                     # either returns an message "no waypoints found" or a list of Waypoints data
