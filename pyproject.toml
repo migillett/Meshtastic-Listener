@@ -18,7 +18,6 @@ toml = "^0.10.2"
 pytest = "^8.3.4"
 sqlalchemy = "^2.0.37"
 meshtastic = "^2.5.11"
-tenacity = "^9.0.0"
 psycopg2 = "^2.9.10"
 xxhash = "^3.5.0"
 

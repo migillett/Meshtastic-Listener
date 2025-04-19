@@ -153,7 +153,7 @@ class Traceroute(Base):
     rxTime = Column(BigInteger, nullable=False)
     fromId = Column(BigInteger, nullable=False)
     toId = Column(BigInteger, nullable=False)
-    tracerouteDetails = Column(String(length=200), default=None)
+    tracerouteDetails = Column(JSON, default=None)
     snrAvg = Column(Float, default=None)
     directConnection = Column(Boolean, default=False)
 

@@ -1,6 +1,5 @@
 import logging
 from time import time
-import json
 from statistics import mean
 
 from meshtastic_listener.data_structures import (
@@ -265,7 +264,12 @@ class ListenerDb:
     ### ADMIN NODES ###
     def is_admin_node(self, node_num: int) -> bool:
         with self.session() as session:
-            admin_node = session.query(AdminNodes).filter(AdminNodes.nodeNum == node_num).first()
+            admin_node = session.query(
+                AdminNodes
+            ).filter(
+                AdminNodes.nodeNum == node_num,
+                AdminNodes.enabled == True
+            ).first()
             return admin_node is not None
         
     def get_active_admin_nodes(self) -> list[AdminNodes]:
@@ -337,7 +341,7 @@ class ListenerDb:
                 rxTime=rxTime,
                 fromId=fromId,
                 toId=toId,
-                tracerouteDetails=json.dumps(traceroute_dict, default=str, indent=2),
+                tracerouteDetails=traceroute_dict,
                 snrAvg=snr_avg,
                 directConnection=direct_connection,
             ))

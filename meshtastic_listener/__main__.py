@@ -5,7 +5,7 @@ from datetime import timedelta
 import logging
 import signal
 
-from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
+from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound, Waypoints
 from meshtastic_listener.cmd_handler import CommandHandler, UnknownCommandError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
@@ -17,7 +17,6 @@ from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
 from meshtastic.mesh_interface import MeshInterface
-from tenacity import retry, stop_after_attempt, wait_fixed
 import toml
 
 
@@ -104,7 +103,7 @@ class MeshtasticListener:
                     to_id=admin_node.nodeNum,
                     message=message
                 )
-            logging.info(f"Queued notification to admin nodes: {message}")
+            logging.info(f"Queued notification to {len(admin_nodes)} admin nodes: {message}")
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
@@ -112,12 +111,6 @@ class MeshtasticListener:
             nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
             self.db.insert_nodes(nodes)
             self.node_refresh_ts = now
-
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def __reconnect__(self, **kwargs) -> None:
-        logging.error("Connection lost with node. Attempting to reconnect...")
-        self.interface.close()
-        self.interface.connect()
 
     def __send_messages__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
@@ -160,13 +153,13 @@ class MeshtasticListener:
                 response = self.cmd_handler.handle_command(context=payload)
             
             except UnknownCommandError as e:
-                return e
+                self.__send_messages__(text=e, destinationId=payload.fromId)
 
             if isinstance(response, str):
                 logging.info(f'Replying to {payload.fromId}: {response}')
                 self.__send_messages__(text=response, destinationId=payload.fromId)
 
-            elif isinstance(response, list):
+            elif isinstance(response, list[Waypoints]):
                 logging.info(f'Sending waypoint to {payload.fromId}: {response}')
                 expiration_ts = int(time.time() + timedelta(days=7).total_seconds())
                 for waypoint in response:
@@ -182,9 +175,9 @@ class MeshtasticListener:
                     )
                 
                 n_waypoints = len(response)
-                logging.info(f'Sending {n_waypoints} {"waypoints" if n_waypoints > 1 else "waypoint"} to {payload.fromId}')
-
-                waypoint_msg = f'Sent {n_waypoints} {"waypoints" if n_waypoints > 1 else "waypoint"} to your map:'
+                waypoint_insert = f"waypoint" if n_waypoints == 1 else "waypoints"
+                logging.info(f'Sending {n_waypoints} {waypoint_insert} to {payload.fromId}')
+                waypoint_msg = f'Sent {n_waypoints} {waypoint_insert} to your map:'
                 for i, waypoint in enumerate(response):
                     waypoint_msg += f'\n {i+1}. {waypoint.name}'
 
@@ -193,11 +186,11 @@ class MeshtasticListener:
                     destinationId=payload.fromId
                 )
 
+        # if someone sends a DM to the node that ISN'T a command, forward it to the admin nodes
         if response is None and int(payload.toId) == int(self.interface.localNode.nodeNum):
             self.__notify_admins__(
                 f"FWD from {self.db.get_shortname(payload.fromId)}: {payload.decoded.text}")
            
-
     def __handle_telemetry__(self, packet: dict) -> None:
         telemetry = packet.get('decoded', {}).get('telemetry', {})
 
@@ -226,7 +219,6 @@ class MeshtasticListener:
             )
         else:
             logging.error(f"Unknown telemetry type: {telemetry}")
-            return
 
     def __handle_traceroute__(self, packet: dict) -> None:
         traceroute_details = packet.get('decoded', {}).get('traceroute', {})
@@ -251,7 +243,6 @@ class MeshtasticListener:
             f"Received traceroute from {self.db.get_shortname(packet['from'])}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}"
         )
         
-
     def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:
         self.rx_stats.append([rx_rssi, snr])
         if len(self.rx_stats) >= average_n:
@@ -291,9 +282,9 @@ class MeshtasticListener:
         except ItemNotFound as e:
             logging.warning(e)
 
-    def __connect_upstream__(self) -> None:
+    def __traceroute_upstream__(self) -> None:
         '''
-        runs a traceroute every n hours to a specific infrastructure node that the user defines
+        runs a traceroute every n hours to a specific upstream infrastructure node that the user defines
         '''
         now = time.time()
         if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
@@ -301,7 +292,7 @@ class MeshtasticListener:
                 logging.info("Traceroute node was not defined. Skipping traceroute.")
             else:
                 try:
-                    logging.info(f"Attempting traceroute to node: {self.traceroute_node}")
+                    logging.info(f"Sending traceroute to node: {self.traceroute_node}")
                     self.interface.sendTraceRoute(self.traceroute_node, hopLimit=5)
                 except MeshInterface.MeshInterfaceError as e:
                     logging.error(f"Failed to send traceroute to {self.traceroute_node}: {e}")
@@ -339,10 +330,6 @@ class MeshtasticListener:
             logging.info(f'Waypoint packet received from non-admin node: {self.db.get_shortname(sender)}. Ignoring.')
 
     def __trigger_notifications__(self, node_num: int) -> None:
-        '''
-        if an incoming packet has the same `from` node as the `notify_node`,
-        get all of the pending notifications from the DB and send them to the admin node
-        '''
         pending_notifications = self.db.get_pending_notifications(to_id=node_num)
         if len(pending_notifications) > 0 and self.notification_ts < time.time():     
             logging.info(f"Sending {len(pending_notifications)} notifications to node: {node_num}")
@@ -461,7 +448,7 @@ class MeshtasticListener:
             try:
                 sys.stdout.flush()
                 self.__load_local_nodes__()
-                self.__connect_upstream__()
+                self.__traceroute_upstream__()
                 time.sleep(1)
             except Exception as e:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
