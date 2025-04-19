@@ -1,6 +1,5 @@
 import logging
 from time import time
-import json
 from statistics import mean
 
 from meshtastic_listener.data_structures import (
@@ -8,212 +7,27 @@ from meshtastic_listener.data_structures import (
     EnvironmentPayload, MessageReceived, NeighborSnr,
     WaypointPayload
 )
+from meshtastic_listener.listener_db.db_tables import (
+    Base, Node, BulletinBoardMessage, BulletinBoardCategory,
+    DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
+    Traceroute, DbHashTable, MessageHistory, OutgoingNotifications,
+    Subscriptions, Neighbor, Waypoints, Subscriptions, AdminNodes
+)
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, create_engine, BigInteger, JSON
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import Insert
-from sqlalchemy.sql.schema import ForeignKey
 from sqlalchemy.exc import IntegrityError
 import xxhash
 
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
 
 class ItemNotFound(Exception):
     pass
 
 class InvalidCategory(Exception):
     pass
-
-class DbHashTable(Base):
-    __tablename__ = 'db_hash_table'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    hash_value = Column(String(length=64), nullable=False)
-    timestamp = Column(BigInteger, default=int(time()))
-
-    def __repr__(self):
-        return f'<DbHashTable(id={self.id}, hash_value={self.hash_value}), timestamp={self.timestamp})>'
-
-class BulletinBoardCategory(Base):
-    '''
-    A way to categorize messages on the bulletin board.
-    '''
-    __tablename__ = 'bbs_categories'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(length=100), nullable=False)
-    description = Column(String(length=200), default=None)
-
-class BulletinBoardMessage(Base):
-    __tablename__ = 'bbs_messages'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    fromId = Column(BigInteger, nullable=False)
-    toId = Column(BigInteger, nullable=False)
-    # categoryId always defaults to general unless otherwise specified
-    categoryId = Column(Integer, ForeignKey('bbs_categories.id'), nullable=False, default=1)
-    message = Column(String(length=200), nullable=False)
-    rxSnr = Column(Float, nullable=False)
-    rxRssi = Column(Integer, nullable=False)
-    hopStart = Column(Integer, nullable=False)
-    hopLimit = Column(Integer, nullable=False)
-    readCount = Column(Integer, default=0)
-    isDeleted = Column(Boolean, default=0)
-    messageHash = Column(String(length=100), default=None)
-
-    def __repr__(self):
-        return f'<BulletinBoardMessage(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
-
-class Node(Base):
-    __tablename__ = 'nodes'
-
-    nodeNum = Column(BigInteger, primary_key=True)
-    longName = Column(String(length=100), default=None)
-    shortName = Column(String(length=4), default=None)
-    macAddr = Column(String(length=100), default=None)
-    hwModel = Column(String(length=100), default=None)
-    publicKey = Column(String(length=100), default=None)
-    nodeRole = Column(String(length=100), default=None)
-    lastHeard = Column(BigInteger, default=None)
-    latitude = Column(Float, default=None)
-    longitude = Column(Float, default=None)
-    distance = Column(Float, default=None)
-    altitude = Column(Float, default=None)
-    precisionBits = Column(Integer, default=None)
-    hopsAway = Column(Integer, default=None)
-    # this allows the user to navigate to a specific category for reading / posting
-    selectedCategory = Column(Integer, ForeignKey('bbs_categories.id'), default=1)
-
-    def __repr__(self):
-        return f'<Node(num={self.nodeNum}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macAddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.nodeRole}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
-
-
-class DeviceMetrics(Base):
-    __tablename__ = 'device_metrics'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    nodeNum = Column(BigInteger, nullable=False)
-    batteryLevel = Column(Integer, default=None)
-    voltage = Column(Float, default=None)
-    channelUtilization = Column(Float, default=None)
-    uptimeSeconds = Column(BigInteger, default=None)
-
-    def __repr__(self):
-        return f'<DeviceMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, batteryLevel={self.batteryLevel}, voltage={self.voltage}, channelUtilization={self.channelUtilization}, uptimeSeconds={self.uptimeSeconds})>'
-    
-class TransmissionMetrics(Base):
-    __tablename__ = 'transmission_metrics'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    nodeNum = Column(BigInteger, nullable=False)
-    airUtilTx = Column(Float, default=None)
-    numPacketsTx = Column(Integer, default=None)
-    numPacketsRx = Column(Integer, default=None)
-    numPacketsRxBad = Column(Integer, default=None)
-    numOnlineNodes = Column(Integer, default=None)
-    numTotalNodes = Column(Integer, default=None)
-    numRxDupe = Column(Integer, default=None)
-    numTxRelay = Column(Integer, default=None)
-    numTxRelayCanceled = Column(Integer, default=None)
-
-    def __repr__(self):
-        return f'<TransmissionMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, airUtilTx={self.airUtilTx}, numPacketsTx={self.numPacketsTx}, numPacketsRx={self.numPacketsRx}, numPacketsRxBad={self.numPacketsRxBad}, numOnlineNodes={self.numOnlineNodes}, numTotalNodes={self.numTotalNodes}, numRxDupe={self.numRxDupe}, numTxRelay={self.numTxRelay}, numTxRelayCanceled={self.numTxRelayCanceled})>'
-
-
-class EnvironmentMetrics(Base):
-    __tablename__ = 'environment_metrics'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    nodeNum = Column(BigInteger, nullable=False)
-    temperature = Column(Float, default=None)
-    relativeHumidity = Column(Float, default=None)
-    barometricPressure = Column(Float, default=None)
-    gasResistance = Column(Float, default=None)
-    iaq = Column(Integer, default=None)
-
-    def __repr__(self):
-        return f'<EnvironmentMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, temperature={self.temperature}, relativeHumidity={self.relativeHumidity}, barometricPressure={self.barometricPressure}, gasResistance={self.gasResistance}, iaq={self.iaq})>'
-
-
-class Traceroute(Base):
-    __tablename__ = 'traceroutes'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    fromId = Column(BigInteger, nullable=False)
-    toId = Column(BigInteger, nullable=False)
-    tracerouteDetails = Column(String(length=200), default=None)
-    snrAvg = Column(Float, default=None)
-    directConnection = Column(Boolean, default=False)
-
-    def __repr__(self):
-        return f'<Traceroute(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, tracerouteDetails={self.tracerouteDetails}, snrAvg={self.snrAvg}, directConnection={self.directConnection})>'
-
-
-class MessageHistory(Base):
-    __tablename__ = 'message_history'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    fromId = Column(BigInteger, nullable=False)
-    toId = Column(BigInteger, nullable=False)
-    portnum = Column(String(length=75), nullable=False)
-    packetRaw = Column(JSON, nullable=False)
-    rxSnr = Column(Float, default=None)
-    rxRssi = Column(Integer, default=None)
-
-    def __repr__(self):
-        return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, packetRaw={self.packetRaw})>'
-
-
-class Neighbor(Base):
-    __tablename__ = 'neighbors'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(Integer, nullable=False)
-    sourceNodeId = Column(BigInteger, nullable=False)
-    neighborNodeId = Column(BigInteger, nullable=False)
-    snr = Column(Float, nullable=False)
-    def __repr__(self):
-        return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
-
-
-class OutgoingNotifications(Base):
-    __tablename__ = 'outgoing_notifications'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(Integer, nullable=False)
-    toId = Column(BigInteger, nullable=False)
-    message = Column(String(length=200), nullable=False)
-    received = Column(Boolean, default=False)
-    attempts = Column(Integer, default=0)
-    txId = Column(BigInteger, default=None) # id of the notification message sent to the node
-
-    def __repr__(self):
-        return f'<OutgoingNotifications(id={self.id}, timestamp={self.timestamp}, toId={self.toId}, message={self.message}, received={self.received}, attempts={self.attempts})>'
-
-
-class Lockout(Base):
-    __tablename__ = 'node_lockout'
-    nodeNum = Column(BigInteger, primary_key=True)
-    failedAttempts = Column(Integer, default=0)
-    lastFailedAttempt = Column(Integer, default=0)
-    locked = Column(Boolean, default=False)
-
-    def __repr__(self):
-        return f'<Lockout(nodeNum={self.nodeNum}, failedAttempts={self.failedAttempts}, lastFailedAttempt={self.lastFailedAttempt}, locked={self.locked})>'
-
-
-class Waypoints(Base):
-    __tablename__ = 'waypoints'
-    id = Column(BigInteger, primary_key=True)
-    name = Column(String(length=30), nullable=False)
-    description = Column(String(length=100), default=None)
-    icon = Column(BigInteger, nullable=False)
-    latitudeI = Column(BigInteger, default=None)
-    longitudeI = Column(BigInteger, default=None)
-
-    def __repr__(self):
-        return f'<Waypoints(id={self.id}, name={self.name}, description={self.description}, icon={self.icon}, latitudeI={self.latitudeI}, longitudeI={self.longitudeI})>'
 
 
 class ListenerDb:
@@ -224,7 +38,7 @@ class ListenerDb:
             password: str,
             db_name: str = 'listener_db',
             port: int = 5432,
-            default_categories: list[str] = ['General', 'Annoucements']
+            default_categories: list[str] = ['General', 'Annoucements', 'Events']
         ) -> None:
 
         self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
@@ -237,15 +51,7 @@ class ListenerDb:
     def create_tables(self) -> None:
         Base.metadata.create_all(self.engine)
 
-    def create_default_categories(self, categories: list[str]) -> None:
-        logger.info(f'Creating BBS categories: {categories}')
-        with self.session() as session:
-            existing_categories = session.query(BulletinBoardCategory).all()
-            for category in categories:
-                if category not in [cat.name for cat in existing_categories]:
-                    session.add(BulletinBoardCategory(name=category))
-            session.commit()
-
+    ### HASHING FUNCTIONS ###
     def hash_bbs_state(self) -> None:
         """
         Takes the DB's state and saves it to a hash for quick comparison to see if anything has changed in the database.
@@ -300,21 +106,15 @@ class ListenerDb:
                 return 0
     
     ### MESSAGES ###
-    def post_bbs_message(self, payload: MessageReceived) -> None:
+    def post_bbs_message(self, payload: MessageReceived, category_id: int = 1) -> None:
         with self.session() as session:
-            try:
-                selected_category = self.get_node_selected_category(payload.fromId)
-            except ItemNotFound:
-                logger.warning(f'User {payload.fromId} has not selected a category. Defaulting to 1')
-                selected_category = 1
-
             msg_hash = xxhash.xxh64(f"{payload.decoded.text}{payload.fromId}{payload.rxTime}").hexdigest()
             session.add(BulletinBoardMessage(
                 rxTime=payload.rxTime,
                 fromId=payload.fromId,
                 toId=payload.toId,
                 message=payload.decoded.text,
-                categoryId=selected_category,
+                categoryId=category_id,
                 rxSnr=payload.rxSnr,
                 rxRssi=payload.rxRssi,
                 hopStart=payload.hopStart,
@@ -352,26 +152,16 @@ class ListenerDb:
             ).update({BulletinBoardMessage.isDeleted: 1})
             session.commit()
 
-    def reset(self) -> None:
-        '''
-        only for testing purposes
-        '''
-        with self.session() as session:
-            session.query(DbHashTable).delete()
-            session.query(BulletinBoardMessage).delete()
-            session.query(Node).delete()
-            session.query(DeviceMetrics).delete()
-            session.query(TransmissionMetrics).delete()
-            session.query(EnvironmentMetrics).delete()
-            session.query(Traceroute).delete()
-            session.query(MessageHistory).delete()
-            session.query(Neighbor).delete()
-            session.query(OutgoingNotifications).delete()
-            session.query(Waypoints).delete()
-            session.commit()
-        logger.info('Reset database to initial state.')
-
     ### CATEGORIES ###
+    def create_default_categories(self, categories: list[str]) -> None:
+        logger.info(f'Creating BBS categories: {categories}')
+        with self.session() as session:
+            existing_categories = session.query(BulletinBoardCategory).all()
+            for category in categories:
+                if category not in [cat.name for cat in existing_categories]:
+                    session.add(BulletinBoardCategory(name=category))
+            session.commit()
+
     def list_categories(self) -> list[BulletinBoardCategory]:
         with self.session() as session:
             return session.query(
@@ -448,13 +238,13 @@ class ListenerDb:
             session.commit()
             logger.debug(f'Successfully upserted {len(nodes)} nodes into db')
 
-    def get_node_selected_category(self, node_num: int) -> int:
+    def get_node_selected_category(self, node_num: int) -> BulletinBoardCategory:
         with self.session() as session:
-            node = session.query(Node).filter(Node.nodeNum == node_num).first()
-            if node:
-                return node.selectedCategory
-            else:
-                raise ItemNotFound(f'Node {node_num} not found in db. Unable to get selected category.')
+            return session.query(BulletinBoardCategory).join(
+                Node, BulletinBoardCategory.id == Node.selectedCategory
+            ).filter(
+                Node.nodeNum == node_num
+            ).first()
 
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
@@ -470,6 +260,30 @@ class ListenerDb:
         if not node:
             return str(node_num)
         return node.shortName
+    
+    ### ADMIN NODES ###
+    def is_admin_node(self, node_num: int) -> bool:
+        with self.session() as session:
+            admin_node = session.query(
+                AdminNodes
+            ).filter(
+                AdminNodes.nodeNum == node_num,
+                AdminNodes.enabled == True
+            ).first()
+            return admin_node is not None
+        
+    def get_active_admin_nodes(self) -> list[AdminNodes]:
+        with self.session() as session:
+            return session.query(AdminNodes).filter(AdminNodes.enabled == True).all()
+        
+    def insert_admin_node(self, node_num: int) -> None:
+        with self.session() as session:
+            stmt = Insert(AdminNodes).values(
+                nodeNum=node_num,
+                timestamp=int(time())
+            ).on_conflict_do_nothing()
+            session.execute(stmt)
+            session.commit()
     
     ### METRICS ###
     def insert_device_metrics(self, node_num: int, rxTime: int, metrics: DevicePayload) -> None:
@@ -527,7 +341,7 @@ class ListenerDb:
                 rxTime=rxTime,
                 fromId=fromId,
                 toId=toId,
-                tracerouteDetails=json.dumps(traceroute_dict, default=str, indent=2),
+                tracerouteDetails=traceroute_dict,
                 snrAvg=snr_avg,
                 directConnection=direct_connection,
             ))
@@ -593,12 +407,13 @@ class ListenerDb:
             ))
             session.commit()
 
-    def get_pending_notifications(self, max_attempts: int = 5) -> list[OutgoingNotifications]:
+    def get_pending_notifications(self, to_id: int, max_attempts: int = 5) -> list[OutgoingNotifications]:
         with self.session() as session:
             return session.query(
                 OutgoingNotifications
             ).filter(
-                OutgoingNotifications.received == True,
+                OutgoingNotifications.toId == to_id,
+                OutgoingNotifications.received == False,
                 OutgoingNotifications.attempts < max_attempts
             ).all()
 
@@ -616,54 +431,103 @@ class ListenerDb:
                 session.commit()
             else:
                 raise ItemNotFound(f'Notification with id {notification_id} not found in db')
-            
-    def check_pending_notifications(self) -> bool:
-        '''
-        checks for any notifications that have been sent but not confirmed received by the end-user
-
-        Returns True if there are pending notifications, False otherwise
-        '''
-        with self.session() as session:
-            # check if received == False AND notif_xt_id is not None
-            return session.query(OutgoingNotifications).filter(
-                OutgoingNotifications.received == False,
-                OutgoingNotifications.txId.isnot(None)
-            ).count() > 0
 
     def mark_notification_received(self, notif_tx_id: int) -> None:
         '''
         Takes the request_id from the packet and marks it as received by the end-user
         '''
         with self.session() as session:
-            notification = session.query(OutgoingNotifications).filter(OutgoingNotifications.txId == notif_tx_id).first()
+            notification = session.query(
+                OutgoingNotifications
+            ).filter(
+                OutgoingNotifications.txId == notif_tx_id
+            ).first()
             if notification:
+                logger.debug(f'Marking notification {notif_tx_id} as received.')
                 notification.received = True
                 session.add(notification)
                 session.commit()
 
-    ### LOCKOUTS ###
-    def check_node_lockout(self, node_num: int) -> bool:
+    ### SUBSCRIPTIONS ###
+    def insert_subscription(self, node_num: int, category_id: int | None = None) -> None:
+        '''
+        Will raise IntegrityError if the categoryId is not valid.
+        '''
+        try:
+            with self.session() as session:
+                stmt = Insert(Subscriptions).values(
+                    nodeNum=node_num,
+                    categoryId=category_id,
+                    isSubscribed=True,
+                    timestamp=int(time())
+                )
+                session.execute(stmt)
+                session.commit()
+        except IntegrityError:
+            raise InvalidCategory(f'Category {category_id} does not exist.')
+
+    def unsubscribe_from_category(self, node_num: int, category_id: int | None = None) -> None:
         with self.session() as session:
-            lockout = session.query(Lockout).filter(Lockout.nodeNum == node_num).first()
-            if lockout:
-                return lockout.locked
-            return False
-        
-    def increment_failed_attempts(self, node_num: int, lockout_n: int = 3) -> None:
-        with self.session() as session:
-            lockout = session.query(Lockout).filter(Lockout.nodeNum == node_num).first()
-            if lockout:
-                lockout.failedAttempts += 1
-                lockout.lastFailedAttempt = int(time())
-                if lockout.failedAttempts >= lockout_n:
-                    logger.info(f'Node {node_num} has reached the failed attempt threshold. Locking out node.')
-                    lockout.locked = True
-                session.add(lockout)
+            subscription = session.query(Subscriptions).filter(
+                Subscriptions.nodeNum == node_num,
+                Subscriptions.categoryId == category_id
+            ).first()
+            if subscription:
+                session.delete(subscription)
                 session.commit()
             else:
-                session.add(Lockout(nodeNum=node_num, failedAttempts=1, lastFailedAttempt=int(time())))
-                session.commit()
+                logger.warning(f'No subscription found for node {node_num} in category {category_id}.')
 
+    def unsubscribe_all(self, node_num: int) -> None:
+        with self.session() as session:
+            subscriptions = session.query(Subscriptions).filter(Subscriptions.nodeNum == node_num).all()
+            for subscription in subscriptions:
+                subscription.isSubscribed = False
+                session.add(subscription)
+            session.commit()
+
+    def list_subscribers(self, category_id: int) -> list[int]:
+        # returns a list of node numbers that are subscribed to the given category
+        with self.session() as session:
+            subscribers = session.query(Subscriptions.nodeNum).filter(
+                Subscriptions.categoryId == category_id,
+                Subscriptions.isSubscribed == True
+            ).all()
+            return [subscriber[0] for subscriber in subscribers]
+
+    def list_user_subscriptions(self, node_num: int) -> list[tuple[int, str]]:
+        with self.session() as session:
+            subscriptions = session.query(
+                Subscriptions.categoryId, BulletinBoardCategory.name
+            ).join(
+                BulletinBoardCategory, Subscriptions.categoryId == BulletinBoardCategory.id
+            ).filter(
+                Subscriptions.nodeNum == node_num,
+                Subscriptions.isSubscribed == True
+            ).order_by(
+                Subscriptions.timestamp.desc()
+            ).all()
+            return subscriptions
+
+    def has_active_subscriptions(self, node_num: int) -> bool:
+        with self.session() as session:
+            subscriptions = session.query(Subscriptions).filter(
+                Subscriptions.nodeNum == node_num,
+                Subscriptions.isSubscribed == True
+            ).all()
+            return len(subscriptions) > 0
+
+    def is_subscribed(self, node_num: int, category_id: int | None = None) -> bool:
+        with self.session() as session:
+            subscription = session.query(Subscriptions).filter(
+                Subscriptions.nodeNum == node_num,
+                Subscriptions.categoryId == category_id
+            ).first()
+            if subscription:
+                return subscription.isSubscribed
+            return False
+
+    ### NEIGHBORS ###
     def get_neighbors(self, lookback_hours: int = 72) -> list[NeighborSnr]:
         # check the message_history table for the most "talkative" nodes from the past n hours
         # order them by average SNR

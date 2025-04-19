@@ -1,13 +1,12 @@
 import logging
 import inspect
+from datetime import datetime
 
 from meshtastic_listener.data_structures import MessageReceived
-from meshtastic_listener.db_utils import ListenerDb, Waypoints, InvalidCategory
+from meshtastic_listener.commands.subscriptions import handle_subscription_command
+from meshtastic_listener.listener_db.listener_db import ListenerDb, Waypoints, InvalidCategory
 
 logger = logging.getLogger(__name__)
-
-class UnauthorizedError(Exception):
-    pass
 
 class UnknownCommandError(Exception):
     pass
@@ -20,31 +19,20 @@ class CommandHandler:
             cmd_db: ListenerDb,
             server_node_id: int,
             prefix: str = '!',
-            bbs_lookback: int = 7,
-            admin_node_id: str | None = None,
+            bbs_lookback: int = 7
         ) -> None:
 
         self.prefix = prefix
         self.db = cmd_db
         self.bbs_lookback = bbs_lookback
         self.server_node_id = server_node_id
-        self.admin_node_id = admin_node_id
         self.char_limit = 200
-
-    def __is_admin__(self, node_id: str) -> None:
-        if self.admin_node_id is None:
-            logger.warning('Admin node not set. Cannot check if node is an admin.')
-            raise UnauthorizedError('Admin node not set. Cannot check if node is an admin.')
-        elif str(node_id) != str(self.admin_node_id):
-            raise UnauthorizedError(f'{node_id} is not authorized as admin')
-        else:
-            logger.info(f'{node_id} authenticated as admin')
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''
-        !reply - Reply with the current hop count and signal strength
+        !reply - Reply with the rx hop count and signal strength
         '''
-        return f'hops: {context.hopStart} / {context.hopLimit}\nrxSnr: {context.rxSnr}\nrxRssi: {context.rxRssi}'
+        return f'hops: {context.hopLimit} / {context.hopStart}\nrxSnr: {context.rxSnr}\nrxRssi: {context.rxRssi}'
 
     def cmd_post(self, context: MessageReceived) -> str:
         '''
@@ -55,8 +43,31 @@ class CommandHandler:
             return f'Message too long. Max {self.char_limit} characters'
         elif len(context.decoded.text) == 0:
             return 'Message is empty'
-        self.db.post_bbs_message(context)
-        return 'message received'
+        
+        # grab the poster's selected category from the db
+        category = self.db.get_node_selected_category(context.fromId)
+        self.db.post_bbs_message(payload=context, category_id=category.id)
+        # TODO - handle exception where node has never been seen before and they try to post - what exception does this raise?
+
+        # queue notifications to all subscribed users of a given category that a new message has been posted
+        subscribers = self.db.list_subscribers(category_id=category.id)
+        if len(subscribers) == 0:
+            logger.info(f'No subscribers found for category {category.id}: {category.name}. No notifications queued.')
+        else:
+            notification_message = f'{datetime.now().strftime("%d/%m/%Y: %H:%M")} | New message posted by {context.fromId} in {category.name}'
+            counter = 0
+            for node_num in subscribers:
+                if node_num != context.fromId:
+                    self.db.insert_notification(
+                        to_id=node_num,
+                        message=notification_message,
+                    )
+                    counter += 1
+                else:
+                    logger.info(f'Not queuing notification for {node_num} as they are the poster of the message')
+            logger.info(f'Queued notifications for {counter} subscribers to category {category.id}: {category.name}')
+
+        return f'Message posted to {category.name}'
     
     def cmd_read(self, context: MessageReceived, user_category: int | None = None) -> str:
         '''
@@ -116,7 +127,7 @@ class CommandHandler:
         
         except ValueError:
             return 'Invalid category. Please select a number from the list of categories using !categories'
-    
+        
     def cmd_waypoints(self) -> str | list[Waypoints]:
         '''
         !waypoints - Get the waypoints of the server
@@ -139,6 +150,22 @@ class CommandHandler:
                 if doc:
                     help_str += f'\n  {doc}'
         return help_str
+    
+    def cmd_subscriptions(self, context: MessageReceived) -> str:
+        '''
+        !sub - List subscription commands
+        '''
+        return handle_subscription_command(
+            context=context,
+            db=self.db,
+            prefix=f'{self.prefix}sub'
+        )
+    
+    def cmd_info(self) -> str:
+        '''
+        !info - Display info about the server
+        '''
+        return 'Meshtastic Listener BBS\nhttps://github.com/migillett/meshtastic-listener'
 
     def handle_command(self, context: MessageReceived) -> str | None | list[Waypoints]:
         if context.decoded.text.startswith(self.prefix):
@@ -160,10 +187,16 @@ class CommandHandler:
                 case 'select':
                     return self.cmd_select_category(context)
                 
+                case 'sub':
+                    return self.cmd_subscriptions(context)
+
                 case 'waypoints':
                     # either returns an message "no waypoints found" or a list of Waypoints data
                     # we'll need to send that data using the interface in the __main__.py file
                     return self.cmd_waypoints()
+                
+                case 'info':
+                    return self.cmd_info()
                 
                 case 'help':
                     return self.cmd_help(context)
