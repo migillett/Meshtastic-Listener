@@ -13,8 +13,6 @@ class DbHashTable(Base):
     hash_value = Column(String(length=64), nullable=False)
     timestamp = Column(BigInteger, default=int(time()))
 
-    def __repr__(self):
-        return f'<DbHashTable(id={self.id}, hash_value={self.hash_value}), timestamp={self.timestamp})>'
 
 class BulletinBoardCategory(Base):
     '''
@@ -55,8 +53,6 @@ class BulletinBoardMessage(Base):
     isDeleted = Column(Boolean, default=0)
     messageHash = Column(String(length=100), default=None)
 
-    def __repr__(self):
-        return f'<BulletinBoardMessage(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, message={self.message}, rxSnr={self.rxSnr}, rxRssi={self.rxRssi}, hopStart={self.hopStart}, hopLimit={self.hopLimit}, readCount={self.readCount}, isDeleted={self.isDeleted})>'
 
 class Node(Base):
     __tablename__ = 'nodes'
@@ -78,8 +74,6 @@ class Node(Base):
     # this allows the user to navigate to a specific category for reading / posting
     selectedCategory = Column(Integer, ForeignKey('bbs_categories.id'), default=1)
 
-    def __repr__(self):
-        return f'<Node(num={self.nodeNum}, longName={self.longName}, shortName={self.shortName}, macaddr={self.macAddr}, hwModel={self.hwModel}, publicKey={self.publicKey}, role={self.nodeRole}, lastHeard={self.lastHeard}, latitude={self.latitude}, longitude={self.longitude}, altitude={self.altitude}, precisionBits={self.precisionBits}, hopsAway={self.hopsAway})>'
 
     @staticmethod
     def cascade_delete(session, node_num: int) -> None:
@@ -109,8 +103,6 @@ class DeviceMetrics(Base):
     channelUtilization = Column(Float, default=None)
     uptimeSeconds = Column(BigInteger, default=None)
 
-    def __repr__(self):
-        return f'<DeviceMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, batteryLevel={self.batteryLevel}, voltage={self.voltage}, channelUtilization={self.channelUtilization}, uptimeSeconds={self.uptimeSeconds})>'
     
 class TransmissionMetrics(Base):
     __tablename__ = 'transmission_metrics'
@@ -127,9 +119,6 @@ class TransmissionMetrics(Base):
     numTxRelay = Column(Integer, default=None)
     numTxRelayCanceled = Column(Integer, default=None)
 
-    def __repr__(self):
-        return f'<TransmissionMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, airUtilTx={self.airUtilTx}, numPacketsTx={self.numPacketsTx}, numPacketsRx={self.numPacketsRx}, numPacketsRxBad={self.numPacketsRxBad}, numOnlineNodes={self.numOnlineNodes}, numTotalNodes={self.numTotalNodes}, numRxDupe={self.numRxDupe}, numTxRelay={self.numTxRelay}, numTxRelayCanceled={self.numTxRelayCanceled})>'
-
 
 class EnvironmentMetrics(Base):
     __tablename__ = 'environment_metrics'
@@ -142,9 +131,6 @@ class EnvironmentMetrics(Base):
     gasResistance = Column(Float, default=None)
     iaq = Column(Integer, default=None)
 
-    def __repr__(self):
-        return f'<EnvironmentMetrics(id={self.id}, rxTime={self.rxTime}, nodeNum={self.nodeNum}, temperature={self.temperature}, relativeHumidity={self.relativeHumidity}, barometricPressure={self.barometricPressure}, gasResistance={self.gasResistance}, iaq={self.iaq})>'
-
 
 class Traceroute(Base):
     __tablename__ = 'traceroutes'
@@ -155,9 +141,6 @@ class Traceroute(Base):
     tracerouteDetails = Column(JSON, default=None)
     snrAvg = Column(Float, default=None)
     directConnection = Column(Boolean, default=False)
-
-    def __repr__(self):
-        return f'<Traceroute(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, tracerouteDetails={self.tracerouteDetails}, snrAvg={self.snrAvg}, directConnection={self.directConnection})>'
 
 
 class MessageHistory(Base):
@@ -171,9 +154,6 @@ class MessageHistory(Base):
     rxSnr = Column(Float, default=None)
     rxRssi = Column(Integer, default=None)
 
-    def __repr__(self):
-        return f'<MessageHistory(id={self.id}, rxTime={self.rxTime}, fromId={self.fromId}, toId={self.toId}, portnum={self.portnum}, packetRaw={self.packetRaw})>'
-
 
 class Neighbor(Base):
     __tablename__ = 'neighbors'
@@ -182,8 +162,6 @@ class Neighbor(Base):
     sourceNodeId = Column(BigInteger, nullable=False)
     neighborNodeId = Column(BigInteger, nullable=False)
     snr = Column(Float, nullable=False)
-    def __repr__(self):
-        return f'<Neighbor(id={self.id}, rxTime={self.rxTime}, sourceNodeId={self.sourceNodeId}, neighborNodeId={self.neighborNodeId}, snr={self.snr})>'
 
 
 class Subscriptions(Base):
@@ -206,8 +184,6 @@ class OutgoingNotifications(Base):
     attempts = Column(Integer, default=0)
     txId = Column(BigInteger, default=None) # id of the notification message sent to the node
 
-    def __repr__(self):
-        return f'<OutgoingNotifications(id={self.id}, timestamp={self.timestamp}, toId={self.toId}, message={self.message}, received={self.received}, attempts={self.attempts})>'
 
 class Waypoints(Base):
     __tablename__ = 'waypoints'
@@ -217,6 +193,3 @@ class Waypoints(Base):
     icon = Column(BigInteger, nullable=False)
     latitudeI = Column(BigInteger, default=None)
     longitudeI = Column(BigInteger, default=None)
-
-    def __repr__(self):
-        return f'<Waypoints(id={self.id}, name={self.name}, description={self.description}, icon={self.icon}, latitudeI={self.latitudeI}, longitudeI={self.longitudeI})>'
