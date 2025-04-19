@@ -104,6 +104,7 @@ def test_listener():
         ('!post', 'Message is empty'),
         ('!read', 'Annoucements:'),
         ('!select 0', 'Category 0 does not exist'),
+        ('!info', 'Meshtastic Listener BBS'),
 
         # SUBSCRIPTIONS
         ('!sub', 'Subscription Commands:'),

@@ -160,6 +160,12 @@ class CommandHandler:
             db=self.db,
             prefix=f'{self.prefix}sub'
         )
+    
+    def cmd_info(self) -> str:
+        '''
+        !info - Display info about the server
+        '''
+        return 'Meshtastic Listener BBS\nhttps://github.com/migillett/meshtastic-listener'
 
     def handle_command(self, context: MessageReceived) -> str | None | list[Waypoints]:
         if context.decoded.text.startswith(self.prefix):
@@ -188,6 +194,9 @@ class CommandHandler:
                     # either returns an message "no waypoints found" or a list of Waypoints data
                     # we'll need to send that data using the interface in the __main__.py file
                     return self.cmd_waypoints()
+                
+                case 'info':
+                    return self.cmd_info()
                 
                 case 'help':
                     return self.cmd_help(context)

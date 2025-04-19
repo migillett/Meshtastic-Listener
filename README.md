@@ -14,7 +14,7 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 - Add support for syncing databases between 2 nodes both running the BBS software.
 - Experiment with running a MQTT server and Meshtastic Map inside the docker-compose files.
 - Add a way to add `BBS: DM !help` to the node longName upon boot (then remove it upon shutdown).
-- Add ability to subscribe to a category
+~~- Add ability to subscribe to a category~~
 - When the user runs `!waypoints`, reply with a text message to what waypoints were sent to them.
 
 ## Database Information

@@ -38,7 +38,7 @@ class ListenerDb:
             password: str,
             db_name: str = 'listener_db',
             port: int = 5432,
-            default_categories: list[str] = ['General', 'Annoucements']
+            default_categories: list[str] = ['General', 'Annoucements', 'Events']
         ) -> None:
 
         self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
