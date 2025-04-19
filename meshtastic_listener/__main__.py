@@ -5,7 +5,7 @@ from datetime import timedelta
 import logging
 import signal
 
-from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound, Waypoints
+from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
 from meshtastic_listener.cmd_handler import CommandHandler, UnknownCommandError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
@@ -159,7 +159,7 @@ class MeshtasticListener:
                 logging.info(f'Replying to {payload.fromId}: {response}')
                 self.__send_messages__(text=response, destinationId=payload.fromId)
 
-            elif isinstance(response, list[Waypoints]):
+            elif isinstance(response, list):
                 logging.info(f'Sending waypoint to {payload.fromId}: {response}')
                 expiration_ts = int(time.time() + timedelta(days=7).total_seconds())
                 for waypoint in response:
