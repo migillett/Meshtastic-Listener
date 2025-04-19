@@ -95,7 +95,6 @@ class Node(Base):
         session.query(MessageHistory).filter(MessageHistory.fromId == node_num).delete()
         session.query(MessageHistory).filter(MessageHistory.toId == node_num).delete()
         session.query(OutgoingNotifications).filter(OutgoingNotifications.toId == node_num).delete()
-        session.query(Lockout).filter(Lockout.nodeNum == node_num).delete()
         session.query(Node).filter(Node.nodeNum == node_num).delete()
         session.commit()
 
@@ -209,18 +208,6 @@ class OutgoingNotifications(Base):
 
     def __repr__(self):
         return f'<OutgoingNotifications(id={self.id}, timestamp={self.timestamp}, toId={self.toId}, message={self.message}, received={self.received}, attempts={self.attempts})>'
-
-
-class Lockout(Base):
-    __tablename__ = 'node_lockout'
-    nodeNum = Column(BigInteger, primary_key=True)
-    failedAttempts = Column(Integer, default=0)
-    lastFailedAttempt = Column(Integer, default=0)
-    locked = Column(Boolean, default=False)
-
-    def __repr__(self):
-        return f'<Lockout(nodeNum={self.nodeNum}, failedAttempts={self.failedAttempts}, lastFailedAttempt={self.lastFailedAttempt}, locked={self.locked})>'
-
 
 class Waypoints(Base):
     __tablename__ = 'waypoints'

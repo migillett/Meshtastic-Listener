@@ -11,7 +11,7 @@ from meshtastic_listener.listener_db.db_tables import (
     Base, Node, BulletinBoardMessage, BulletinBoardCategory,
     DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
     Traceroute, DbHashTable, MessageHistory, OutgoingNotifications,
-    Subscriptions, Lockout, Neighbor, Waypoints, Subscriptions, AdminNodes
+    Subscriptions, Neighbor, Waypoints, Subscriptions, AdminNodes
 )
 
 from sqlalchemy import create_engine
@@ -527,29 +527,7 @@ class ListenerDb:
                 return subscription.isSubscribed
             return False
 
-    ### LOCKOUTS ###
-    def check_node_lockout(self, node_num: int) -> bool:
-        with self.session() as session:
-            lockout = session.query(Lockout).filter(Lockout.nodeNum == node_num).first()
-            if lockout:
-                return lockout.locked
-            return False
-        
-    def increment_failed_attempts(self, node_num: int, lockout_n: int = 3) -> None:
-        with self.session() as session:
-            lockout = session.query(Lockout).filter(Lockout.nodeNum == node_num).first()
-            if lockout:
-                lockout.failedAttempts += 1
-                lockout.lastFailedAttempt = int(time())
-                if lockout.failedAttempts >= lockout_n:
-                    logger.info(f'Node {node_num} has reached the failed attempt threshold. Locking out node.')
-                    lockout.locked = True
-                session.add(lockout)
-                session.commit()
-            else:
-                session.add(Lockout(nodeNum=node_num, failedAttempts=1, lastFailedAttempt=int(time())))
-                session.commit()
-
+    ### NEIGHBORS ###
     def get_neighbors(self, lookback_hours: int = 72) -> list[NeighborSnr]:
         # check the message_history table for the most "talkative" nodes from the past n hours
         # order them by average SNR

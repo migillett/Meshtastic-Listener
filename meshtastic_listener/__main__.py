@@ -377,10 +377,6 @@ class MeshtasticListener:
                 logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
                 return
             
-            if self.db.check_node_lockout(packet['from']):
-                logging.info(f"Node {packet['from']} is locked out due to too many malicious requests. Ignoring packet.")
-                return
-            
             packet = self.__sanitize_packet__(packet)
             
             self.__handle_new_node__(packet['from'])

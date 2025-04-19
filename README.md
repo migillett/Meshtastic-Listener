@@ -40,7 +40,7 @@ poetry install
 | `NODE_UPDATE_INTERVAL` | How often the service should load the local Node database to the SQLite DB in minutes.           | `15`          |
 | `WELCOME_MESSAGE`    | Welcome message for new nodes on the mesh.                                                        | `None`        |
 | `BBS_DAYS`           | Number of days to look back for BBS messages.                                                     | `7`           |
-| `ADMIN_NODE_ID`      | Admin node ID with elevated permissions.                                         | `None`        |
+| `ADMIN_NODE_IDS`      | Admin node IDs with elevated permissions and service notifications. List of comma-separated node IDs as integers.                                         | `None`        |
 | `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |
 | `TRACEROUTE_NODE_ID`    | Node to traceroute to every n hours.                                                              | `None`        |
 | `TRACEROUTE_INTERVAL`| Interval (in hours) to traceroute the `TRACEROUTE_NODE_ID`.                                          | `24`          |
