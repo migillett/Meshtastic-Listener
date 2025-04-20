@@ -109,15 +109,16 @@ def test_listener():
         # SUBSCRIPTIONS
         ('!sub', 'Subscription Commands:'),
         ('!sub ls', 'You are not subscribed to any categories'),
-        ('!sub add a', 'Invalid topic. Please specify a valid category number.'),
+        ('!sub add a', 'Invalid topic: a. Please specify a valid category number or * to subscribe to all categories.'),
         ('!sub add 0', 'Category 0 does not exist.'),
-        ('!sub add 1', 'Subscribed to category 1'),
+        ('!sub add 1', 'Successfully subscribed to category 1'),
         ('!sub ls', 'Active Subscriptions'),
-        ('!sub add 2', 'Subscribed to category 2'),
+        ('!sub add 2', 'Successfully subscribed to category 2'),
         ('!post posting to category 2', 'Message posted to'),
         ('!sub ls', 'Active Subscriptions'),
         ('!sub rm 1', 'Unsubscribed from category 1'),
         ('!sub rm *', 'Unsubscribed from all topics'),
+        ('!sub add *', 'Successfully subscribed to all topics'),
     ]
 
     message_received = {

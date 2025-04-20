@@ -24,15 +24,20 @@ def handle_subscription_command(context: MessageReceived, db: ListenerDb, prefix
             db.unsubscribe_from_category(node_num=context.fromId, category_id=category_id)
             return f'Unsubscribed from category {category_id}'
         except ValueError:
-            return 'Invalid topic. Please specify a category number.'
+            return f'Invalid topic: {category_id}. Please specify a category number.'
     
     elif subcommand.startswith('add '):
         try:
-            category_id = int(subcommand.replace('add ', '').strip())
-            db.insert_subscription(node_num=context.fromId, category_id=category_id)
-            return f'Subscribed to category {category_id}'
+            category_id = subcommand.replace('add ', '').strip()
+            if category_id == '*':
+                db.subscribe_to_all(node_num=context.fromId)
+                return 'Successfully subscribed to all topics'
+            else:
+                category_id = int(category_id)
+                db.subscribe_to_category(node_num=context.fromId, category_id=category_id)
+                return f'Successfully subscribed to category {category_id}'
         except ValueError:
-            return 'Invalid topic. Please specify a valid category number.'
+            return f'Invalid topic: {category_id}. Please specify a valid category number or * to subscribe to all categories.'
         except InvalidCategory as e:
             return str(e)
         

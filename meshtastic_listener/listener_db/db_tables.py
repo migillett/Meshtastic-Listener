@@ -167,7 +167,8 @@ class Neighbor(Base):
 class Subscriptions(Base):
     __tablename__ = 'subscriptions'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    nodeNum = Column(BigInteger, ForeignKey('nodes.nodeNum'), nullable=False)
+    # no foreign key here because the nodeNum is not guaranteed to be in the nodes table
+    nodeNum = Column(BigInteger, nullable=False)
     # if categoryId is None, then the user is subscribed to all notifications
     categoryId = Column(Integer, ForeignKey('bbs_categories.id'), nullable=True)
     isSubscribed = Column(Boolean, default=True)
