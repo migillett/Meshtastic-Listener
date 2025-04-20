@@ -8,6 +8,7 @@ def handle_subscription_command(context: MessageReceived, db: ListenerDb, prefix
     '''Subscription Commands:
 - ls - list subscriptions
 - add <n> - subscribe to category
+- add * - subscribe to all categories
 - rm <n> - unsubscribe from category
 - rm * - unsubscribe from all categories
     '''
