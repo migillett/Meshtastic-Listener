@@ -186,7 +186,7 @@ class ListenerDb:
                 BulletinBoardCategory.name == category_name.title()
             ).first()
         
-    def select_category(self, node_num: int, category_id: int) -> list[BulletinBoardMessage]:
+    def select_category(self, node_num: int, category_id: int) -> None:
         '''
         Allows user to select a category and automatically returns the messages in that category.
         '''
@@ -199,8 +199,6 @@ class ListenerDb:
                 node.selectedCategory = category_id
                 session.add(node)
                 session.commit()
-
-                return self.get_bbs_messages(category_id=category_id)
 
         except IntegrityError:
             raise InvalidCategory(f'Category {category_id} does not exist.')
