@@ -35,8 +35,9 @@ logging.basicConfig(
         logging.FileHandler(path.join(logs_dir, 'listener.log')),
         logging.StreamHandler(sys.stdout)
     ],
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
 )
+logging.Formatter.converter = time.localtime
 
 
 class EnvironmentError(Exception):

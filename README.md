@@ -13,9 +13,10 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 ~~- Update test scripts to work with Postgres DB instead of SqLite3~~
 - Add support for syncing databases between 2 nodes both running the BBS software.
 - Experiment with running a MQTT server and Meshtastic Map inside the docker-compose files.
-- Add a way to add `BBS: DM !help` to the node longName upon boot (then remove it upon shutdown).
+- Find a way to add `BBS: DM !help` to the node longName upon boot (then remove it upon shutdown).
+- Migrate all of the commands to a FastAPI server that runs in its own container.
 ~~- Add ability to subscribe to a category~~
-- When the user runs `!waypoints`, reply with a text message to what waypoints were sent to them.
+~~- When the user runs `!waypoints`, reply with a text message to what waypoints were sent to them.~~
 
 ## Database Information
 Yes, this repo does use a Postgres database on the backend. Yes, it's overkill. Why? Because I needed to learn how to interact with Postgres for a work project. This is how I learned it. Can SQLite3 also get the job done? Absolutely. In fact, that's what the project started with. See versions 1.5.0 if you want to use that. However, I need to learn a new DB and Postgres is the name of the game.
