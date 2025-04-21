@@ -47,7 +47,6 @@ class CommandHandler:
         # grab the poster's selected category from the db
         category = self.db.get_node_selected_category(context.fromId)
         self.db.post_bbs_message(payload=context, category_id=category.id)
-        # TODO - handle exception where node has never been seen before and they try to post - what exception does this raise?
 
         # queue notifications to all subscribed users of a given category that a new message has been posted
         subscribers = self.db.list_subscribers(category_id=category.id)
@@ -100,7 +99,7 @@ class CommandHandler:
     
     def cmd_list_categories(self) -> str:
         '''
-        !categories - List available categories
+        !categories - List BBS categories
         '''
         response = 'Categories:\n'
         categories = self.db.list_categories()
@@ -114,7 +113,7 @@ class CommandHandler:
 
     def cmd_select_category(self, context: MessageReceived) -> str:
         '''
-        !select <number> - Select a bbs category
+        !select <number> - Select a BBS category
         '''
         try:
             category = int(context.decoded.text.replace('!select', '').strip())
@@ -130,7 +129,7 @@ class CommandHandler:
         
     def cmd_waypoints(self) -> str | list[Waypoints]:
         '''
-        !waypoints - Get the waypoints of the server
+        !waypoints - Get server waypoints
         ''' 
         waypoints = self.db.get_waypoints()
         if len(waypoints) == 0:
@@ -148,7 +147,7 @@ class CommandHandler:
             if name.startswith('cmd_'):
                 doc = inspect.getdoc(member)
                 if doc:
-                    help_str += f'\n  {doc}'
+                    help_str += f'\n {doc}'
         return help_str
     
     def cmd_subscriptions(self, context: MessageReceived) -> str:

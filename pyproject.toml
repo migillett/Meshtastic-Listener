@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "meshtatic_listener"
-version = "1.10.0"
+version = "1.10.1"
 description = "A server for connecting to a Meshtastic device and responding to commands."
 authors = ["Michael Gillett <51103663+migillett@users.noreply.github.com>"]
 readme = "README.md"

@@ -35,8 +35,9 @@ logging.basicConfig(
         logging.FileHandler(path.join(logs_dir, 'listener.log')),
         logging.StreamHandler(sys.stdout)
     ],
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
 )
+logging.Formatter.converter = time.localtime
 
 
 class EnvironmentError(Exception):
@@ -228,7 +229,8 @@ class MeshtasticListener:
         direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
-        hops = len(snr_values)
+        n_forward_hops = len(traceroute_details.get('route', []))
+        n_reverse_hops = len(traceroute_details.get('routeBack', []))
 
         self.db.insert_traceroute(
             fromId=packet['from'],
@@ -240,7 +242,7 @@ class MeshtasticListener:
         )
 
         self.__notify_admins__(
-            f"Received traceroute from {self.db.get_shortname(packet['from'])}: SNR: {round(snr_avg, 2)} dB, HOPS: {hops}"
+            f"Traceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops} hops -> | {n_reverse_hops} hops <-\ndirect: {direct_connection}"
         )
         
     def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:

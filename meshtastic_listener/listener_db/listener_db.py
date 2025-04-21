@@ -186,7 +186,7 @@ class ListenerDb:
                 BulletinBoardCategory.name == category_name.title()
             ).first()
         
-    def select_category(self, node_num: int, category_id: int) -> list[BulletinBoardMessage]:
+    def select_category(self, node_num: int, category_id: int) -> None:
         '''
         Allows user to select a category and automatically returns the messages in that category.
         '''
@@ -194,13 +194,10 @@ class ListenerDb:
             with self.session() as session:
                 node = self.get_node(node_num)
                 if not node:
-                    # TODO - might need to add a way to add the node to the db if we've never heard them before
                     raise ItemNotFound(f'Node {node_num} not found in db. Unable to update category.')
                 node.selectedCategory = category_id
                 session.add(node)
                 session.commit()
-
-                return self.get_bbs_messages(category_id=category_id)
 
         except IntegrityError:
             raise InvalidCategory(f'Category {category_id} does not exist.')
@@ -449,22 +446,43 @@ class ListenerDb:
                 session.commit()
 
     ### SUBSCRIPTIONS ###
-    def insert_subscription(self, node_num: int, category_id: int | None = None) -> None:
+    def subscribe_to_category(self, node_num: int, category_id: int | None = None) -> None:
         '''
         Will raise IntegrityError if the categoryId is not valid.
         '''
         try:
             with self.session() as session:
-                stmt = Insert(Subscriptions).values(
-                    nodeNum=node_num,
-                    categoryId=category_id,
-                    isSubscribed=True,
-                    timestamp=int(time())
-                )
-                session.execute(stmt)
+                # check if an entry for user + category already exists
+                user_subscription = session.query(Subscriptions).filter(
+                    Subscriptions.nodeNum == node_num,
+                    Subscriptions.categoryId == category_id
+                ).first()
+
+                if user_subscription:
+                    user_subscription.timestamp = int(time())
+                    user_subscription.isSubscribed = True
+                    session.add(user_subscription)
+
+                else:
+                    stmt = Insert(Subscriptions).values(
+                        nodeNum=node_num,
+                        categoryId=category_id,
+                        isSubscribed=True,
+                        timestamp=int(time())
+                    )
+                    session.execute(stmt)
+
                 session.commit()
+
         except IntegrityError:
             raise InvalidCategory(f'Category {category_id} does not exist.')
+        
+    def subscribe_to_all(self, node_num: int) -> None:
+        with self.session() as session:
+            categories = session.query(BulletinBoardCategory).all()
+            for category in categories:
+                self.subscribe_to_category(node_num=node_num, category_id=category.id)
+            session.commit()
 
     def unsubscribe_from_category(self, node_num: int, category_id: int | None = None) -> None:
         with self.session() as session:
@@ -508,24 +526,6 @@ class ListenerDb:
                 Subscriptions.timestamp.desc()
             ).all()
             return subscriptions
-
-    def has_active_subscriptions(self, node_num: int) -> bool:
-        with self.session() as session:
-            subscriptions = session.query(Subscriptions).filter(
-                Subscriptions.nodeNum == node_num,
-                Subscriptions.isSubscribed == True
-            ).all()
-            return len(subscriptions) > 0
-
-    def is_subscribed(self, node_num: int, category_id: int | None = None) -> bool:
-        with self.session() as session:
-            subscription = session.query(Subscriptions).filter(
-                Subscriptions.nodeNum == node_num,
-                Subscriptions.categoryId == category_id
-            ).first()
-            if subscription:
-                return subscription.isSubscribed
-            return False
 
     ### NEIGHBORS ###
     def get_neighbors(self, lookback_hours: int = 72) -> list[NeighborSnr]:
