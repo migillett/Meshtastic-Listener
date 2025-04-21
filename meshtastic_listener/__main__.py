@@ -188,7 +188,11 @@ class MeshtasticListener:
                 )
 
         # if someone sends a DM to the node that ISN'T a command, forward it to the admin nodes
-        if response is None and int(payload.toId) == int(self.interface.localNode.nodeNum):
+        if (
+            response is None and
+            int(payload.toId) == int(self.interface.localNode.nodeNum) and
+            not self.db.is_admin_node(payload.fromId)
+        ):
             self.__notify_admins__(
                 f"FWD from {self.db.get_shortname(payload.fromId)}: {payload.decoded.text}")
            
