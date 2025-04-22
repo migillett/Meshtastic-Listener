@@ -234,7 +234,6 @@ class MeshtasticListener:
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
         n_forward_hops = len(traceroute_details.get('route', []))
-        n_reverse_hops = len(traceroute_details.get('routeBack', []))
 
         self.db.insert_traceroute(
             fromId=packet['from'],
@@ -246,7 +245,7 @@ class MeshtasticListener:
         )
 
         self.__notify_admins__(
-            f"Traceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops} hops -> | {n_reverse_hops} hops <-\ndirect: {direct_connection}"
+            f"Traceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops}\nDIRECT CONNECT: {direct_connection}"
         )
         
     def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:
