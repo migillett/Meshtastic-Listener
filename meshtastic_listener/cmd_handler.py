@@ -89,7 +89,7 @@ class CommandHandler:
         )
 
         if len(bbs_messages) > 0:
-            logger.info(f'{len(bbs_messages)} BBS messages found: {bbs_messages}')
+            logger.info(f'{len(bbs_messages)} BBS messages found')
             for i, bbs_message in enumerate(bbs_messages):
                 shortname = self.db.get_shortname(bbs_message.fromId)
                 response_str += f'{i+1:>2}. {shortname:<5}: {bbs_message.message}\n'

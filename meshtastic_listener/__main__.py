@@ -222,6 +222,11 @@ class MeshtasticListener:
                 packet.get('rxTime', int(time.time())),
                 metrics
             )
+
+        elif 'powerMetrics' in telemetry:
+            # we don't care about power metrics
+            pass
+
         else:
             logging.error(f"Unknown telemetry type: {telemetry}")
 
