@@ -28,6 +28,8 @@ if not path.exists(logs_dir):
 
 enable_debug: bool = environ.get('ENABLE_DEBUG', 'false').lower() == 'true'
 
+logging.Formatter.converter = time.localtime
+
 logging.basicConfig(
     level=logging.DEBUG if enable_debug else logging.INFO,
     format='%(asctime)s - %(levelname)s : %(message)s',
@@ -37,7 +39,6 @@ logging.basicConfig(
     ],
     datefmt='%Y-%m-%d %H:%M:%S',
 )
-logging.Formatter.converter = time.localtime
 
 
 class EnvironmentError(Exception):
