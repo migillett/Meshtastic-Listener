@@ -16,6 +16,7 @@ from meshtastic_listener.utils import calculate_distance, coords_int_to_float, l
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
+from meshtastic.protobuf.portnums_pb2 import PortNum
 from meshtastic.mesh_interface import MeshInterface
 import toml
 
@@ -414,25 +415,25 @@ class MeshtasticListener:
                 logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
             match portnum:
-                case 'TEXT_MESSAGE_APP':
+                case PortNum.TEXT_MESSAGE_APP:
                     self.__handle_text_message__(packet)
-                case "TELEMETRY_APP":
+                case PortNum.TELEMETRY_APP:
                     self.__handle_telemetry__(packet)
-                case "NODEINFO_APP":
+                case PortNum.NODEINFO_APP:
                     logging.debug(f'NODEINFO_APP packet received from {packet["from"]}. Refreshing local nodes...')
                     self.__load_local_nodes__(force=True)
-                case "TRACEROUTE_APP":
+                case PortNum.TRACEROUTE_APP:
                     self.__handle_traceroute__(packet)
-                case "POSITION_APP":
+                case PortNum.POSITION_APP:
                     self.__handle_position__(packet)
-                case "NEIGHBORINFO_APP":
+                case PortNum.NEIGHBORINFO_APP:
                     self.__handle_neighbor_update__(packet)
-                case "WAYPOINT_APP":
+                case PortNum.WAYPOINT_APP:
                     self.__handle_waypoint__(packet)
-                case "ROUTING_APP":
+                case PortNum.ROUTING_APP:
                     # this is how we confirm that a message was received by the notify_node
                     self.__check_notification_received__(packet)
-                case "STORE_FORWARD_APP":
+                case PortNum.STORE_FORWARD_APP:
                     pass
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
