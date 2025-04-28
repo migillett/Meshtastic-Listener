@@ -414,7 +414,7 @@ class MeshtasticListener:
             except KeyError as e:
                 logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
-            match portnum:
+            match getattr(PortNum, portnum, None):
                 case PortNum.TEXT_MESSAGE_APP:
                     self.__handle_text_message__(packet)
                 case PortNum.TELEMETRY_APP:
@@ -435,6 +435,7 @@ class MeshtasticListener:
                     self.__check_notification_received__(packet)
                 case PortNum.STORE_FORWARD_APP:
                     pass
+                # TODO - define and handle a custom portnum for DB Syncing
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:

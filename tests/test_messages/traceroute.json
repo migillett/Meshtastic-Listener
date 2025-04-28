@@ -1,0 +1,27 @@
+{
+    "from": 1234567899,
+    "to": 1234567890,
+    "decoded": {
+        "portnum": "TRACEROUTE_APP",
+        "payload": "b'\\x12\\x01\\x18'",
+        "wantResponse": true,
+        "bitfield": 3,
+        "traceroute": {
+            "snrTowards": [
+                24
+            ],
+            "raw": "snr_towards: 24\n"
+        }
+    },
+    "id": 1814216494,
+    "rxTime": 1745825612,
+    "rxSnr": 6.0,
+    "hopLimit": 5,
+    "wantAck": true,
+    "rxRssi": -33,
+    "hopStart": 5,
+    "nextHop": 143,
+    "relayNode": 136,
+    "fromId": "!abcdefgh",
+    "toId": "!abcdefgh"
+}
