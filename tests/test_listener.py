@@ -90,35 +90,35 @@ def test_listener():
     # a list of commands and the expected response from the BBS
     # we'll do a check of response.startswith(expected_response) for each command
     test_commands = [
-        ('!help', ''), # this message will be long, so just check for a basic response
-        ('!reply', 'hops:'),
-        ('!waypoints', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above
-        ('!categories', 'Categories:'),
-        ('!select 1', 'No active BBS messages posted in General'),
-        ('!post posting to general', 'Message posted to'),
-        ('!post posting to category 1', 'Message posted to'),
-        ('!read', 'General:'),
-        ('!select 2', 'No active BBS messages posted in Annoucements'),
-        ('!read', 'No active BBS messages posted in Annoucements'),
-        ('!post posting to category 2', 'Message posted to'),
-        ('!post', 'Message is empty'),
-        ('!read', 'Annoucements:'),
-        ('!select 0', 'Category 0 does not exist'),
-        ('!info', 'Meshtastic Listener BBS'),
+        ('!h', ''), # this message will be long, so just check for a basic response
+        ('!t', 'RX HOPS:'),
+        ('!w', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above
+        ('!c', 'Categories:'),
+        ('!c 1', 'No active BBS messages posted in General'),
+        ('!p posting to general', 'Message posted to'),
+        ('!p posting to category 1', 'Message posted to'),
+        ('!r', 'General:'),
+        ('!c 2', 'No active BBS messages posted in Annoucements'),
+        ('!r', 'No active BBS messages posted in Annoucements'),
+        ('!p posting to category 2', 'Message posted to'),
+        ('!p', 'Message is empty'),
+        ('!r', 'Annoucements:'),
+        ('!c 0', 'Category 0 does not exist'),
+        ('!i', 'Meshtastic Listener BBS'),
 
         # SUBSCRIPTIONS
-        ('!sub', 'Subscription Commands:'),
-        ('!sub ls', 'You are not subscribed to any categories'),
-        ('!sub add a', 'Invalid topic: a. Please specify a valid category number or * to subscribe to all categories.'),
-        ('!sub add 0', 'Category 0 does not exist.'),
-        ('!sub add 1', 'Successfully subscribed to category 1'),
-        ('!sub ls', 'Active Subscriptions'),
-        ('!sub add 2', 'Successfully subscribed to category 2'),
-        ('!post posting to category 2', 'Message posted to'),
-        ('!sub ls', 'Active Subscriptions'),
-        ('!sub rm 1', 'Unsubscribed from category 1'),
-        ('!sub rm *', 'Unsubscribed from all topics'),
-        ('!sub add *', 'Successfully subscribed to all topics'),
+        ('!s', 'Subscription Commands:'),
+        ('!s ls', 'You are not subscribed to any categories'),
+        ('!s add a', 'Invalid topic: a. Please specify a valid category number or * to subscribe to all categories.'),
+        ('!s add 0', 'Category 0 does not exist.'),
+        ('!s add 1', 'Successfully subscribed to category 1'),
+        ('!s ls', 'Active Subscriptions'),
+        ('!s add 2', 'Successfully subscribed to category 2'),
+        ('!p posting to category 2', 'Message posted to'),
+        ('!s ls', 'Active Subscriptions'),
+        ('!s rm 1', 'Unsubscribed from category 1'),
+        ('!s rm *', 'Unsubscribed from all topics'),
+        ('!s add *', 'Successfully subscribed to all topics'),
     ]
 
     message_received = {
