@@ -4,7 +4,7 @@ from meshtastic_listener.data_structures import MessageReceived
 from meshtastic_listener.listener_db.listener_db import ListenerDb, InvalidCategory
     
 
-def handle_subscription_command(context: MessageReceived, db: ListenerDb, prefix: str = '!sub') -> str:
+def handle_subscription_command(context: MessageReceived, db: ListenerDb, prefix: str) -> str:
     '''Subscription Commands:
 - ls - list subscriptions
 - add <n> - subscribe to category
