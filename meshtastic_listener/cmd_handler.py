@@ -35,8 +35,8 @@ class CommandHandler:
         return f'RX HOPS: {context.hopLimit} / {context.hopStart}\nRX SNR: {context.rxSnr}\nRX RSSI: {context.rxRssi}'
 
     def cmd_post(self, context: MessageReceived) -> str:
-        f'''
-        2: {self.prefix}p <msg> - Post message
+        '''
+        2: !p <msg> - Post message
         '''
         context.decoded.text = context.decoded.text.replace(f'{self.prefix}p', '').strip()
         if len(context.decoded.text) > self.char_limit:
@@ -69,8 +69,8 @@ class CommandHandler:
         return f'Message posted to {category.name}'
     
     def cmd_read(self, context: MessageReceived, user_category: int | None = None) -> str:
-        f'''
-        3: {self.prefix}r - Read messages
+        '''
+        3: !r - Read messages
         '''
         if user_category is None:
             try:
@@ -97,8 +97,8 @@ class CommandHandler:
             return f'No active BBS messages posted in {category_name}'
     
     def cmd_list_categories(self) -> str:
-        f'''
-        4: {self.prefix}c - List categories
+        '''
+        4: !c - List categories
         '''
         response = 'Categories:\n'
         categories = self.db.list_categories()
@@ -111,8 +111,8 @@ class CommandHandler:
         return response.strip()
 
     def cmd_select_category(self, context: MessageReceived) -> str:
-        f'''
-        5: {self.prefix}c <num> - Select category
+        '''
+        5: !c <num> - Select category
         '''
         try:
             category = int(context.decoded.text.replace(f'{self.prefix}c', '').strip())
@@ -127,8 +127,8 @@ class CommandHandler:
             return 'Invalid category. Please select a number from the list of categories using !categories'
         
     def cmd_waypoints(self) -> str | list[Waypoints]:
-        f'''
-        6: {self.prefix}w - Get server waypoints
+        '''
+        6: !w - Get server waypoints
         ''' 
         waypoints = self.db.get_waypoints()
         if len(waypoints) == 0:
@@ -137,8 +137,8 @@ class CommandHandler:
         return waypoints
     
     def cmd_subscriptions(self, context: MessageReceived) -> str:
-        f'''
-        7: {self.prefix}s - List subscription commands
+        '''
+        7: !s - List subscription commands
         '''
         return handle_subscription_command(
             context=context,
@@ -147,14 +147,14 @@ class CommandHandler:
         )
     
     def cmd_info(self) -> str:
-        f'''
-        98: {self.prefix}i - Display info
+        '''
+        98: !i - Display info
         '''
         return 'Meshtastic Listener BBS\nhttps://github.com/migillett/meshtastic-listener'
 
     def cmd_help(self) -> str:
-        f'''
-        99: {self.prefix}h - Help menu
+        '''
+        99: !h - Help menu
         '''
         cmds: list[str] = []
         for name, member in inspect.getmembers(self.__class__, inspect.isfunction):
@@ -167,7 +167,7 @@ class CommandHandler:
         # sort the commands by the leading number in the docstring
         # it might be easier to just do this by hand, but this is more fun
         cmds.sort()
-        return '\n'.join([c.split(': ')[-1] for c in cmds]).strip()
+        return '\n'.join([c.split(': ')[-1].replace('!', self.prefix) for c in cmds]).strip()
 
     def handle_command(self, context: MessageReceived) -> str | None | list[Waypoints]:
         if context.decoded.text.startswith(self.prefix):
