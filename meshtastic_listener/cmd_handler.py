@@ -112,7 +112,7 @@ class CommandHandler:
 
     def cmd_select_category(self, context: MessageReceived) -> str:
         f'''
-        5: {self.prefix}c <num> - Select a category
+        5: {self.prefix}c <num> - Select category
         '''
         try:
             category = int(context.decoded.text.replace(f'{self.prefix}c', '').strip())
