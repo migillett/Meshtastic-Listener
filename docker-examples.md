@@ -16,7 +16,7 @@ There are some instances where you need to run the [Meshtastic firmware](https:/
 One note is that you'll want to set the environment variable `DEVICE_IP` to the name of the `meshtasticd` firmware docker container. The hostname is more than sufficient, no inter-docker network IP required.
 
 > [!NOTE]
-> There are other installation instructions besides this docker compose file including SPI and I2C. See the [Meshtastic webiste](https://meshtastic.org/docs/software/linux/installation/) for more details on how to get that working.
+> There are other installation instructions besides this docker compose file including SPI and I2C. See the [Meshtastic website](https://meshtastic.org/docs/software/linux/installation/) for more details on how to get that working.
 
 ```yaml
 services:
