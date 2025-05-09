@@ -1,7 +1,7 @@
 import time
 import sys
 from os import environ, path, mkdir
-from datetime import timedelta
+from datetime import timedelta, datetime
 import logging
 import signal
 
@@ -87,8 +87,6 @@ class MeshtasticListener:
 
         self.notification_ts = time.time()
 
-        self.rx_stats = []
-
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
@@ -97,6 +95,9 @@ class MeshtasticListener:
             logging.info(f'Traceroute node set to: {self.traceroute_node} with interval: {self.traceroute_interval}')
 
         self.__load_local_nodes__(force=True)
+
+    def __human_readable_ts__(self, rxTime: int) -> str:
+        return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
 
     def __notify_admins__(self, message: str) -> None:
         admin_nodes = self.db.get_active_admin_nodes()
@@ -196,7 +197,8 @@ class MeshtasticListener:
             not self.db.is_admin_node(payload.fromId)
         ):
             self.__notify_admins__(
-                f"FWD from {self.db.get_shortname(payload.fromId)}: {payload.decoded.text}")
+                message=f"rxTime: {self.__human_readable_ts__(payload.rxTime)}\nFWD from {self.db.get_shortname(payload.fromId)}:\n{payload.decoded.text}",
+            )
            
     def __handle_telemetry__(self, packet: dict) -> None:
         telemetry = packet.get('decoded', {}).get('telemetry', {})
@@ -251,17 +253,11 @@ class MeshtasticListener:
             direct_connection=direct_connection,
         )
 
+        rx_timestamp = datetime.fromtimestamp(packet.get('rxTime', 0))
+
         self.__notify_admins__(
-            f"Traceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops}\nDIRECT CONNECT: {direct_connection}"
+            message=f"rxTime: {self.__human_readable_ts__(packet.get('rxTime', 0))}\nTraceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops}\nDIRECT CONNECT: {direct_connection}"
         )
-        
-    def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:
-        self.rx_stats.append([rx_rssi, snr])
-        if len(self.rx_stats) >= average_n:
-            rx_rssi_avg = round(sum([x[0] for x in self.rx_stats]) / len(self.rx_stats), 2)
-            snr_avg = round(sum([x[1] for x in self.rx_stats]) / len(self.rx_stats), 2)
-            logging.info(f'Average transmission statistics for the past {len(self.rx_stats)} packets: {rx_rssi_avg} dB, {snr_avg} SNR')
-            self.rx_stats = []
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
@@ -393,15 +389,9 @@ class MeshtasticListener:
             
             self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
-            rx_rssi = packet.get('rxRssi')
-            rx_snr = packet.get('rxSnr')
 
             # checks if the sender has a pending notification
             self.__trigger_notifications__(packet['from'])
-
-            if rx_rssi is not None and rx_snr is not None:
-                # only save rssi and snr values for non-notify_node packets
-                self.__print_message_stats__(float(rx_rssi), float(rx_snr))
             
             try:
                 self.db.insert_message_history(
