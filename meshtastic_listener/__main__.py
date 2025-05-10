@@ -1,7 +1,7 @@
 import time
 import sys
 from os import environ, path, mkdir
-from datetime import timedelta
+from datetime import timedelta, datetime
 import logging
 import signal
 
@@ -16,6 +16,7 @@ from meshtastic_listener.utils import calculate_distance, coords_int_to_float, l
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
+from meshtastic.protobuf.portnums_pb2 import PortNum
 from meshtastic.mesh_interface import MeshInterface
 import toml
 
@@ -28,6 +29,8 @@ if not path.exists(logs_dir):
 
 enable_debug: bool = environ.get('ENABLE_DEBUG', 'false').lower() == 'true'
 
+logging.Formatter.converter = time.localtime
+
 logging.basicConfig(
     level=logging.DEBUG if enable_debug else logging.INFO,
     format='%(asctime)s - %(levelname)s : %(message)s',
@@ -37,7 +40,6 @@ logging.basicConfig(
     ],
     datefmt='%Y-%m-%d %H:%M:%S',
 )
-logging.Formatter.converter = time.localtime
 
 
 class EnvironmentError(Exception):
@@ -85,8 +87,6 @@ class MeshtasticListener:
 
         self.notification_ts = time.time()
 
-        self.rx_stats = []
-
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
@@ -95,6 +95,9 @@ class MeshtasticListener:
             logging.info(f'Traceroute node set to: {self.traceroute_node} with interval: {self.traceroute_interval}')
 
         self.__load_local_nodes__(force=True)
+
+    def __human_readable_ts__(self, rxTime: int) -> str:
+        return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
 
     def __notify_admins__(self, message: str) -> None:
         admin_nodes = self.db.get_active_admin_nodes()
@@ -147,9 +150,12 @@ class MeshtasticListener:
         self.__print_packet_received__(logging.info, packet)
 
         response = None
-
         if self.cmd_handler is not None:
             payload = MessageReceived(**packet)
+            if payload.decoded.text is None:
+                logging.warning(f'Message received has no text payload: {payload.model_dump()}')
+                return None
+            
             try:
                 response = self.cmd_handler.handle_command(context=payload)
             
@@ -188,9 +194,14 @@ class MeshtasticListener:
                 )
 
         # if someone sends a DM to the node that ISN'T a command, forward it to the admin nodes
-        if response is None and int(payload.toId) == int(self.interface.localNode.nodeNum):
+        if (
+            response is None and
+            int(payload.toId) == int(self.interface.localNode.nodeNum) and
+            not self.db.is_admin_node(payload.fromId)
+        ):
             self.__notify_admins__(
-                f"FWD from {self.db.get_shortname(payload.fromId)}: {payload.decoded.text}")
+                message=f"rxTime: {self.__human_readable_ts__(payload.rxTime)}\nFWD from {self.db.get_shortname(payload.fromId)}:\n{payload.decoded.text}",
+            )
            
     def __handle_telemetry__(self, packet: dict) -> None:
         telemetry = packet.get('decoded', {}).get('telemetry', {})
@@ -218,6 +229,11 @@ class MeshtasticListener:
                 packet.get('rxTime', int(time.time())),
                 metrics
             )
+
+        elif 'powerMetrics' in telemetry:
+            # we don't care about power metrics
+            pass
+
         else:
             logging.error(f"Unknown telemetry type: {telemetry}")
 
@@ -230,7 +246,6 @@ class MeshtasticListener:
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
         n_forward_hops = len(traceroute_details.get('route', []))
-        n_reverse_hops = len(traceroute_details.get('routeBack', []))
 
         self.db.insert_traceroute(
             fromId=packet['from'],
@@ -241,17 +256,11 @@ class MeshtasticListener:
             direct_connection=direct_connection,
         )
 
+        rx_timestamp = datetime.fromtimestamp(packet.get('rxTime', 0))
+
         self.__notify_admins__(
-            f"Traceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops} hops -> | {n_reverse_hops} hops <-\ndirect: {direct_connection}"
+            message=f"rxTime: {self.__human_readable_ts__(packet.get('rxTime', 0))}\nTraceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops}\nDIRECT CONNECT: {direct_connection}"
         )
-        
-    def __print_message_stats__(self, rx_rssi: float, snr: float, average_n: int = 50) -> None:
-        self.rx_stats.append([rx_rssi, snr])
-        if len(self.rx_stats) >= average_n:
-            rx_rssi_avg = round(sum([x[0] for x in self.rx_stats]) / len(self.rx_stats), 2)
-            snr_avg = round(sum([x[1] for x in self.rx_stats]) / len(self.rx_stats), 2)
-            logging.info(f'Average transmission statistics for the past {len(self.rx_stats)} packets: {rx_rssi_avg} dB, {snr_avg} SNR')
-            self.rx_stats = []
 
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
@@ -383,15 +392,9 @@ class MeshtasticListener:
             
             self.__handle_new_node__(packet['from'])
             portnum = packet.get('decoded', {}).get('portnum', None)
-            rx_rssi = packet.get('rxRssi')
-            rx_snr = packet.get('rxSnr')
 
             # checks if the sender has a pending notification
             self.__trigger_notifications__(packet['from'])
-
-            if rx_rssi is not None and rx_snr is not None:
-                # only save rssi and snr values for non-notify_node packets
-                self.__print_message_stats__(float(rx_rssi), float(rx_snr))
             
             try:
                 self.db.insert_message_history(
@@ -404,27 +407,28 @@ class MeshtasticListener:
             except KeyError as e:
                 logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
-            match portnum:
-                case 'TEXT_MESSAGE_APP':
+            match getattr(PortNum, portnum, None):
+                case PortNum.TEXT_MESSAGE_APP:
                     self.__handle_text_message__(packet)
-                case "TELEMETRY_APP":
+                case PortNum.TELEMETRY_APP:
                     self.__handle_telemetry__(packet)
-                case "NODEINFO_APP":
+                case PortNum.NODEINFO_APP:
                     logging.debug(f'NODEINFO_APP packet received from {packet["from"]}. Refreshing local nodes...')
                     self.__load_local_nodes__(force=True)
-                case "TRACEROUTE_APP":
+                case PortNum.TRACEROUTE_APP:
                     self.__handle_traceroute__(packet)
-                case "POSITION_APP":
+                case PortNum.POSITION_APP:
                     self.__handle_position__(packet)
-                case "NEIGHBORINFO_APP":
+                case PortNum.NEIGHBORINFO_APP:
                     self.__handle_neighbor_update__(packet)
-                case "WAYPOINT_APP":
+                case PortNum.WAYPOINT_APP:
                     self.__handle_waypoint__(packet)
-                case "ROUTING_APP":
+                case PortNum.ROUTING_APP:
                     # this is how we confirm that a message was received by the notify_node
                     self.__check_notification_received__(packet)
-                case "STORE_FORWARD_APP":
+                case PortNum.STORE_FORWARD_APP:
                     pass
+                # TODO - define and handle a custom portnum for DB Syncing
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:

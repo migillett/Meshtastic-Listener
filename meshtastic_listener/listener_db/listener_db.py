@@ -440,7 +440,7 @@ class ListenerDb:
                 OutgoingNotifications.txId == notif_tx_id
             ).first()
             if notification:
-                logger.debug(f'Marking notification {notif_tx_id} as received.')
+                logger.info(f'Marking notification {notif_tx_id} to node {notification.toId} as received.')
                 notification.received = True
                 session.add(notification)
                 session.commit()

@@ -1,13 +1,14 @@
 # Meshtastic-Listener
 This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli-receive-text), with some new features such as server commands and replies. This repo is meant to listen to [Meshtastic](https://meshtastic.org) nodes via TCP or Serial connections and act as a server for triggering commands. The current list of commands currently include:
 
-- `!help` - Prints the list of commands
-- `!reply` - Replies to the sender with transmission details
-- `!post <message>` - Posts a message to the board
-- `!list` - Lists all available categories on the BBS.
-- `!select <id>` - Allows you to change your default category to the ID selected. Returns all messages for that category.
-- `!read` - Get all posts to the message board from the past n days.
-- `!waypoints` - Adds a list of waypoints from the server to your local map with a ttl of 7 days.
+- `!h` - Prints the list of commands
+- `!t` - Replies to the sender with transmission details
+- `!p <message>` - Posts a message to the board
+- `!c` - Lists all available categories on the BBS.
+- `!c <id>` - Allows you to change your default category to the ID selected. Returns all messages for that category.
+- `!s` - Returns a list of subscription commands to handle user notifications.
+- `!r` - Get all posts to the message board from the past n days.
+- `!w` - Adds a list of waypoints from the server to your local map with a ttl of 7 days.
 
 ## To Do:
 ~~- Update test scripts to work with Postgres DB instead of SqLite3~~

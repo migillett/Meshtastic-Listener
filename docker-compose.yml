@@ -1,7 +1,8 @@
 services:
   meshtastic_listener:
     depends_on:
-      - listener_db
+      listener_db:
+        condition: service_healthy
     image: michaelgillett/meshtastic-listener:main
     volumes:
       - ./logs:/home/meshtastic/logs
@@ -21,13 +22,20 @@ services:
       - ./db:/var/lib/postgresql/data
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "db_prod"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
     restart: unless-stopped
 
   adminer:
     image: adminer
     container_name: adminer
     depends_on:
-      - listener_db
+      listener_db:
+        condition: service_healthy
     restart: unless-stopped
     ports:
       - 8080:8080
