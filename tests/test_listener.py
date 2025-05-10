@@ -90,6 +90,7 @@ def test_listener():
     # a list of commands and the expected response from the BBS
     # we'll do a check of response.startswith(expected_response) for each command
     test_commands = [
+        (None, ''),
         ('!h', ''), # this message will be long, so just check for a basic response
         ('!t', 'RX HOPS:'),
         ('!w', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above

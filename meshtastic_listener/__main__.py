@@ -150,9 +150,12 @@ class MeshtasticListener:
         self.__print_packet_received__(logging.info, packet)
 
         response = None
-
         if self.cmd_handler is not None:
             payload = MessageReceived(**packet)
+            if payload.decoded.text is None:
+                logging.warning(f'Message received has no text payload: {payload.model_dump()}')
+                return None
+            
             try:
                 response = self.cmd_handler.handle_command(context=payload)
             

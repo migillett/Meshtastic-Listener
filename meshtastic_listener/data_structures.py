@@ -4,7 +4,7 @@ from pydantic import BaseModel
 class Decoded(BaseModel):
     portnum: str
     bitfield: Optional[int] = None
-    text: str
+    text: Optional[str] = ''
 
 class MessageReceived(BaseModel):
     fromId: int
