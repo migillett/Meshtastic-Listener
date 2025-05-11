@@ -45,14 +45,14 @@ class ListenerDb:
         self.session = sessionmaker(bind=self.engine)
         self.create_tables()
         self.create_default_categories(default_categories)
-        self.hash_bbs_state()
+        self.__hash_bbs_state__()
         logger.info(f'Connected to postgres database: {hostname}/{db_name}')
 
     def create_tables(self) -> None:
         Base.metadata.create_all(self.engine)
 
     ### HASHING FUNCTIONS ###
-    def hash_bbs_state(self) -> None:
+    def __hash_bbs_state__(self) -> None:
         """
         Takes the DB's state and saves it to a hash for quick comparison to see if anything has changed in the database.
 
@@ -64,7 +64,7 @@ class ListenerDb:
                 hash.update(str(bbs_message.messageHash).encode('utf-8'))
             db_state = hash.hexdigest()
 
-            last_hash = self.get_latest_db_hash()
+            last_hash = self.__get_latest_db_hash__()
             if last_hash is not None and last_hash.hash_value == db_state:
                 # this happens sometimes when we reboot the listener and there are no new messages or changes to the database
                 logger.debug('No change in database state.')
@@ -78,7 +78,7 @@ class ListenerDb:
             )
             session.commit()
 
-    def get_latest_db_hash(self) -> DbHashTable | None:
+    def __get_latest_db_hash__(self) -> DbHashTable | None:
         '''
         Retrieves the latest hash of the database state from the `db_state_hash_table`.
         This is used to check if the database state has changed since the last time it was hashed.
@@ -91,19 +91,6 @@ class ListenerDb:
             else:
                 logger.warning('No hash found in db_state_hash_table.')
                 return None
-            
-    def get_hash_timestamp(self, hash_string: str) -> int:
-        '''
-        Used for synching database states. This will return the timestamp of a given hash value in the `db_state_hash_table`.
-        '''
-        with self.session() as session:
-            # Get the timestamp of the given hash value
-            hash_entry = session.query(DbHashTable).filter(DbHashTable.hash_value == hash_string).first()
-            if hash_entry:
-                return hash_entry.timestamp
-            else:
-                logger.warning(f'No timestamp found for hash value: {hash_string}')
-                return 0
     
     ### MESSAGES ###
     def post_bbs_message(self, payload: MessageReceived, category_id: int = 1) -> None:
@@ -122,7 +109,7 @@ class ListenerDb:
                 messageHash=msg_hash
             ))
             session.commit()
-        self.hash_bbs_state()
+        self.__hash_bbs_state__()
 
     def mark_bbs_message_read(self, bbs_message_ids: list[int]) -> None:
         with self.session() as session:
@@ -203,6 +190,35 @@ class ListenerDb:
             raise InvalidCategory(f'Category {category_id} does not exist.')
 
     ### NODES ###
+    def create_node(self, node: NodeBase) -> None:
+        with self.session() as session:
+            stmt = Insert(Node).values(
+                nodeNum=node.num,
+                longName=node.user.longName,
+                shortName=node.user.shortName,
+                macAddr=node.user.macaddr,
+                hwModel=node.user.hwModel,
+                publicKey=node.user.publicKey,
+                nodeRole=node.user.role,
+                lastHeard=node.lastHeard,
+                hopsAway=node.hopsAway,
+            ).on_conflict_do_update(
+                index_elements=['nodeNum'],
+                set_={
+                    'longName': node.user.longName,
+                    'shortName': node.user.shortName,
+                    'macAddr': node.user.macaddr,
+                    'hwModel': node.user.hwModel,
+                    'publicKey': node.user.publicKey,
+                    'nodeRole': node.user.role,
+                    'lastHeard': node.lastHeard,
+                    'hopsAway': node.hopsAway,
+                }
+            )
+            session.execute(stmt)
+            session.commit()
+            logger.debug(f'Successfully inserted {node.num} into db')
+
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         with self.session() as session:
             for node in nodes:
@@ -247,6 +263,10 @@ class ListenerDb:
         with self.session() as session:
             return session.query(Node).filter(Node.nodeNum == node_num).first()
         
+    def get_nodes(self) -> list[Node]:
+        with self.session() as session:
+            return session.query(Node).order_by(Node.lastHeard.desc()).all()
+        
     def get_closest_nodes(self, n_nodes: int = 5) -> list[Node]:
         with self.session() as session:
             nodes = session.query(Node).filter(Node.distance.isnot(None), Node.distance > 0).order_by(Node.distance).limit(n_nodes).all()
@@ -258,6 +278,18 @@ class ListenerDb:
             return str(node_num)
         return node.shortName
     
+    def calculate_center_coordinates(self) -> tuple[float, float]:
+        with self.session() as session:
+            nodes = session.query(Node).filter(Node.latitude.isnot(None), Node.longitude.isnot(None)).all()
+            if not nodes:
+                return 0.0, 0.0
+
+            lat_sum = mean(node.latitude for node in nodes)
+            lon_sum = mean(node.longitude for node in nodes)
+
+            logger.info(f'Calculated center coordinates: {lat_sum}, {lon_sum} for {len(nodes)} nodes')
+            return lat_sum, lon_sum
+
     ### ADMIN NODES ###
     def is_admin_node(self, node_num: int) -> bool:
         with self.session() as session:
@@ -444,6 +476,8 @@ class ListenerDb:
                 notification.received = True
                 session.add(notification)
                 session.commit()
+            else:
+                raise ItemNotFound(f'Notification with txId {notif_tx_id} not found in db')
 
     ### SUBSCRIPTIONS ###
     def subscribe_to_category(self, node_num: int, category_id: int | None = None) -> None:

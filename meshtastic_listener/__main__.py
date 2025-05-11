@@ -6,7 +6,7 @@ import logging
 import signal
 
 from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
-from meshtastic_listener.cmd_handler import CommandHandler, UnknownCommandError
+from meshtastic_listener.commands.cmd_handler import CommandHandler, UnknownCommandError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload
@@ -255,8 +255,6 @@ class MeshtasticListener:
             snr_avg=snr_avg,
             direct_connection=direct_connection,
         )
-
-        rx_timestamp = datetime.fromtimestamp(packet.get('rxTime', 0))
 
         self.__notify_admins__(
             message=f"rxTime: {self.__human_readable_ts__(packet.get('rxTime', 0))}\nTraceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops}\nDIRECT CONNECT: {direct_connection}"

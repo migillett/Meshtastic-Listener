@@ -1,0 +1,109 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>OpenLayers Demo</title>
+    <style type="text/css">
+        html,
+        body,
+        #basicMap {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+    </style>
+    <script src="{{ url_for('static', path='/OpenLayers/OpenLayers.js') }}"></script>
+    <script>
+        var fromProjection = new OpenLayers.Projection("EPSG:4326");   // Transform from WGS 1984
+        var toProjection = new OpenLayers.Projection("EPSG:900913"); // to Spherical Mercator Projection
+        var markers = new OpenLayers.Layer.Markers("Markers");
+
+
+        function getInitPosition() {
+            return fetch('/utils/map_center')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Initial position:', data);
+                    return data;
+                })
+                .catch(error => {
+                    console.error('Error fetching initial position:', error);
+                    return {
+                        longitude: 0.0,
+                        latitude: 0.0
+                    };
+                });
+        }
+
+        async function retrieveAllNodes(limit = 50) {
+            let allNodes = [];
+            let page = 0;
+            let hasMoreData = true;
+
+            while (hasMoreData) {
+                try {
+                    const data = await fetch(`/nodes/?page=${page}&limit=${limit}`)
+                        .then(response => response.json());
+                    allNodes = allNodes.concat(data.nodes || []);
+                    hasMoreData = data.total > allNodes.length;
+                    page++;
+                } catch (error) {
+                    console.error('Error fetching node positions:', error);
+                    hasMoreData = false;
+                }
+            }
+            console.log(`Retrieved ${allNodes.length} nodes`);
+            return allNodes;
+        }
+
+        function addMarkersToMap(nodes) {
+            console.log(`Adding ${nodes.length} markers to the map`);
+            nodes.forEach(node => {
+                if (node.latitude && node.longitude) {
+                    var position = new OpenLayers.LonLat(node.longitude, node.latitude).transform(fromProjection, toProjection);
+                    var marker = new OpenLayers.Marker(position);
+
+                    // Add click event to the marker
+                    marker.events.register('click', marker, function () {
+                        alert(`Node Info:\nID: ${node.id}\nLatitude: ${node.latitude}\nLongitude: ${node.longitude}`);
+                    });
+
+                    markers.addMarker(marker);
+                }
+            });
+        }
+
+        function init() {
+            var map = new OpenLayers.Map("basicMap");
+            var mapnik = new OpenLayers.Layer.OSM();
+            map.addLayer(mapnik);
+            map.addLayer(markers);
+
+            var zoom = 10;
+
+            getInitPosition().then(initPosition => {
+                var position = new OpenLayers.LonLat(
+                    initPosition.longitude,
+                    initPosition.latitude
+                ).transform(
+                    fromProjection, toProjection
+                );
+                map.setCenter(position, zoom);
+            }).catch(error => {
+                console.error('Error initializing map:', error);
+            });
+
+            retrieveAllNodes().then(nodes => {
+                addMarkersToMap(nodes);
+            }).catch(error => {
+                console.error('Error retrieving nodes:', error);
+            });
+        }
+    </script>
+</head>
+
+<body onload="init();">
+    <div id="basicMap"></div>
+</body>
+
+</html>
