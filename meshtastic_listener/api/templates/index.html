@@ -65,7 +65,8 @@
 
                     // Add click event to the marker
                     marker.events.register('click', marker, function () {
-                        alert(`Node Info:\nID: ${node.id}\nLatitude: ${node.latitude}\nLongitude: ${node.longitude}`);
+                        // TODO - make this a modal popup window
+                        alert(`Shortname: ${node.shortName}\nLongName: ${node.longName}\nLatitude: ${node.latitude}\nLongitude: ${node.longitude}`);
                     });
 
                     markers.addMarker(marker);
