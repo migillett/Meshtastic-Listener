@@ -1,29 +1,36 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 
 <head>
-    <title>OpenLayers Demo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meshtastic Listener</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
     <style type="text/css">
-        html,
-        body,
-        #basicMap {
+        #map {
             width: 100%;
-            height: 100%;
-            margin: 0;
+            height: 100vh;
         }
     </style>
-    <script src="{{ url_for('static', path='/OpenLayers/OpenLayers.js') }}"></script>
-    <script>
-        var fromProjection = new OpenLayers.Projection("EPSG:4326");   // Transform from WGS 1984
-        var toProjection = new OpenLayers.Projection("EPSG:900913"); // to Spherical Mercator Projection
-        var markers = new OpenLayers.Layer.Markers("Markers");
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script src="{{ url_for('static', path='/OpenLayers/OpenLayers.js') }}"></script>
+
+    <script>
+        let map
+        let layer
+
+        let markersById = new Map();
 
         function getInitPosition() {
             return fetch('/utils/map_center')
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Initial position:', data);
                     return data;
                 })
                 .catch(error => {
@@ -57,39 +64,33 @@
         }
 
         function addMarkersToMap(nodes) {
-            console.log(`Adding ${nodes.length} markers to the map`);
+            let added = 0
             nodes.forEach(node => {
                 if (node.latitude && node.longitude) {
-                    var position = new OpenLayers.LonLat(node.longitude, node.latitude).transform(fromProjection, toProjection);
-                    var marker = new OpenLayers.Marker(position);
+                    let markerOptions = {
+                        title: node.longName,
+                        draggable: false,
+                    };
+                    var marker = L.marker([node.latitude, node.longitude], markerOptions).addTo(map);
+                    marker.addTo(map)
+                    marker.bindPopup(`<p>Short Name: ${node.shortName}</br>Long Name: ${node.longName}</br>Coords: ${node.latitude}, ${node.longitude}</br></p>`);
 
-                    // Add click event to the marker
-                    marker.events.register('click', marker, function () {
-                        // TODO - make this a modal popup window
-                        alert(`Shortname: ${node.shortName}\nLongName: ${node.longName}\nLatitude: ${node.latitude}\nLongitude: ${node.longitude}`);
-                    });
-
-                    markers.addMarker(marker);
+                    markersById.set(node.nodeNum, { marker: marker, nodeData: node })
+                    added++
                 }
             });
+            console.log(`Successfully ${added} nodes with updated positions to the map`);
         }
 
         function init() {
-            var map = new OpenLayers.Map("basicMap");
-            var mapnik = new OpenLayers.Layer.OSM();
-            map.addLayer(mapnik);
-            map.addLayer(markers);
-
-            var zoom = 10;
-
             getInitPosition().then(initPosition => {
-                var position = new OpenLayers.LonLat(
-                    initPosition.longitude,
-                    initPosition.latitude
-                ).transform(
-                    fromProjection, toProjection
-                );
-                map.setCenter(position, zoom);
+                console.log('Initializing map with position:', initPosition);
+                map = L.map('map').setView([initPosition.latitude, initPosition.longitude], 10);
+                layer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                });
+                map.addLayer(layer);
             }).catch(error => {
                 console.error('Error initializing map:', error);
             });
@@ -97,14 +98,18 @@
             retrieveAllNodes().then(nodes => {
                 addMarkersToMap(nodes);
             }).catch(error => {
-                console.error('Error retrieving nodes:', error);
+                console.error(error);
             });
+
+            // TODO: add in traceroute lines using makersById
         }
+
+        window.onload = init;
     </script>
 </head>
 
-<body onload="init();">
-    <div id="basicMap"></div>
+<body>
+    <div id="map"></div>
 </body>
 
 </html>
