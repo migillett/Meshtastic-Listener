@@ -1,17 +1,20 @@
 import logging
 from time import time
+from datetime import timedelta
 from statistics import mean
+from typing import Optional
 
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
     EnvironmentPayload, MessageReceived, NeighborSnr,
-    WaypointPayload
+    WaypointPayload, NodeRoles
 )
 from meshtastic_listener.listener_db.db_tables import (
     Base, Node, BulletinBoardMessage, BulletinBoardCategory,
     DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
     Traceroute, DbHashTable, MessageHistory, OutgoingNotifications,
-    Subscriptions, Neighbor, Waypoints, Subscriptions, AdminNodes
+    Subscriptions, Neighbor, Waypoints, Subscriptions, AdminNodes,
+    AttemptedTraceroutes
 )
 
 from sqlalchemy import create_engine
@@ -263,9 +266,12 @@ class ListenerDb:
         with self.session() as session:
             return session.query(Node).filter(Node.nodeNum == node_num).first()
         
-    def get_nodes(self) -> list[Node]:
+    def get_nodes(self, role: Optional[NodeRoles] = None) -> list[Node]:
         with self.session() as session:
-            return session.query(Node).order_by(Node.lastHeard.desc()).all()
+            if role is not None:
+                return session.query(Node).filter(Node.nodeRole == role.value).order_by(Node.lastHeard.desc()).all()
+            else:
+                return session.query(Node).order_by(Node.lastHeard.desc()).all()
         
     def get_closest_nodes(self, n_nodes: int = 5) -> list[Node]:
         with self.session() as session:
@@ -354,25 +360,6 @@ class ListenerDb:
                 barometricPressure=metrics.barometricPressure,
                 gasResistance=metrics.gasResistance,
                 iaq=metrics.iaq,
-            ))
-            session.commit()
-
-    def insert_traceroute(
-            self,
-            fromId: str,
-            toId: str,
-            rxTime: int,
-            traceroute_dict: dict,
-            snr_avg: float,
-            direct_connection: bool) -> None:
-        with self.session() as session:
-            session.add(Traceroute(
-                rxTime=rxTime,
-                fromId=fromId,
-                toId=toId,
-                tracerouteDetails=traceroute_dict,
-                snrAvg=snr_avg,
-                directConnection=direct_connection,
             ))
             session.commit()
 
@@ -560,38 +547,60 @@ class ListenerDb:
                 Subscriptions.timestamp.desc()
             ).all()
             return subscriptions
-
-    ### NEIGHBORS ###
-    def get_neighbors(self, lookback_hours: int = 72) -> list[NeighborSnr]:
-        # check the message_history table for the most "talkative" nodes from the past n hours
-        # order them by average SNR
-
-        response: list[NeighborSnr] = []
-        neighbors = {}
-
+        
+    ### TRACEROUTES ###
+    def insert_traceroute(
+            self,
+            fromId: str,
+            toId: str,
+            rxTime: int,
+            traceroute_dict: dict,
+            snr_avg: float,
+            direct_connection: bool) -> None:
         with self.session() as session:
-            messages = session.query(
-                MessageHistory
-            ).filter(
-                MessageHistory.rxTime > int(time() - (lookback_hours * 3600))
-            ).all()
-
-            for message in messages:
-                if isinstance(message.rxSnr, float):
-                    if message.fromId in neighbors:
-                        neighbors[message.fromId].append(message.rxSnr)
-                    else:
-                        neighbors[message.fromId] = [message.rxSnr]
-
-        for neighbor in neighbors:
-            response.append(
-                NeighborSnr(
-                    shortName=self.get_shortname(neighbor),
-                    snr=round(mean(neighbors[neighbor]), 2)
+            session.add(
+                Traceroute(
+                    rxTime=rxTime,
+                    fromId=fromId,
+                    toId=toId,
+                    tracerouteDetails=traceroute_dict,
+                    snrAvg=snr_avg,
+                    directConnection=direct_connection,
                 )
             )
+            session.commit()
 
-        return sorted(response, key=lambda x: x.snr, reverse=True)
+    def insert_traceroute_attempt(self, toId: int) -> None:
+        with self.session() as session:
+            session.add(
+                AttemptedTraceroutes(
+                    timestamp=int(time()),
+                    toId=toId
+                )
+            )
+            session.commit()
+
+    def select_traceroute_target(self, fromId: int) -> Node:
+        '''
+        Does a fancy join to select a single node to attempt a traceroute.
+
+        Cross-references traceroute attempts
+        '''
+        with self.session() as session:
+            three_hours_ago = int(time() - timedelta(hours=3).total_seconds())
+            return session.query(
+                Node
+            ).filter(
+                Node.nodeRole == NodeRoles.ROUTER.value,
+                Node.hopsAway <= 5,
+                Node.nodeNum != fromId,
+                ~Node.nodeNum.in_(
+                    session.query(AttemptedTraceroutes.toId).filter(
+                        AttemptedTraceroutes.timestamp > three_hours_ago
+                    )
+                )
+            ).first()
+
 
     ### WAYPOINTS ###
     def insert_waypoint(self, waypoint: WaypointPayload) -> None:

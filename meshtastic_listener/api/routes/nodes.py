@@ -1,6 +1,7 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
 from meshtastic_listener.api.db_session import get_db_instance
+from meshtastic_listener.data_structures import NodeRoles
 from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
 from meshtastic_listener.api.api_types import (
     NodeDetailsResponse,
@@ -21,14 +22,16 @@ router = APIRouter(
 async def get_all_nodes(
     page: int = 0,
     limit: int = 50,
+    role: Optional[NodeRoles] = None,
     db: ListenerDb = Depends(get_db_instance)
 ) -> AllNodesResponse:
     """
     Get all nodes from the DB.
     :param page: The page number to return.
     :param limit: The number of nodes to return per page.
+    :param role: Query nodes by their published role type.
     """
-    nodes = db.get_nodes()
+    nodes = db.get_nodes(role=role)
     start_index = page * limit
     end_index = start_index + limit
     return AllNodesResponse(

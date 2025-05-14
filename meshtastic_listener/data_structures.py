@@ -1,5 +1,19 @@
 from typing import Optional
+from enum import StrEnum
 from pydantic import BaseModel
+
+class NodeRoles(StrEnum):
+    CLIENT = "CLIENT"
+    CLIENT_MUTE = "CLIENT_MUTE"
+    CLIENT_HIDDEN = "CLIENT_HIDDEN"
+    TRACKER = "TRACKER"
+    LOST_AND_FOUND = "LOST_AND_FOUND"
+    SENSOR = "SENSOR"
+    TAK = "TAK"
+    TAK_TRACKER = "TAK_TRACKER"
+    REPEATER = "REPEATER"
+    ROUTER = "ROUTER"
+    ROUTER_LATE = "ROUTER_LATE"
 
 class Decoded(BaseModel):
     portnum: str
@@ -32,7 +46,7 @@ class User(BaseModel):
     macaddr: Optional[str] = None
     hwModel: Optional[str] = None
     publicKey: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[NodeRoles] = None
 
 class Position(BaseModel):
     latitudeI: Optional[int] = None

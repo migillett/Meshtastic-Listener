@@ -1,7 +1,7 @@
 import time
 import sys
 from os import environ, path, mkdir
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, UTC
 import logging
 import signal
 
@@ -9,7 +9,8 @@ from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
 from meshtastic_listener.commands.cmd_handler import CommandHandler, UnknownCommandError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
-    DevicePayload, TransmissionPayload, EnvironmentPayload
+    DevicePayload, TransmissionPayload, EnvironmentPayload,
+    NodeRoles
 )
 from meshtastic_listener.utils import calculate_distance, coords_int_to_float, load_node_env_var
 
@@ -54,8 +55,6 @@ class MeshtasticListener:
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
             welcome_message: str | None = None,
-            traceroute_interval: int = 24,
-            traceroute_node: int | None = None,
             admin_nodes: list[int] | None = None
         ) -> None:
 
@@ -71,9 +70,7 @@ class MeshtasticListener:
         self.node_refresh_ts: float = time.time()
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
 
-        self.traceroute_interval = timedelta(hours=traceroute_interval)
-        self.traceroute_ts: float = time.time() - self.traceroute_interval.total_seconds()
-        self.traceroute_node = traceroute_node
+        self.traceroute_ts: float = time.time() - timedelta(hours=1).total_seconds()
 
         # where to send critical service notification messages
         if admin_nodes is not None:
@@ -90,9 +87,6 @@ class MeshtasticListener:
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
-
-        if self.traceroute_node is not None:
-            logging.info(f'Traceroute node set to: {self.traceroute_node} with interval: {self.traceroute_interval}')
 
         self.__load_local_nodes__(force=True)
 
@@ -293,18 +287,22 @@ class MeshtasticListener:
 
     def __traceroute_upstream__(self) -> None:
         '''
-        runs a traceroute every n hours to a specific upstream infrastructure node that the user defines
+        runs a traceroute to nearby infrastructure nodes on a cron job
         '''
         now = time.time()
-        if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
-            if not self.traceroute_node:
-                logging.info("Traceroute node was not defined. Skipping traceroute.")
+        # send traceroutes to nearby routers every 15 minutes
+        if now - self.traceroute_ts > timedelta(minutes=15).total_seconds():
+            target = self.db.select_traceroute_target(fromId=self.interface.localNode.nodeNum)
+            if not target:
+                logging.info("No infrastructure nodes detected. Skipping traceroute.")
+                self.traceroute_ts = now + timedelta(hours=1).total_seconds()
             else:
                 try:
-                    logging.info(f"Sending traceroute to node: {self.traceroute_node}")
-                    self.interface.sendTraceRoute(self.traceroute_node, hopLimit=5)
+                    logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")
+                    self.db.insert_traceroute_attempt(toId=target.nodeNum)
+                    self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=5)
                 except MeshInterface.MeshInterfaceError as e:
-                    logging.error(f"Failed to send traceroute to {self.traceroute_node}: {e}")
+                    logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
             self.traceroute_ts = now
 
     def __handle_neighbor_update__(self, packet: dict) -> None:
@@ -487,8 +485,6 @@ if __name__ == "__main__":
         cmd_handler=cmd_handler,
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
         welcome_message=environ.get("WELCOME_MESSAGE"),
-        traceroute_interval=int(environ.get("TRACEROUTE_INTERVAL", 24)),
-        traceroute_node=load_node_env_var("TRACEROUTE_NODE_ID")[0],
         admin_nodes=load_node_env_var("ADMIN_NODE_IDS")
     )
     

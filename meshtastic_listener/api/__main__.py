@@ -3,9 +3,9 @@ from os import path
 from pathlib import Path
 
 from meshtastic_listener.api.routes import (
-    notifications, nodes, telemetry, utils
+    notifications, nodes, telemetry, utils,
+    traceroutes
 )
-from meshtastic_listener.api.api_types import PositionResponse
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -26,6 +26,7 @@ app.include_router(nodes.router)
 app.include_router(notifications.router)
 app.include_router(telemetry.router)
 app.include_router(utils.router)
+app.include_router(traceroutes.router)
 
 app.mount("/static", StaticFiles(directory=path.join(BASE_DIR, "static")), name="static")
 
