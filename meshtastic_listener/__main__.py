@@ -1,8 +1,9 @@
 import time
 import sys
 from os import environ, path, mkdir
-from datetime import timedelta, datetime, UTC
+from datetime import timedelta, datetime
 import logging
+import json
 import signal
 
 from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
@@ -140,7 +141,7 @@ class MeshtasticListener:
         shortname = self.db.get_shortname(node_num)
         log_insert = f"node {node_num}" if str(shortname) == str(node_num) else f"{shortname} ({node_num})"
 
-        logger(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi, {snr} rxSNR): {packet}")
+        logger(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi, {snr} rxSNR): {json.dumps(packet)}")
     
     def __handle_text_message__(self, packet: dict) -> None:
         self.__print_packet_received__(logging.info, packet)
