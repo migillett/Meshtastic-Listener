@@ -589,20 +589,21 @@ class ListenerDb:
         '''
         with self.session() as session:
             three_hours_ago = int(time() - timedelta(hours=3).total_seconds())
+            one_week_ago = int(time() - timedelta(days=7).total_seconds())
             return session.query(
                 Node
             ).filter(
                 Node.nodeRole == NodeRoles.ROUTER.value,
                 Node.hopsAway <= maxHops,
                 Node.nodeNum != fromId,
-                Node.lastHeard is not None,
+                Node.lastHeard >= one_week_ago,
                 ~Node.nodeNum.in_(
                     session.query(AttemptedTraceroutes.toId).filter(
                         AttemptedTraceroutes.timestamp > three_hours_ago
                     )
                 )
             ).order_by(
-                Node.lastHeard
+                Node.lastHeard.desc()
             ).first()
 
 

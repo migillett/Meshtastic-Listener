@@ -9,8 +9,7 @@ from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
 from meshtastic_listener.commands.cmd_handler import CommandHandler, UnknownCommandError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
-    DevicePayload, TransmissionPayload, EnvironmentPayload,
-    NodeRoles
+    DevicePayload, TransmissionPayload, EnvironmentPayload
 )
 from meshtastic_listener.utils import calculate_distance, coords_int_to_float, load_node_env_var
 
@@ -73,6 +72,7 @@ class MeshtasticListener:
 
         self.traceroute_ts: float = time.time() - timedelta(hours=1).total_seconds()
         self.traceroute_interval: timedelta = timedelta(minutes=traceroute_interval_minutes)
+        logging.info(f'Traceroute interval set to every {traceroute_interval_minutes} minutes')
 
         # where to send critical service notification messages
         if admin_nodes is not None:
@@ -287,7 +287,7 @@ class MeshtasticListener:
         except ItemNotFound as e:
             logging.warning(e)
 
-    def __traceroute_upstream__(self, every_n_minutes: int = 10, max_hops: int = 5) -> None:
+    def __traceroute_upstream__(self, max_hops: int = 5) -> None:
         '''
         runs a traceroute to nearby infrastructure nodes on a cron job
         '''
