@@ -299,8 +299,9 @@ class MeshtasticListener:
                 maxHops=max_hops
             )
             if not target:
-                logging.info("No valid infrastructure nodes found in DB. Delaying next query for 1 hour to wait for more nodes.")
+                logging.info("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
                 self.traceroute_ts = now + timedelta(hours=1).total_seconds()
+                return None
             else:
                 try:
                     logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")

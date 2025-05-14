@@ -463,8 +463,6 @@ class ListenerDb:
                 notification.received = True
                 session.add(notification)
                 session.commit()
-            else:
-                raise ItemNotFound(f'Notification with txId {notif_tx_id} not found in db')
 
     ### SUBSCRIPTIONS ###
     def subscribe_to_category(self, node_num: int, category_id: int | None = None) -> None:
