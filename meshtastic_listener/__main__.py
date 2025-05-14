@@ -54,8 +54,9 @@ class MeshtasticListener:
             db_object: ListenerDb,
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
+            traceroute_interval_minutes: int = 15,
             welcome_message: str | None = None,
-            admin_nodes: list[int] | None = None
+            admin_nodes: list[int] | None = None,
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
@@ -71,6 +72,7 @@ class MeshtasticListener:
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
 
         self.traceroute_ts: float = time.time() - timedelta(hours=1).total_seconds()
+        self.traceroute_interval: timedelta = timedelta(minutes=traceroute_interval_minutes)
 
         # where to send critical service notification messages
         if admin_nodes is not None:
@@ -285,22 +287,25 @@ class MeshtasticListener:
         except ItemNotFound as e:
             logging.warning(e)
 
-    def __traceroute_upstream__(self, every_n_minutes: int = 10) -> None:
+    def __traceroute_upstream__(self, every_n_minutes: int = 10, max_hops: int = 5) -> None:
         '''
         runs a traceroute to nearby infrastructure nodes on a cron job
         '''
         now = time.time()
         # send traceroutes to nearby routers every n minutes
-        if now - self.traceroute_ts > timedelta(minutes=every_n_minutes).total_seconds():
-            target = self.db.select_traceroute_target(fromId=self.interface.localNode.nodeNum)
+        if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
+            target = self.db.select_traceroute_target(
+                fromId=self.interface.localNode.nodeNum,
+                maxHops=max_hops
+            )
             if not target:
-                logging.info("No infrastructure nodes detected. Delaying next query for 1 hour to wait for more nodes.")
+                logging.info("No valid infrastructure nodes found in DB. Delaying next query for 1 hour to wait for more nodes.")
                 self.traceroute_ts = now + timedelta(hours=1).total_seconds()
             else:
                 try:
                     logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")
                     self.db.insert_traceroute_attempt(toId=target.nodeNum)
-                    self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=5)
+                    self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=max_hops)
                 except MeshInterface.MeshInterfaceError as e:
                     logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
             self.traceroute_ts = now
@@ -485,7 +490,8 @@ if __name__ == "__main__":
         cmd_handler=cmd_handler,
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
         welcome_message=environ.get("WELCOME_MESSAGE"),
-        admin_nodes=load_node_env_var("ADMIN_NODE_IDS")
+        admin_nodes=load_node_env_var("ADMIN_NODE_IDS"),
+        traceroute_interval_minutes=int(environ.get('TRACEROUTE_INTERVAL', 15))
     )
     
     listener.run()

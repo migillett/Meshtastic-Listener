@@ -580,7 +580,7 @@ class ListenerDb:
             )
             session.commit()
 
-    def select_traceroute_target(self, fromId: int) -> Node:
+    def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
         '''
         Returns 1 node (if any) nodes where role == router,
         is less than 6 hops away,
@@ -593,7 +593,7 @@ class ListenerDb:
                 Node
             ).filter(
                 Node.nodeRole == NodeRoles.ROUTER.value,
-                Node.hopsAway <= 5,
+                Node.hopsAway <= maxHops,
                 Node.nodeNum != fromId,
                 Node.lastHeard is not None,
                 ~Node.nodeNum.in_(
