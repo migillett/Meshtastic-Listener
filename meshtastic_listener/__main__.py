@@ -285,16 +285,16 @@ class MeshtasticListener:
         except ItemNotFound as e:
             logging.warning(e)
 
-    def __traceroute_upstream__(self) -> None:
+    def __traceroute_upstream__(self, every_n_minutes: int = 10) -> None:
         '''
         runs a traceroute to nearby infrastructure nodes on a cron job
         '''
         now = time.time()
-        # send traceroutes to nearby routers every 15 minutes
-        if now - self.traceroute_ts > timedelta(minutes=15).total_seconds():
+        # send traceroutes to nearby routers every n minutes
+        if now - self.traceroute_ts > timedelta(minutes=every_n_minutes).total_seconds():
             target = self.db.select_traceroute_target(fromId=self.interface.localNode.nodeNum)
             if not target:
-                logging.info("No infrastructure nodes detected. Skipping traceroute.")
+                logging.info("No infrastructure nodes detected. Delaying next query for 1 hour to wait for more nodes.")
                 self.traceroute_ts = now + timedelta(hours=1).total_seconds()
             else:
                 try:

@@ -582,9 +582,10 @@ class ListenerDb:
 
     def select_traceroute_target(self, fromId: int) -> Node:
         '''
-        Does a fancy join to select a single node to attempt a traceroute.
-
-        Cross-references traceroute attempts
+        Returns 1 node (if any) nodes where role == router,
+        is less than 6 hops away,
+        is NOT the current node,
+        and has not had a traceroute attempt sent to it in the past 3 hours.
         '''
         with self.session() as session:
             three_hours_ago = int(time() - timedelta(hours=3).total_seconds())
@@ -594,11 +595,14 @@ class ListenerDb:
                 Node.nodeRole == NodeRoles.ROUTER.value,
                 Node.hopsAway <= 5,
                 Node.nodeNum != fromId,
+                Node.lastHeard is not None,
                 ~Node.nodeNum.in_(
                     session.query(AttemptedTraceroutes.toId).filter(
                         AttemptedTraceroutes.timestamp > three_hours_ago
                     )
                 )
+            ).order_by(
+                Node.lastHeard
             ).first()
 
 
