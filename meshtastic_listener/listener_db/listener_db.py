@@ -580,11 +580,11 @@ class ListenerDb:
 
     def retrieve_traceroute_results(self) -> list[Traceroute]:
         with self.session() as session:
-            return session.query(Traceroute).all()
+            return session.query(Traceroute).order_by(Traceroute.rxTime.desc()).all()
 
     def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
         '''
-        Returns 1 node (if any) nodes where role == router,
+        Returns 1 node (if any) nodes where role == router | router_late,
         is less than 6 hops away,
         is NOT the current node,
         and has not had a traceroute attempt sent to it in the past 3 hours.
@@ -595,7 +595,7 @@ class ListenerDb:
             return session.query(
                 Node
             ).filter(
-                Node.nodeRole == NodeRoles.ROUTER.value,
+                (Node.nodeRole == NodeRoles.ROUTER.value) | (Node.nodeRole == NodeRoles.ROUTER_LATE.value),
                 Node.hopsAway <= maxHops,
                 Node.nodeNum != fromId,
                 Node.lastHeard >= one_week_ago,
