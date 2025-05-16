@@ -84,18 +84,18 @@
         }
 
         function drawTraceroutes(tracerouteData) {
-            let drawnIds = []
-            let polylineCoords = []
+            var drawnIds = []
+            var polylineCoords = []
             tracerouteData.forEach(tracerouteData => {
                 if (!drawnIds.includes(tracerouteData.fromId)) {
                     try {
-                        let x1 = markersById.get(tracerouteData.fromId).nodeData;
-                        tracerouteData.routeBack.forEach(nodeNum => {
-                            let x2 = markersById.get(nodeNum).nodeData;
+                        var x1 = markersById.get(tracerouteData.fromId).nodeData;
+                        tracerouteData.routeTowards.forEach(nodeNum => {
+                            var x2 = markersById.get(nodeNum).nodeData;
                             polylineCoords.push([x1.latitude, x1.longitude], [x2.latitude, x2.longitude])
                             x1 = x2;
                         })
-                        console.log(`Added traceroute line for node: ${tracerouteData.fromId}`);
+                        console.log(`Added traceroute line for node: ${tracerouteData.fromId} | Hops Towards: ${tracerouteData.routeTowards.length} | Hops Back: ${tracerouteData.routeBack.length}`);
                         drawnIds.push(tracerouteData.fromId);
                     } catch (TypeError) {
                         console.error(`Node id does not have coordinates: ${tracerouteData.fromId}`)
@@ -115,7 +115,7 @@
                     };
                     var marker = L.marker([node.latitude, node.longitude], markerOptions).addTo(map);
                     marker.addTo(map)
-                    marker.bindPopup(`<p>Short Name: ${node.shortName}</br>Long Name: ${node.longName}</br>Coords: ${node.latitude}, ${node.longitude}</br></p>`);
+                    marker.bindPopup(`<p>Short Name: ${node.shortName}</br>Long Name: ${node.longName}</br>Role: ${node.nodeRole}</br>Coords: ${node.latitude}, ${node.longitude}</br></p>`);
 
                     markersById.set(node.nodeNum, { marker: marker, nodeData: node })
                     added++
