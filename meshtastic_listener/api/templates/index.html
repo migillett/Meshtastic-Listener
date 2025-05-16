@@ -63,6 +63,48 @@
             return allNodes;
         }
 
+        async function getTraceroutes() {
+            try {
+                const tracerouteData = await fetch("/traceroutes/")
+                    .then(response => response.json());
+                console.log(`Retrieved ${tracerouteData.length} traceroute entries`)
+                return tracerouteData;
+            } catch (error) {
+                console.error('Error fetching traceroute data:', error);
+            }
+        }
+
+        function retrieveCoordsFromMarker(markerId) {
+            let marker = markersById.get(markerId)
+            if (marker != null) {
+                return marker.getLatLng();
+            } else {
+                retu
+            }
+        }
+
+        function drawTraceroutes(tracerouteData) {
+            let drawnIds = []
+            let polylineCoords = []
+            tracerouteData.forEach(tracerouteData => {
+                if (!drawnIds.includes(tracerouteData.fromId)) {
+                    try {
+                        let x1 = markersById.get(tracerouteData.fromId).nodeData;
+                        tracerouteData.routeBack.forEach(nodeNum => {
+                            let x2 = markersById.get(nodeNum).nodeData;
+                            polylineCoords.push([x1.latitude, x1.longitude], [x2.latitude, x2.longitude])
+                            x1 = x2;
+                        })
+                        console.log(`Added traceroute line for node: ${tracerouteData.fromId}`);
+                        drawnIds.push(tracerouteData.fromId);
+                    } catch (TypeError) {
+                        console.error(`Node id does not have coordinates: ${tracerouteData.fromId}`)
+                    }
+                }
+            })
+            var polyLine = L.polyline(polylineCoords, { color: 'blue' }).addTo(map);
+        }
+
         function addMarkersToMap(nodes) {
             let added = 0
             nodes.forEach(node => {
@@ -97,11 +139,14 @@
 
             retrieveAllNodes().then(nodes => {
                 addMarkersToMap(nodes);
+                getTraceroutes().then(tracerouteData => {
+                    drawTraceroutes(tracerouteData);
+                }).catch(error => {
+                    console.error(error)
+                })
             }).catch(error => {
                 console.error(error);
             });
-
-            // TODO: add in traceroute lines using makersById
         }
 
         window.onload = init;

@@ -56,3 +56,10 @@ class PendingNotificationsResponse(BaseModel):
 class PositionResponse(BaseModel):
     latitude: float
     longitude: float
+
+class TracerouteDetail(BaseModel):
+    rxTime: int
+    fromId: int
+    toId: int
+    routeTowards: list[int]
+    routeBack: list[int]

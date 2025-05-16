@@ -370,7 +370,7 @@ class ListenerDb:
             latitude: float,
             longitude: float,
             altitude: float,
-            distance: float,
+            distance: float | None,
             precision_bits: int) -> None:
         with self.session() as session:
             node = self.get_node(node_num)
@@ -577,6 +577,10 @@ class ListenerDb:
                 )
             )
             session.commit()
+
+    def retrieve_traceroute_results(self) -> list[Traceroute]:
+        with self.session() as session:
+            return session.query(Traceroute).all()
 
     def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
         '''
