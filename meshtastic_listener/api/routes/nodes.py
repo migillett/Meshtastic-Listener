@@ -2,11 +2,9 @@ from typing import Annotated, Optional
 
 from meshtastic_listener.api.db_session import get_db_instance
 from meshtastic_listener.data_structures import NodeRoles
-from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
+from meshtastic_listener.listener_db.listener_db import ListenerDb
 from meshtastic_listener.api.api_types import (
-    NodeDetailsResponse,
-    AllNodesResponse,
-    PositionUpdateRequest
+    NodeDetailsResponse, AllNodesResponse
 )
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -59,41 +57,3 @@ async def get_specific_node(
             detail='Node not found'
         )
     return node
-
-@router.post('/', response_model=NodeDetailsResponse)
-async def create_or_update_node(
-    node: NodeDetailsResponse,
-    db: Annotated[ListenerDb, Depends(get_db_instance)]
-) -> NodeDetailsResponse:
-    """
-    Create a new Node in the DB. If the node already exists, it will be updated.
-    """
-    node = db.create_node(node)
-    if node is None:
-        return {"error": "Node already exists"}
-    return node
-
-@router.patch('/{node_num}/location', response_model=NodeDetailsResponse)
-async def update_node_location(
-    node_num: int,
-    position: PositionUpdateRequest,
-    db: Annotated[ListenerDb, Depends(get_db_instance)]
-) -> NodeDetailsResponse:
-    """
-    Update the location of a node in the DB.
-    """
-    try:
-        db.upsert_position(
-            node_num=node_num,
-            last_heard=position.timestamp,
-            latitude=position.latitude,
-            longitude=position.longitude,
-            altitude=position.altitude,
-            precision_bits=position.precisionBits,
-            distance=None
-        )
-    except ItemNotFound:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Node {node_num} not found"
-        )

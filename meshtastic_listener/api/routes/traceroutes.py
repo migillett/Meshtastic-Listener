@@ -4,13 +4,8 @@ from time import time
 from meshtastic_listener.api.db_session import get_db_instance
 from meshtastic_listener.api.api_types import TracerouteDetail
 from meshtastic_listener.listener_db.listener_db import ListenerDb
-from meshtastic_listener.data_structures import (
-    TransmissionPayload,
-    EnvironmentPayload,
-    DevicePayload
-)
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 router = APIRouter(
     prefix="/traceroutes",
