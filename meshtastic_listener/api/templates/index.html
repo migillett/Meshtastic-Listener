@@ -84,22 +84,17 @@
         }
 
         function drawTraceroutes(tracerouteData) {
-            var drawnIds = []
             var polylineCoords = []
             tracerouteData.forEach(tracerouteData => {
-                if (!drawnIds.includes(tracerouteData.fromId)) {
-                    try {
-                        var x1 = markersById.get(tracerouteData.fromId).nodeData;
-                        tracerouteData.routeTowards.forEach(nodeNum => {
-                            var x2 = markersById.get(nodeNum).nodeData;
-                            polylineCoords.push([x1.latitude, x1.longitude], [x2.latitude, x2.longitude])
-                            x1 = x2;
-                        })
-                        console.log(`Added traceroute line for node: ${tracerouteData.fromId} | Hops Towards: ${tracerouteData.routeTowards.length} | Hops Back: ${tracerouteData.routeBack.length}`);
-                        drawnIds.push(tracerouteData.fromId);
-                    } catch (TypeError) {
-                        console.error(`Node id does not have coordinates: ${tracerouteData.fromId}`)
-                    }
+                try {
+                    var x1 = markersById.get(tracerouteData.fromId).nodeData;
+                    tracerouteData.routeTowards.forEach(nodeNum => {
+                        var x2 = markersById.get(nodeNum).nodeData;
+                        polylineCoords.push([x1.latitude, x1.longitude], [x2.latitude, x2.longitude])
+                        x1 = x2;
+                    })
+                } catch (TypeError) {
+                    console.error(`Node id does not have coordinates: ${tracerouteData.fromId}`)
                 }
             })
             var polyLine = L.polyline(polylineCoords, { color: 'blue' }).addTo(map);
@@ -171,6 +166,11 @@
         }
 
         window.onload = init;
+
+        // reload every 5 minutes
+        setTimeout(() => {
+            window.location.reload();
+        }, 5 * 60 * 1000);
     </script>
 </head>
 
