@@ -21,6 +21,7 @@ async def get_all_nodes(
     page: int = 0,
     limit: int = 50,
     role: Optional[NodeRoles] = None,
+    lastHeard: int = 0,
     db: ListenerDb = Depends(get_db_instance)
 ) -> AllNodesResponse:
     """
@@ -28,8 +29,9 @@ async def get_all_nodes(
     :param page: The page number to return.
     :param limit: The number of nodes to return per page.
     :param role: Query nodes by their published role type.
+    :param lastHeard: Timestamp in seconds from to limit what nodes. Default is all nodes.
     """
-    nodes = db.get_nodes(role=role)
+    nodes = db.get_nodes(role=role, last_heard=lastHeard)
     start_index = page * limit
     end_index = start_index + limit
     return AllNodesResponse(

@@ -49,7 +49,8 @@
 
             while (hasMoreData) {
                 try {
-                    const data = await fetch(`/nodes/?page=${page}&limit=${limit}`)
+                    const dateLimit = Math.floor((Date.now() / 1000) - (1 * 24 * 60 * 60)); // n days ago
+                    const data = await fetch(`/nodes/?page=${page}&limit=${limit}&lastHeard=${dateLimit}`)
                         .then(response => response.json());
                     allNodes = allNodes.concat(data.nodes || []);
                     hasMoreData = data.total > allNodes.length;
