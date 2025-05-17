@@ -126,12 +126,13 @@
 
                     marker.bindPopup(
                         `<h3>${node.longName}</h3>
-                        <p>
-                            Short Name: ${node.shortName}<br>
-                            Role: ${node.nodeRole}<br>
-                            Coords: ${node.latitude}, ${node.longitude}<br>
-                            Last Heard: ${diff} ${units}
-                        </p>`
+                        <table>
+                            <tr><th>Short Name</th><td>${node.shortName}</td></tr>
+                            <tr><th>Hardware</th><td>${node.hwModel}</td></tr>
+                            <tr><th>Role</th><td>${node.nodeRole}</td></tr>
+                            <tr><th>Distance</th><td>${Math.floor(node.distance / 1000)} km</td></tr>
+                            <tr><th>Last Heard</th><td>${diff} ${units}</td></tr>
+                        </table>`
                     );
 
                     marker.on('mouseover', function (ev) { ev.target.openPopup(); })

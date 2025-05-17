@@ -54,7 +54,10 @@ async def get_specific_node(
     """
     node = db.get_node(node_num)
     if node is None:
-        return {"error": "Node not found"}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Node not found'
+        )
     return node
 
 @router.post('/', response_model=NodeDetailsResponse)
