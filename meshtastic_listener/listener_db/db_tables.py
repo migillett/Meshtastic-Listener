@@ -143,6 +143,12 @@ class Traceroute(Base):
     directConnection = Column(Boolean, default=False)
 
 
+class AttemptedTraceroutes(Base):
+    __tablename__ = 'attempted_traceroutes'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp  = Column(BigInteger, nullable=False)
+    toId = Column(BigInteger, nullable=False)
+
 class MessageHistory(Base):
     __tablename__ = 'message_history'
     id = Column(Integer, primary_key=True, autoincrement=True)

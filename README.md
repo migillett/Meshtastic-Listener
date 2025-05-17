@@ -44,11 +44,13 @@ poetry install
 | `BBS_DAYS`           | Number of days to look back for BBS messages.                                                     | `7`           |
 | `ADMIN_NODE_IDS`      | Admin node IDs with elevated permissions and service notifications. List of comma-separated node IDs as integers.                                         | `None`        |
 | `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |
-| `TRACEROUTE_NODE_ID`    | Node to traceroute to every n hours.                                                              | `None`        |
-| `TRACEROUTE_INTERVAL`| Interval (in hours) to traceroute the `TRACEROUTE_NODE_ID`.                                          | `24`          |
 | `POSTGRES_DB` | The name of the Postgres database. | `listener_db` |
 | `POSTGRES_PASSWORD` | The password of the user to connect to the database | No default defined |
 | `DEFAULT_CATEGORIES` | The BBS categories (pages) you wish to create by default. Comma-deleniated | `General` |
+| `TRACEROUTE_INTERVAL` | The number of minutes between infrastructure node traceroutes | `15` |
+
+## Infrastructure Traceroutes
+An added feature for v2.0.0 includes a revamped traceroute procedure. Instead of relying on user-supplied nodes for testing connections to the rest of the infrastructure, the node queries the Postgres DB for all `ROUTER` within 5 hops. It will then attempt a traceroute at the user-defined `TRACEROUTE_INTERVAL` to a single infrastructure node.
 
 ## Docker Compose
 This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You'll also want to modify the [environment secrets](secrets_example.env) for your specific use as well. For examples on various docker deployments, see the [Docker Compose Readme](docker-examples.md)
