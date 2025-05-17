@@ -266,12 +266,25 @@ class ListenerDb:
         with self.session() as session:
             return session.query(Node).filter(Node.nodeNum == node_num).first()
         
-    def get_nodes(self, role: Optional[NodeRoles] = None) -> list[Node]:
+    def get_nodes(self, role: Optional[NodeRoles] = None, last_heard: int = 0) -> list[Node]:
         with self.session() as session:
             if role is not None:
-                return session.query(Node).filter(Node.nodeRole == role.value).order_by(Node.lastHeard.desc()).all()
+                return session.query(
+                    Node
+                ).filter(
+                    Node.nodeRole == role.value,
+                    Node.lastHeard >= last_heard
+                ).order_by(
+                    Node.lastHeard.desc()
+                ).all()
             else:
-                return session.query(Node).order_by(Node.lastHeard.desc()).all()
+                return session.query(
+                    Node
+                ).filter(
+                    Node.lastHeard >= last_heard
+                ).order_by(
+                    Node.lastHeard.desc()
+                ).all()
         
     def get_closest_nodes(self, n_nodes: int = 5) -> list[Node]:
         with self.session() as session:
