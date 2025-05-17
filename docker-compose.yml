@@ -36,6 +36,7 @@ services:
       listener_db:
         condition: service_healthy
     container_name: listener_api
+    user: "1000:1000"
     image: michaelgillett/meshtastic-listener:developing
     entrypoint: [ "poetry", "run", "python", "-m", "meshtastic_listener.api" ]
     ports:
