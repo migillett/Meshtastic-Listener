@@ -87,6 +87,7 @@ async def update_node_location(
             longitude=position.longitude,
             altitude=position.altitude,
             precision_bits=position.precisionBits,
+            distance=None
         )
     except ItemNotFound:
         raise HTTPException(

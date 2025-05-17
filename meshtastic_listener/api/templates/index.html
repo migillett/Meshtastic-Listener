@@ -106,16 +106,36 @@
         }
 
         function addMarkersToMap(nodes) {
-            let added = 0
+            const now = new Date();
+            var added = 0;
             nodes.forEach(node => {
                 if (node.latitude && node.longitude) {
                     let markerOptions = {
                         title: node.longName,
                         draggable: false,
                     };
+
                     var marker = L.marker([node.latitude, node.longitude], markerOptions).addTo(map);
+                    var diff = Math.floor((now.getTime() - (node.lastHeard * 1000)) / 360000);
+                    var units = 'Minutes';
+
+                    if (diff >= 60) {
+                        diff = Math.floor(diff / 60);
+                        units = 'Hours';
+                    }
+
+                    marker.bindPopup(
+                        `<h3>${node.longName}</h3>
+                        <p>
+                            Short Name: ${node.shortName}<br>
+                            Role: ${node.nodeRole}<br>
+                            Coords: ${node.latitude}, ${node.longitude}<br>
+                            Last Heard: ${diff} ${units}
+                        </p>`
+                    );
+
+                    marker.on('mouseover', function (ev) { ev.target.openPopup(); })
                     marker.addTo(map)
-                    marker.bindPopup(`<p>Short Name: ${node.shortName}</br>Long Name: ${node.longName}</br>Role: ${node.nodeRole}</br>Coords: ${node.latitude}, ${node.longitude}</br></p>`);
 
                     markersById.set(node.nodeNum, { marker: marker, nodeData: node })
                     added++
