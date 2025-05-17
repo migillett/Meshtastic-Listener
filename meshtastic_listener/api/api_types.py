@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class NodeDetailsResponse(BaseModel):
@@ -25,33 +25,6 @@ class AllNodesResponse(BaseModel):
     start: int
     page: int
     nodes: list[NodeDetailsResponse]
-
-class PositionUpdateRequest(BaseModel):
-    latitudeI: int
-    longitudeI: int
-    altitude: int
-    time: int
-    locationSource: str
-    timestamp: int
-    groundSpeed: int
-    groundTrack: int
-    satsInView: int
-    precisionBits: int
-    latitude: float
-    longitude: float
-
-class NotificationRequest(BaseModel):
-    nodeNum: int
-    message: str = Field(..., max_length=200)
-
-class PendingNotificationsResponse(BaseModel):
-    id: int
-    timestamp: int
-    toId: int
-    message: str
-    received: bool = False
-    attempts: int = 0
-    txId: Optional[int] = None
 
 class PositionResponse(BaseModel):
     latitude: float
