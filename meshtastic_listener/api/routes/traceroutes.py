@@ -26,4 +26,3 @@ async def retrieve_traceroute_entries(
             routeBack=tr.tracerouteDetails.get('routeBack', [tr.fromId])
         ) for tr in db.retrieve_traceroute_results()
     ]
-    
