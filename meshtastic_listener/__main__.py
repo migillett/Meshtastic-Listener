@@ -105,6 +105,7 @@ class MeshtasticListener:
             self.interface.getNode(
                 nodeId=self.local_node_id,
                 requestChannels=False,
+                timeout=10
             ).__dict__.get(
                 'deviceMetrics', {}
             ).get(

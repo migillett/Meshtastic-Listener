@@ -21,14 +21,16 @@
 
     <script src="{{ url_for('static', path='/OpenLayers/OpenLayers.js') }}"></script>
 
+    <script src="{{ url_for('static', path='/leaflet-color-marker/js/leaflet-color-markers.js') }}"></script>
+
     <script>
         let map
         let layer
 
         // https://github.com/pointhi/leaflet-color-markers
         var blueIcon = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-icon-2x-blue.png') }}",
+            shadowUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-shadow.png') }}",
             iconSize: [25, 41],
             iconAnchor: [12, 41],
             popupAnchor: [1, -34],
@@ -36,8 +38,8 @@
         });
 
         var redIcon = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-icon-2x-red.png') }}",
+            shadowUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-shadow.png') }}",
             iconSize: [25, 41],
             iconAnchor: [12, 41],
             popupAnchor: [1, -34],
@@ -46,6 +48,7 @@
 
         let markersById = new Map();
 
+        // TODO - get current node ID from init position to mark it yellow on the map
         function getInitPosition() {
             return fetch('/utils/map_center')
                 .then(response => response.json())
