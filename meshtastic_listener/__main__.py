@@ -101,15 +101,18 @@ class MeshtasticListener:
         return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
     
     def __get_channel_utilization__(self) -> float:
-        return float(
+        utilization = float(
             self.interface.getNode(
-                nodeId=self.local_node_id
+                nodeId=self.local_node_id,
+                requestChannels=False,
             ).__dict__.get(
                 'deviceMetrics', {}
             ).get(
                 'channelUtilization', 0.0
             )
         )
+        logging.info(f'Current channel utilization: {utilization}')
+        return utilization
 
     def __notify_admins__(self, message: str) -> None:
         admin_nodes = self.db.get_active_admin_nodes()
