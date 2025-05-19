@@ -25,6 +25,25 @@
         let map
         let layer
 
+        // https://github.com/pointhi/leaflet-color-markers
+        var blueIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        var redIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
         let markersById = new Map();
 
         function getInitPosition() {
@@ -109,6 +128,7 @@
                     let markerOptions = {
                         title: node.longName,
                         draggable: false,
+                        icon: (node.nodeRole == 'ROUTER' || node.nodeRole == 'ROUTER_LATE') ? redIcon : blueIcon
                     };
 
                     var marker = L.marker([node.latitude, node.longitude], markerOptions).addTo(map);
