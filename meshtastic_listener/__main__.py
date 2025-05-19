@@ -2,6 +2,7 @@ import time
 import sys
 from os import environ, path, mkdir
 from datetime import timedelta, datetime
+from typing import Callable
 import logging
 import json
 import signal
@@ -68,6 +69,9 @@ class MeshtasticListener:
         self.welcome_message = welcome_message
         self.char_limit = 200
 
+        self.local_node_id = self.interface.localNode.nodeNum
+        self.max_channel_utilization = 20.0
+
         self.node_refresh_ts: float = time.time()
         self.node_refresh_interval = timedelta(minutes=node_update_interval)
 
@@ -95,6 +99,17 @@ class MeshtasticListener:
 
     def __human_readable_ts__(self, rxTime: int) -> str:
         return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
+    
+    def __get_channel_utilization__(self) -> float:
+        return float(
+            self.interface.getNode(
+                nodeId=self.local_node_id
+            ).__dict__.get(
+                'deviceMetrics', {}
+            ).get(
+                'channelUtilization', 0.0
+            )
+        )
 
     def __notify_admins__(self, message: str) -> None:
         admin_nodes = self.db.get_active_admin_nodes()
@@ -127,9 +142,9 @@ class MeshtasticListener:
                 destinationId=destinationId,
                 channelIndex=0)
             
-    def __print_packet_received__(self, logger: callable, message: dict) -> None:
+    def __print_packet_received__(self, logger: Callable, message: dict) -> None:
         node_num = message.get('from', 'UNKNOWN')
-        if int(node_num) == int(self.interface.localNode.nodeNum):
+        if int(node_num) == int(self.local_node_id):
             return
         
         packet = message.get('decoded', {})
@@ -193,7 +208,7 @@ class MeshtasticListener:
         # if someone sends a DM to the node that ISN'T a command, forward it to the admin nodes
         if (
             response is None and
-            int(payload.toId) == int(self.interface.localNode.nodeNum) and
+            int(payload.toId) == int(self.local_node_id) and
             not self.db.is_admin_node(payload.fromId)
         ):
             self.__notify_admins__(
@@ -295,8 +310,13 @@ class MeshtasticListener:
         now = time.time()
         # send traceroutes to nearby routers every n minutes
         if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
+            if self.__get_channel_utilization__() > self.max_channel_utilization:
+                logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before next traceroute for utilization to die down.')
+                self.traceroute_ts = now = timedelta(minutes=15).total_seconds()
+                return None
+            
             target = self.db.select_traceroute_target(
-                fromId=self.interface.localNode.nodeNum,
+                fromId=self.local_node_id,
                 maxHops=max_hops
             )
             if not target:
