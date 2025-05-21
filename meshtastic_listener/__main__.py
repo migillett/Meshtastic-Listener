@@ -101,19 +101,14 @@ class MeshtasticListener:
         return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
     
     def __get_channel_utilization__(self) -> float:
-        utilization = float(
-            self.interface.getNode(
-                nodeId=self.local_node_id,
-                requestChannels=False,
-                timeout=10
-            ).__dict__.get(
-                'deviceMetrics', {}
-            ).get(
-                'channelUtilization', 0.0
-            )
-        )
-        logging.info(f'Current channel utilization: {utilization}')
-        return utilization
+        device_metrics = self.interface.getMyNodeInfo()
+        if device_metrics is not None:
+            current_utilization = float(device_metrics.get('deviceMetrics', {}).get('channelUtilization', 0.0))
+            logging.info(f'Current channel utilization: {current_utilization}')
+            return current_utilization
+        else:
+            logging.error('Unable to get device metrics from node')
+            return 0.0
 
     def __notify_admins__(self, message: str) -> None:
         admin_nodes = self.db.get_active_admin_nodes()
@@ -314,9 +309,8 @@ class MeshtasticListener:
         now = time.time()
         # send traceroutes to nearby routers every n minutes
         if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
-            current_utilization = self.__get_channel_utilization__()
-            if current_utilization > self.max_channel_utilization:
-                logging.warning(f'Current channel utilization {current_utilization} is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
+            if self.__get_channel_utilization__() > self.max_channel_utilization:
+                logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
                 self.traceroute_ts = now = timedelta(minutes=15).total_seconds()
                 return None
             
