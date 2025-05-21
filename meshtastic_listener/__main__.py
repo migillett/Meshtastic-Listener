@@ -457,6 +457,8 @@ class MeshtasticListener:
                 case PortNum.STORE_FORWARD_APP:
                     pass
                 # TODO - define and handle a custom portnum for DB Syncing
+                case PortNum.ADMIN_APP:
+                    pass
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:
