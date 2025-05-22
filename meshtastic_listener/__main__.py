@@ -311,7 +311,7 @@ class MeshtasticListener:
         if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
             if self.__get_channel_utilization__() > self.max_channel_utilization:
                 logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
-                self.traceroute_ts = now = timedelta(minutes=15).total_seconds()
+                self.traceroute_ts = now + timedelta(minutes=15).total_seconds()
                 return None
             
             target = self.db.select_traceroute_target(
