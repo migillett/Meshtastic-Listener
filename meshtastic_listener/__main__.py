@@ -3,6 +3,7 @@ import sys
 from os import environ, path, mkdir
 from datetime import timedelta, datetime
 from typing import Callable
+from statistics import mean
 import logging
 import json
 import signal
@@ -54,8 +55,7 @@ class MeshtasticListener:
             interface: TCPInterface | SerialInterface,
             db_object: ListenerDb,
             cmd_handler: CommandHandler,
-            node_update_interval: int = 15,
-            traceroute_interval_minutes: int = 15,
+            update_interval: int = 15,
             admin_nodes: list[int] | None = None,
         ) -> None:
 
@@ -68,14 +68,14 @@ class MeshtasticListener:
         self.char_limit = 200
 
         self.local_node_id = self.interface.localNode.nodeNum
-        self.max_channel_utilization = 20.0
 
-        self.node_refresh_ts: float = time.time()
-        self.node_refresh_interval = timedelta(minutes=node_update_interval)
+        self.max_channel_utilization = 35.0
+        self.channel_usage_statistics: list[float] = []
 
+        self.node_refresh_ts: float = time.time() - timedelta(hours=1).total_seconds()
         self.traceroute_ts: float = time.time() - timedelta(hours=1).total_seconds()
-        self.traceroute_interval: timedelta = timedelta(minutes=traceroute_interval_minutes)
-        logging.info(f'Traceroute interval set to every {traceroute_interval_minutes} minutes')
+        self.update_interval = timedelta(minutes=update_interval)
+        logging.info(f'Update interval set to every {update_interval} minutes')
 
         # where to send critical service notification messages
         if admin_nodes is not None:
@@ -95,8 +95,11 @@ class MeshtasticListener:
 
         self.__load_local_nodes__(force=True)
 
-    def __human_readable_ts__(self, rxTime: int) -> str:
-        return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
+    def __human_readable_ts__(self, rxTime: int | None = None) -> str:
+        if rxTime is None:
+            return datetime.now().strftime("%m/%d %I:%M %p")
+        else:
+            return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
     
     def __get_channel_utilization__(self) -> float:
         device_metrics = self.interface.getMyNodeInfo()
@@ -120,14 +123,21 @@ class MeshtasticListener:
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
-        if (now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force):
+        if (now - self.node_refresh_ts > self.update_interval.total_seconds() or force):
             if self.interface.nodes is None:
                 logging.error(f'Interface reports no Nodes. Unable to load local nodes to DB.')
-                return None
             else:
                 nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
                 self.db.insert_nodes(nodes)
-                self.node_refresh_ts = now
+            self.node_refresh_ts = now
+
+    def __check_channel_usage__(self, n_cycles: int = 5) -> None:
+        if len(self.channel_usage_statistics) > n_cycles:
+            mean_usage = round(mean(self.channel_usage_statistics), 2)
+            if mean_usage > self.max_channel_utilization:
+                logging.info(f'High channel usage reported for past {n_cycles} cycles. Sending notification to admins...')
+                self.__notify_admins__(f'{self.__human_readable_ts__()}\nHigh channel usage for the past {n_cycles} cycles:\n{mean_usage}%')
+            self.channel_usage_statistics = []
 
     def __send_messages__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
@@ -141,7 +151,8 @@ class MeshtasticListener:
             self.interface.sendText(
                 text=message,
                 destinationId=destinationId,
-                channelIndex=0)
+                channelIndex=0
+            )
             
     def __print_packet_received__(self, logger: Callable, message: dict) -> None:
         node_num = message.get('from', 'UNKNOWN')
@@ -312,10 +323,12 @@ class MeshtasticListener:
         '''
         now = time.time()
         # send traceroutes to nearby routers every n minutes
-        if now - self.traceroute_ts > self.traceroute_interval.total_seconds():
-            if self.__get_channel_utilization__() > self.max_channel_utilization:
+        if now - self.traceroute_ts > self.update_interval.total_seconds():
+            usage = self.__get_channel_utilization__()
+            if usage > self.max_channel_utilization:
                 logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
                 self.traceroute_ts = now + timedelta(minutes=15).total_seconds()
+                self.channel_usage_statistics.append(usage)
                 return None
             
             target = self.db.select_traceroute_target(
@@ -402,7 +415,7 @@ class MeshtasticListener:
             else:
                 response[key] = packet[key]
         return response
-
+ 
     def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:
             if 'encrypted' in packet:
@@ -474,6 +487,7 @@ class MeshtasticListener:
                 sys.stdout.flush()
                 self.__load_local_nodes__()
                 self.__traceroute_upstream__()
+                self.__check_channel_usage__()
                 time.sleep(1)
             except Exception as e:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
@@ -510,9 +524,8 @@ if __name__ == "__main__":
         interface=interface,
         db_object=db_object,
         cmd_handler=cmd_handler,
-        node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
-        admin_nodes=load_node_env_var("ADMIN_NODE_IDS"),
-        traceroute_interval_minutes=int(environ.get('TRACEROUTE_INTERVAL', 15))
+        update_interval=int(environ.get("UPDATE_INTERVAL", 15)),
+        admin_nodes=load_node_env_var("ADMIN_NODE_IDS")
     )
     
     listener.run()

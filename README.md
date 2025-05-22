@@ -39,14 +39,13 @@ poetry install
 |----------------------|---------------------------------------------------------------------------------------------------|---------------|
 | `DEVICE_IP`   | The IP address or hostname with your radio using TCP/IP.                                                       | serial auto-detect |
 | `CMD_PREFIX`         | Prefix to use when triggering `cmd_handler.py`.                                                   | `!`           |
-| `NODE_UPDATE_INTERVAL` | How often the service should load the local Node database to the SQLite DB in minutes.           | `15`          |
+| `UPDATE_INTERVAL` | How often the service should poll for status updates. Relates to programmatic traceroutes and node database updates. | `15`          |
 | `BBS_DAYS`           | Number of days to look back for BBS messages.                                                     | `7`           |
 | `ADMIN_NODE_IDS`      | Admin node IDs with elevated permissions and service notifications. List of comma-separated node IDs as integers.                                         | `None`        |
 | `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |
 | `POSTGRES_DB` | The name of the Postgres database. | `listener_db` |
 | `POSTGRES_PASSWORD` | The password of the user to connect to the database | No default defined |
 | `DEFAULT_CATEGORIES` | The BBS categories (pages) you wish to create by default. Comma-deleniated | `General` |
-| `TRACEROUTE_INTERVAL` | The number of minutes between infrastructure node traceroutes | `15` |
 
 ## Infrastructure Traceroutes
 An added feature for v2.0.0 includes a revamped traceroute procedure. Instead of relying on user-supplied nodes for testing connections to the rest of the infrastructure, the node queries the Postgres DB for all `ROUTER` within 5 hops. It will then attempt a traceroute at the user-defined `TRACEROUTE_INTERVAL` to a single infrastructure node.
