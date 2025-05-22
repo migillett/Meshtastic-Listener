@@ -40,7 +40,6 @@ poetry install
 | `DEVICE_IP`   | The IP address or hostname with your radio using TCP/IP.                                                       | serial auto-detect |
 | `CMD_PREFIX`         | Prefix to use when triggering `cmd_handler.py`.                                                   | `!`           |
 | `NODE_UPDATE_INTERVAL` | How often the service should load the local Node database to the SQLite DB in minutes.           | `15`          |
-| `WELCOME_MESSAGE`    | Welcome message for new nodes on the mesh.                                                        | `None`        |
 | `BBS_DAYS`           | Number of days to look back for BBS messages.                                                     | `7`           |
 | `ADMIN_NODE_IDS`      | Admin node IDs with elevated permissions and service notifications. List of comma-separated node IDs as integers.                                         | `None`        |
 | `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |

@@ -56,17 +56,15 @@ class MeshtasticListener:
             cmd_handler: CommandHandler,
             node_update_interval: int = 15,
             traceroute_interval_minutes: int = 15,
-            welcome_message: str | None = None,
             admin_nodes: list[int] | None = None,
         ) -> None:
 
         version = toml.load('pyproject.toml')['tool']['poetry']['version']
-        logging.info(f"====== Initializing MeshtasticListener v{version} ======")
+        logging.info(f"====== Initializing Meshtastic Listener v{version} ======")
         
         self.interface = interface
         self.db = db_object
         self.cmd_handler = cmd_handler
-        self.welcome_message = welcome_message
         self.char_limit = 200
 
         self.local_node_id = self.interface.localNode.nodeNum
@@ -122,10 +120,14 @@ class MeshtasticListener:
 
     def __load_local_nodes__(self, force: bool = False) -> None:
         now = time.time()
-        if now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force:
-            nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
-            self.db.insert_nodes(nodes)
-            self.node_refresh_ts = now
+        if (now - self.node_refresh_ts > self.node_refresh_interval.total_seconds() or force):
+            if self.interface.nodes is None:
+                logging.error(f'Interface reports no Nodes. Unable to load local nodes to DB.')
+                return None
+            else:
+                nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
+                self.db.insert_nodes(nodes)
+                self.node_refresh_ts = now
 
     def __send_messages__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
@@ -275,18 +277,15 @@ class MeshtasticListener:
         position = packet.get('decoded', {}).get('position', {})
         self.__print_packet_received__(logging.debug, packet)
 
-        try:
-            node_details = self.interface.getMyNodeInfo()
-            node = NodeBase(**node_details)
-            distance = calculate_distance(
-                node.position.latitude,
-                node.position.longitude,
-                position.get('latitude'),
-                position.get('longitude')
-            )
-        except Exception as e:
-            logging.error(f"{e}: Unable to calculate distance from base node to {packet['from']}. Base node position not configured.")
-            distance = None
+        node_details = self.interface.getMyNodeInfo()
+        if node_details is None:
+            logging.error('Mesh interface reports no local node. Unable to calculate position')
+            return None
+
+        node = NodeBase(**node_details)
+        if node.position.latitude is None or node.position.longitude is None:
+            logging.error('Node configuration does not include latitude and longitude. Unable to calculate distance.')
+            return None
 
         try:
             self.db.upsert_position(
@@ -295,7 +294,12 @@ class MeshtasticListener:
                 latitude=position.get('latitude'),
                 longitude=position.get('longitude'),
                 altitude=position.get('altitude'),
-                distance=distance,
+                distance=calculate_distance(
+                    node.position.latitude,
+                    node.position.longitude,
+                    position.get('latitude'),
+                    position.get('longitude')
+                ),
                 precision_bits=position.get('precisionBits')
             )
             logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
@@ -344,11 +348,6 @@ class MeshtasticListener:
 
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.get_node(node_num):
-            if self.welcome_message is not None:
-                logging.info(f"Sending welcome message to {node_num}")
-                self.__send_messages__(
-                    text=self.welcome_message,
-                    destinationId=node_num)
             self.__load_local_nodes__(force=True)
 
     def __handle_waypoint__(self, packet: dict) -> None:
@@ -493,7 +492,7 @@ if __name__ == "__main__":
     db_object = ListenerDb(
         hostname=environ.get("POSTGRES_HOSTNAME", "listener_db"),
         username=environ.get("POSTGRES_USER", 'postgres'),
-        password=environ.get("POSTGRES_PASSWORD"),
+        password=environ.get("POSTGRES_PASSWORD", 'password'),
         db_name=environ.get("POSTGRES_DATABASE", 'listener_db'),
         default_categories=[
             c.title().strip() for c in environ.get("DEFAULT_CATEGORIES", 'Annoucements,General,Events').split(',')
@@ -512,7 +511,6 @@ if __name__ == "__main__":
         db_object=db_object,
         cmd_handler=cmd_handler,
         node_update_interval=int(environ.get("NODE_UPDATE_INTERVAL", 15)),
-        welcome_message=environ.get("WELCOME_MESSAGE"),
         admin_nodes=load_node_env_var("ADMIN_NODE_IDS"),
         traceroute_interval_minutes=int(environ.get('TRACEROUTE_INTERVAL', 15))
     )
