@@ -1,6 +1,8 @@
 from typing import Optional
 from enum import StrEnum
-from pydantic import BaseModel
+from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 class NodeRoles(StrEnum):
     CLIENT = "CLIENT"
@@ -30,10 +32,10 @@ class MessageReceived(BaseModel):
     rxRssi: int = 0 # Received Signal Strength Indicator. The higher the better
     hopLimit: Optional[int] = None # Maximum number of hops
     hopStart: Optional[int] = None
-    rxTime: Optional[int] = None
     wantAck: Optional[bool] = None
     publicKey: Optional[str] = None
     pkiEncrypted: Optional[bool] = None
+    rxTime: int = Field(default=int(datetime.now().timestamp()))
 
     def __init__(self, **data):
         data['fromId'] = data.pop('from')
@@ -95,12 +97,12 @@ class EnvironmentPayload(BaseModel):
 class NodeBase(BaseModel):
     num: int
     user: User
-    position: Optional[Position] = None
     snr: Optional[float] = None
     lastHeard: Optional[int] = None
-    deviceMetrics: Optional[DevicePayload] = None
-    isFavorite: Optional[bool] = None
+    isFavorite: bool = False
     hopsAway: Optional[int] = None
+    position: Position = Field(default=Position())
+    deviceMetrics: DevicePayload = Field(default=DevicePayload())
 
 class NeighborSnr(BaseModel):
     shortName: str
