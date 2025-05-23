@@ -357,12 +357,15 @@ class MeshtasticListener:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
         self.__print_packet_received__(logging.info, packet)
         for neighbor in neighbor_info.get('neighbors', []):
-            self.db.insert_neighbor(
-                source_node_id=int(packet['from']),
-                neighbor_id=int(neighbor['nodeId']),
-                snr=float(neighbor['snr']),
-                rx_time=int(time.time())
-            )
+            if not neighbor.get('snr') or not neighbor.get('nodeId'):
+                logging.error(f'Neighbor information is missing essential SNR and/or nodeID values: {neighbor}')
+            else:
+                self.db.insert_neighbor(
+                    source_node_id=int(packet['from']),
+                    neighbor_id=int(neighbor['nodeId']),
+                    snr=float(neighbor['snr']),
+                    rx_time=int(time.time())
+                )
 
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.get_node(node_num):
