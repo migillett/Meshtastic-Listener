@@ -479,6 +479,7 @@ class MeshtasticListener:
         except UnicodeDecodeError:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
         except Exception as e:
+            logging.exception(f"Encountered fatal error in main loop: {e}")
             self.__notify_admins__(f'BBS Encountered a Fatal Error: {str(e)}')
 
     def __exit__(self, signum, frame) -> None:
