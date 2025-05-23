@@ -296,7 +296,7 @@ class MeshtasticListener:
         node = NodeBase(**node_details)
         incoming_lat, incoming_lon = position.get('latitude'), position.get('longitude')
         distance: float | None = None
-        
+
         if node.position.latitude is None or node.position.longitude is None:
             logging.error('Host node configuration does not include latitude and longitude. Unable to calculate distance.')
         elif incoming_lat is None and incoming_lon is None:
@@ -478,6 +478,8 @@ class MeshtasticListener:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
         except UnicodeDecodeError:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
+        except Exception as e:
+            self.__notify_admins__(f'BBS Encountered a Fatal Error: {str(e)}')
 
     def __exit__(self, signum, frame) -> None:
         logging.info("Received shutdown signal. Exiting gracefully...")
@@ -500,7 +502,7 @@ class MeshtasticListener:
                 time.sleep(1)
             except Exception as e:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
-                raise e
+                self.__notify_admins__(f'BBS Encountered a Fatal Error: {str(e)}')
             except KeyboardInterrupt:
                 self.__exit__(None, None)
 
