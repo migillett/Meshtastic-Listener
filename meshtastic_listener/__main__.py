@@ -184,7 +184,7 @@ class MeshtasticListener:
                 response = self.cmd_handler.handle_command(context=payload)
             
             except UnknownCommandError as e:
-                self.__send_messages__(text=e, destinationId=payload.fromId)
+                self.__send_messages__(text=str(e), destinationId=payload.fromId)
 
             if isinstance(response, str):
                 logging.info(f'Replying to {payload.fromId}: {response}')
