@@ -294,26 +294,27 @@ class MeshtasticListener:
             return None
 
         node = NodeBase(**node_details)
+        incoming_lat, incoming_lon = position.get('latitude'), position.get('longitude')
+        distance: float | None = None
+        
         if node.position.latitude is None or node.position.longitude is None:
-            logging.error('Node configuration does not include latitude and longitude. Unable to calculate distance.')
-            return None
-    
-        try:
+            logging.error('Host node configuration does not include latitude and longitude. Unable to calculate distance.')
+        elif incoming_lat is None and incoming_lon is None:
+            logging.error('Unable to calculate distance, incoming node position does not contain latitude or longitude.')
+        else:
             distance = calculate_distance(
                 node.position.latitude,
                 node.position.longitude,
-                position.get('latitude'),
-                position.get('longitude')
+                incoming_lat,
+                incoming_lon
             )
-        except ValueError:
-            distance = None
 
         try:
             self.db.upsert_position(
                 node_num=packet['from'],
                 last_heard=position.get('time', int(time.time())),
-                latitude=position.get('latitude'),
-                longitude=position.get('longitude'),
+                latitude=incoming_lat,
+                longitude=incoming_lon,
                 altitude=position.get('altitude'),
                 distance=distance,
                 precision_bits=position.get('precisionBits')
