@@ -297,6 +297,16 @@ class MeshtasticListener:
         if node.position.latitude is None or node.position.longitude is None:
             logging.error('Node configuration does not include latitude and longitude. Unable to calculate distance.')
             return None
+    
+        try:
+            distance = calculate_distance(
+                node.position.latitude,
+                node.position.longitude,
+                position.get('latitude'),
+                position.get('longitude')
+            )
+        except ValueError:
+            distance = None
 
         try:
             self.db.upsert_position(
@@ -305,12 +315,7 @@ class MeshtasticListener:
                 latitude=position.get('latitude'),
                 longitude=position.get('longitude'),
                 altitude=position.get('altitude'),
-                distance=calculate_distance(
-                    node.position.latitude,
-                    node.position.longitude,
-                    position.get('latitude'),
-                    position.get('longitude')
-                ),
+                distance=distance,
                 precision_bits=position.get('precisionBits')
             )
             logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
