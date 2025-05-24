@@ -34,4 +34,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
     CMD [ "$(id -u)" -ne 0 ] || exit 1
 
 # run the listener
-CMD [ "./meshtastic_listener/entrypoint.sh" ]
+CMD [ "/home/meshtastic/meshtastic_listener/entrypoint.sh" ]
