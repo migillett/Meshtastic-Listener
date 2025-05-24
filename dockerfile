@@ -22,7 +22,7 @@ ENV PATH="/home/meshtastic/.local/bin:${PATH}"
 WORKDIR /home/meshtastic
 
 # Copy over project files
-COPY --chown=meshtastic:meshtastic ./pyproject.toml .
+COPY --chown=meshtastic:meshtastic ./pyproject.toml ./alembic.ini ./
 COPY --chown=meshtastic:meshtastic ./meshtastic_listener ./meshtastic_listener
 RUN mkdir ./logs && chown -R meshtastic:meshtastic /home/meshtastic/logs
 
@@ -34,4 +34,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
     CMD [ "$(id -u)" -ne 0 ] || exit 1
 
 # run the listener
-ENTRYPOINT [ "poetry", "run", "python", "-m", "meshtastic_listener" ]
+CMD [ "./meshtastic_listener/entrypoint.sh" ]

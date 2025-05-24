@@ -64,3 +64,10 @@ Then run the test scripts using:
 ```bash
 poetry run pytest -s
 ```
+
+## Alembic Cheatsheet
+Create new revision:
+`alembic revision --autogenerate -m "message"`
+
+Upgrade db to current:
+`alembic upgrade head`
