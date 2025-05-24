@@ -46,13 +46,10 @@ class ListenerDb:
 
         self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
         self.session = sessionmaker(bind=self.engine)
-        self.create_tables()
         self.create_default_categories(default_categories)
         self.__hash_bbs_state__()
         logger.info(f'Connected to postgres database: {hostname}/{db_name}')
 
-    def create_tables(self) -> None:
-        Base.metadata.create_all(self.engine)
 
     ### HASHING FUNCTIONS ###
     def __hash_bbs_state__(self) -> None:
