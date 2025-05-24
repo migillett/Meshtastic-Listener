@@ -25,7 +25,6 @@ WORKDIR /home/meshtastic
 COPY --chown=meshtastic:meshtastic ./pyproject.toml ./alembic.ini ./
 COPY --chown=meshtastic:meshtastic ./meshtastic_listener ./meshtastic_listener
 RUN mkdir ./logs && chown -R meshtastic:meshtastic /home/meshtastic/logs
-RUN chmod +x /home/meshtastic/meshtastic_listener/entrypoint.sh
 
 # install depdendencies
 RUN pip3 install --user poetry && poetry install --only main
