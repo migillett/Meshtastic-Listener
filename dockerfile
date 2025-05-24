@@ -25,6 +25,7 @@ WORKDIR /home/meshtastic
 COPY --chown=meshtastic:meshtastic ./pyproject.toml ./alembic.ini ./
 COPY --chown=meshtastic:meshtastic ./meshtastic_listener ./meshtastic_listener
 RUN mkdir ./logs && chown -R meshtastic:meshtastic /home/meshtastic/logs
+RUN chmod +x /home/meshtastic/meshtastic_listener/entrypoint.sh
 
 # install depdendencies
 RUN pip3 install --user poetry && poetry install --only main
@@ -34,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
     CMD [ "$(id -u)" -ne 0 ] || exit 1
 
 # run the listener
-CMD [ "/home/meshtastic/meshtastic_listener/entrypoint.sh" ]
+CMD [ "bash", "/home/meshtastic/meshtastic_listener/entrypoint.sh" ]
