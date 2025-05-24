@@ -6,13 +6,6 @@ from sqlalchemy.sql.schema import ForeignKey
 
 Base = declarative_base()
 
-class DbHashTable(Base):
-    __tablename__ = 'db_hash_table'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    hash_value = Column(String(length=64), nullable=False)
-    timestamp = Column(BigInteger, default=int(time()))
-
 
 class BulletinBoardCategory(Base):
     '''
@@ -24,6 +17,7 @@ class BulletinBoardCategory(Base):
     name = Column(String(length=100), nullable=False)
     description = Column(String(length=200), default=None)
 
+
 class AdminNodes(Base):
     '''
     A table to store the admin nodes for the server.
@@ -34,6 +28,7 @@ class AdminNodes(Base):
     description = Column(String(length=200), default=None)
     enabled = Column(Boolean, default=True)
     timestamp = Column(BigInteger, default=int(time()))
+
 
 class BulletinBoardMessage(Base):
     __tablename__ = 'bbs_messages'
@@ -51,7 +46,6 @@ class BulletinBoardMessage(Base):
     hopLimit = Column(Integer, nullable=False)
     readCount = Column(Integer, default=0)
     isDeleted = Column(Boolean, default=0)
-    messageHash = Column(String(length=100), default=None)
 
 
 class Node(Base):
@@ -148,6 +142,7 @@ class AttemptedTraceroutes(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp  = Column(BigInteger, nullable=False)
     toId = Column(BigInteger, nullable=False)
+
 
 class MessageHistory(Base):
     __tablename__ = 'message_history'

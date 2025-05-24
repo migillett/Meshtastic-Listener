@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 from meshtastic_listener.__main__ import MeshtasticListener
 from meshtastic_listener.commands.cmd_handler import CommandHandler
-from meshtastic_listener.listener_db.listener_db import ListenerDb, Base
+from meshtastic_listener.listener_db.db_tables import Base
+from meshtastic_listener.listener_db.listener_db import ListenerDb
 from meshtastic.mesh_interface import MeshInterface
 
 import pytest

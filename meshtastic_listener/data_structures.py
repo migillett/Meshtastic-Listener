@@ -103,7 +103,3 @@ class NodeBase(BaseModel):
     hopsAway: Optional[int] = None
     position: Position = Field(default=Position())
     deviceMetrics: DevicePayload = Field(default=DevicePayload())
-
-class NeighborSnr(BaseModel):
-    shortName: str
-    snr: float

@@ -6,13 +6,13 @@ from typing import Optional
 
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
-    EnvironmentPayload, MessageReceived, NeighborSnr,
+    EnvironmentPayload, MessageReceived,
     WaypointPayload, NodeRoles
 )
 from meshtastic_listener.listener_db.db_tables import (
-    Base, Node, BulletinBoardMessage, BulletinBoardCategory,
+    Node, BulletinBoardMessage, BulletinBoardCategory,
     DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
-    Traceroute, DbHashTable, MessageHistory, OutgoingNotifications,
+    Traceroute, MessageHistory, OutgoingNotifications,
     Subscriptions, Neighbor, Waypoints, Subscriptions, AdminNodes,
     AttemptedTraceroutes
 )
@@ -21,7 +21,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import Insert
 from sqlalchemy.exc import IntegrityError
-import xxhash
 
 logger = logging.getLogger(__name__)
 
@@ -47,55 +46,11 @@ class ListenerDb:
         self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
         self.session = sessionmaker(bind=self.engine)
         self.create_default_categories(default_categories)
-        self.__hash_bbs_state__()
         logger.info(f'Connected to postgres database: {hostname}/{db_name}')
-
-
-    ### HASHING FUNCTIONS ###
-    def __hash_bbs_state__(self) -> None:
-        """
-        Takes the DB's state and saves it to a hash for quick comparison to see if anything has changed in the database.
-
-        This will eventually be used to synchronize the state of the database with other instances.
-        """
-        with self.session() as session:
-            hash = xxhash.xxh64()
-            for bbs_message in session.query(BulletinBoardMessage).all():
-                hash.update(str(bbs_message.messageHash).encode('utf-8'))
-            db_state = hash.hexdigest()
-
-            last_hash = self.__get_latest_db_hash__()
-            if last_hash is not None and last_hash.hash_value == db_state:
-                # this happens sometimes when we reboot the listener and there are no new messages or changes to the database
-                logger.debug('No change in database state.')
-                return
-
-            session.add(
-                DbHashTable(
-                    hash_value=db_state,
-                    timestamp=int(time())
-                )
-            )
-            session.commit()
-
-    def __get_latest_db_hash__(self) -> DbHashTable | None:
-        '''
-        Retrieves the latest hash of the database state from the `db_state_hash_table`.
-        This is used to check if the database state has changed since the last time it was hashed.
-        '''
-        with self.session() as session:
-            # Get the most recent hash from the db_state_hash_table
-            last_hash = session.query(DbHashTable).order_by(DbHashTable.timestamp.desc()).first()
-            if last_hash:
-                return last_hash
-            else:
-                logger.warning('No hash found in db_state_hash_table.')
-                return None
     
     ### MESSAGES ###
     def post_bbs_message(self, payload: MessageReceived, category_id: int = 1) -> None:
         with self.session() as session:
-            msg_hash = xxhash.xxh64(f"{payload.decoded.text}{payload.fromId}{payload.rxTime}").hexdigest()
             session.add(BulletinBoardMessage(
                 rxTime=payload.rxTime,
                 fromId=payload.fromId,
@@ -106,10 +61,8 @@ class ListenerDb:
                 rxRssi=payload.rxRssi,
                 hopStart=payload.hopStart,
                 hopLimit=payload.hopLimit,
-                messageHash=msg_hash
             ))
             session.commit()
-        self.__hash_bbs_state__()
 
     def mark_bbs_message_read(self, bbs_message_ids: list[int]) -> None:
         with self.session() as session:
