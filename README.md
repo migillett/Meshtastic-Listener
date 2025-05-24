@@ -58,6 +58,7 @@ All test scripts can be found in the `tests` directory. To run tests, you will n
 
 ```bash
 docker compose -f ./tests/docker-compose.yml up
+alembic upgrade head
 ```
 
 Then run the test scripts using:
