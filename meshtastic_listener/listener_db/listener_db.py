@@ -245,7 +245,7 @@ class ListenerDb:
         node = self.get_node(node_num)
         if not node:
             return str(node_num)
-        return node.shortName
+        return str(node.shortName)
     
     def calculate_center_coordinates(self) -> tuple[float, float]:
         with self.session() as session:

@@ -389,7 +389,7 @@ class MeshtasticListener:
             logging.info(f"Sending {len(pending_notifications)} notifications to node: {node_num}")
             for notif in pending_notifications:
                 message_metadata = self.interface.sendText(
-                    text=notif.message,
+                    text=str(notif.message),
                     destinationId=node_num,
                     wantAck=True
                 )
@@ -485,7 +485,7 @@ class MeshtasticListener:
     def __exit__(self, signum, frame) -> None:
         logging.info("Received shutdown signal. Exiting gracefully...")
         self.interface.close()
-        logging.info("====== MeshtasticListener Exiting ======")
+        logging.info("====== Meshtastic Listener Exiting ======")
         exit(0)
     
     def run(self):
