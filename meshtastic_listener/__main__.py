@@ -519,7 +519,7 @@ if __name__ == "__main__":
         hostname=environ.get("POSTGRES_HOSTNAME", "listener_db"),
         username=environ.get("POSTGRES_USER", 'postgres'),
         password=environ.get("POSTGRES_PASSWORD", 'password'),
-        db_name=environ.get("POSTGRES_DATABASE", 'listener_db'),
+        db_name=environ.get("POSTGRES_DB", 'listener_db'),
         default_categories=[
             c.title().strip() for c in environ.get("DEFAULT_CATEGORIES", 'Annoucements,General,Events').split(',')
         ],
