@@ -1,4 +1,4 @@
-from os import path, listdir
+from os import path, listdir, environ
 import json
 from time import time
 from dataclasses import dataclass
@@ -57,11 +57,11 @@ class TestInterface(MeshInterface):
 test_interface = TestInterface()
 
 db = ListenerDb(
-    hostname='127.0.0.1',
-    username='postgres',
-    password='listener_db',
-    db_name='listener_db'
-)
+        hostname=environ.get("POSTGRES_HOSTNAME", "listener_db"),
+        username=environ.get("POSTGRES_USER", 'postgres'),
+        password=environ.get("POSTGRES_PASSWORD", 'password'),
+        db_name=environ.get("POSTGRES_DATABASE", 'listener_db'),
+    )
 
 cmd_handler = CommandHandler(
     prefix='!',

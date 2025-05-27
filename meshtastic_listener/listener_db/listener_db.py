@@ -183,6 +183,9 @@ class ListenerDb:
                     hwModel=node.user.hwModel,
                     publicKey=node.user.publicKey,
                     nodeRole=node.user.role,
+                    latitude=node.position.latitude,
+                    longitude=node.position.longitude,
+                    altitude=node.position.altitude,
                     lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
                 ).on_conflict_do_update(
@@ -194,6 +197,9 @@ class ListenerDb:
                         'hwModel': node.user.hwModel,
                         'publicKey': node.user.publicKey,
                         'nodeRole': node.user.role,
+                        'latitude': node.position.latitude,
+                        'longitude': node.position.longitude,
+                        'altitude': node.position.altitude,
                         'lastHeard': node.lastHeard,
                         'hopsAway': node.hopsAway,
                     }
