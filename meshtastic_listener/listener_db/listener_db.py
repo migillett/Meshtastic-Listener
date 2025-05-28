@@ -392,14 +392,15 @@ class ListenerDb:
             ))
             session.commit()
 
-    def get_pending_notifications(self, to_id: int, max_attempts: int = 5) -> list[OutgoingNotifications]:
+    def get_pending_notifications(self, to_id: int, max_attempts: int = 5, timestamp_cutoff: int = 0) -> list[OutgoingNotifications]:
         with self.session() as session:
             return session.query(
                 OutgoingNotifications
             ).filter(
                 OutgoingNotifications.toId == to_id,
                 OutgoingNotifications.received == False,
-                OutgoingNotifications.attempts < max_attempts
+                OutgoingNotifications.attempts < max_attempts,
+                OutgoingNotifications.timestamp >= timestamp_cutoff
             ).all()
 
     def increment_notification_attempts(self, notification_id: int, notif_tx_id: int) -> None:

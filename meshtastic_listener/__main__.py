@@ -383,8 +383,11 @@ class MeshtasticListener:
         else:
             logging.info(f'Waypoint packet received from non-admin node: {self.db.get_shortname(sender)}. Ignoring.')
 
-    def __trigger_notifications__(self, node_num: int) -> None:
-        pending_notifications = self.db.get_pending_notifications(to_id=node_num)
+    def __trigger_notifications__(self, node_num: int, lookback_days: int = 3) -> None:
+        pending_notifications = self.db.get_pending_notifications(
+            to_id=node_num,
+            timestamp_cutoff=int(time.time() - timedelta(days=lookback_days).total_seconds())
+        )
         if len(pending_notifications) > 0 and self.notification_ts < time.time():     
             logging.info(f"Sending {len(pending_notifications)} notifications to node: {node_num}")
             for notif in pending_notifications:
