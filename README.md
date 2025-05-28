@@ -19,6 +19,7 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
     - Gather and analyze error rates for messages (what we see on the notification card on phones)
     - Temperatures and Humidity (if applicable)
     - Battery level trend over time? ie: downward trend of battery level over n days.
+- Remove distance() functions. it's not even used anymore.
 ~~- Add ability to subscribe to a category~~
 ~~- When the user runs `!waypoints`, reply with a text message to what waypoints were sent to them.~~
 
