@@ -188,7 +188,7 @@ class ListenerDb:
                     lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
                     isHost=node.isHost,
-                    hostSoftwareversion=node.hostSoftwareVersion,
+                    hostSoftwareVersion=node.hostSoftwareVersion,
                 ).on_conflict_do_update(
                     index_elements=['nodeNum'],
                     set_={
