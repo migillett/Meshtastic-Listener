@@ -163,10 +163,12 @@
                         `<h3>${node.longName}</h3>
                         <table>
                             <tr><th>Short Name</th><td>${node.shortName}</td></tr>
+                            <tr><th>Node Number</th><td>${node.nodeNum}</td></tr>
                             <tr><th>Hardware</th><td>${node.hwModel}</td></tr>
                             <tr><th>Role</th><td>${node.nodeRole}</td></tr>
                             <tr><th>Hops</th><td>${node.hopsAway}</td></tr>
                             <tr><th>Last Heard</th><td>${diff} ${units}</td></tr>
+                            ${node.isHost ? `<tr><th>Monitor Version</th><td>${node.hostSoftwareVersion}</td></tr>` : ""}
                         </table>`
                     );
 
