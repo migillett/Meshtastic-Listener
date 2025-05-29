@@ -127,12 +127,11 @@ class MeshtasticListener:
             if self.interface.nodes is None:
                 logging.error(f'Interface reports no Nodes. Unable to load local nodes to DB.')
             else:
-                for node in self.interface.nodes.values():
-                    node_details = NodeBase(**node)
-                    if self.local_node_id == node_details.num:
-                        node_details.isHost = True
-                        node_details.hostSoftwareVersion = self.version
-                    self.db.insert_node(node=node_details)
+                for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
+                    if self.local_node_id == node.num:
+                        node.isHost = True
+                        node.hostSoftwareVersion = self.version
+                    self.db.insert_node(node=node)
             self.node_refresh_ts = now
 
     def __check_channel_usage__(self, n_cycles: int = 5) -> None:
