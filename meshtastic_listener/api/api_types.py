@@ -18,6 +18,8 @@ class NodeDetailsResponse(BaseModel):
     altitude: Optional[float]
     precisionBits: Optional[int]
     hopsAway: Optional[int]
+    isHost: Optional[bool]
+    hostSoftwareVersion: Optional[str]
     # selectedCategory: Optional[int] = 1
 
 class AllNodesResponse(BaseModel):

@@ -172,6 +172,45 @@ class ListenerDb:
             session.commit()
             logger.debug(f'Successfully inserted {node.num} into db')
 
+    def insert_node(self, node: NodeBase) -> None:
+        with self.session() as session:
+            stmt = Insert(Node).values(
+                    nodeNum=node.num,
+                    longName=node.user.longName,
+                    shortName=node.user.shortName,
+                    macAddr=node.user.macaddr,
+                    hwModel=node.user.hwModel,
+                    publicKey=node.user.publicKey,
+                    nodeRole=node.user.role,
+                    latitude=node.position.latitude,
+                    longitude=node.position.longitude,
+                    altitude=node.position.altitude,
+                    lastHeard=node.lastHeard,
+                    hopsAway=node.hopsAway,
+                    isHost=node.isHost,
+                    hostSoftwareversion=node.hostSoftwareVersion,
+                ).on_conflict_do_update(
+                    index_elements=['nodeNum'],
+                    set_={
+                        'longName': node.user.longName,
+                        'shortName': node.user.shortName,
+                        'macAddr': node.user.macaddr,
+                        'hwModel': node.user.hwModel,
+                        'publicKey': node.user.publicKey,
+                        'nodeRole': node.user.role,
+                        'latitude': node.position.latitude,
+                        'longitude': node.position.longitude,
+                        'altitude': node.position.altitude,
+                        'lastHeard': node.lastHeard,
+                        'hopsAway': node.hopsAway,
+                        'isHost': node.isHost,
+                        'hostSoftwareVersion': node.hostSoftwareVersion,
+                    }
+                )
+            session.execute(stmt)
+            session.commit()
+        logger.debug(f'Inserted node into DB: {node.model_dump_json()}')
+
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         with self.session() as session:
             for node in nodes:

@@ -59,8 +59,8 @@ class MeshtasticListener:
             admin_nodes: list[int] | None = None,
         ) -> None:
 
-        version = toml.load('pyproject.toml')['tool']['poetry']['version']
-        logging.info(f"====== Initializing Meshtastic Listener v{version} ======")
+        self.version = toml.load('pyproject.toml')['tool']['poetry']['version']
+        logging.info(f"====== Initializing Meshtastic Listener v{self.version} ======")
         
         self.interface = interface
         self.db = db_object
@@ -127,8 +127,12 @@ class MeshtasticListener:
             if self.interface.nodes is None:
                 logging.error(f'Interface reports no Nodes. Unable to load local nodes to DB.')
             else:
-                nodes = [NodeBase(**node) for node in self.interface.nodes.values()]
-                self.db.insert_nodes(nodes)
+                for node in self.interface.nodes.values():
+                    node_details = NodeBase(**node)
+                    if self.local_node_id == node_details.num:
+                        node_details.isHost = True
+                        node_details.hostSoftwareVersion = self.version
+                    self.db.insert_node(node=node_details)
             self.node_refresh_ts = now
 
     def __check_channel_usage__(self, n_cycles: int = 5) -> None:

@@ -46,6 +46,15 @@
             shadowSize: [41, 41]
         });
 
+        var yellowIcon = new L.Icon({
+            iconUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-icon-2x-yellow.png') }}",
+            shadowUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-shadow.png') }}",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
         let markersById = new Map();
 
         // TODO - get current node ID from init position to mark it yellow on the map
@@ -128,11 +137,18 @@
             var added = 0;
             nodes.forEach(node => {
                 if (node.latitude && node.longitude) {
+
                     let markerOptions = {
                         title: node.longName,
                         draggable: false,
-                        icon: (node.nodeRole == 'ROUTER' || node.nodeRole == 'ROUTER_LATE') ? redIcon : blueIcon
+                        icon: blueIcon
                     };
+
+                    if (node.nodeRole == 'ROUTER' || node.nodeRole == 'ROUTER_LATE') {
+                        markerOptions.icon = redIcon
+                    } else if (node.isHost) {
+                        markerOptions.icon = yellowIcon
+                    }
 
                     var marker = L.marker([node.latitude, node.longitude], markerOptions).addTo(map);
                     var diff = Math.floor((now.getTime() - (node.lastHeard * 1000)) / 360000);

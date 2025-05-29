@@ -13,7 +13,7 @@ This repo builds upon [brad28b's repo](https://github.com/brad28b/meshtastic-cli
 ## To Do:
 ~~- Update test scripts to work with Postgres DB instead of SqLite3~~
 - Add support for syncing databases between 2 nodes both running the BBS software.
-    - Consider making a "Client" role that doesn't have any major functions, just the db and a web UI
+    - Consider making a "Client" version of the software that doesn't have any major functions, just the db and a web UI
 - Metrics Alerting Features:
     - Paths through the network with their forward and back SNR, and RX/TX times.
     - Gather and analyze error rates for messages (what we see on the notification card on phones)
