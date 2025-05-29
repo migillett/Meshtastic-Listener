@@ -61,7 +61,6 @@ class Node(Base):
     lastHeard = Column(BigInteger, default=None)
     latitude = Column(Float, default=None)
     longitude = Column(Float, default=None)
-    distance = Column(Float, default=None)
     altitude = Column(Float, default=None)
     precisionBits = Column(Integer, default=None)
     hopsAway = Column(Integer, default=None)

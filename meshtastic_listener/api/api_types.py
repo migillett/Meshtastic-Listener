@@ -14,7 +14,6 @@ class NodeDetailsResponse(BaseModel):
     lastHeard: Optional[int]
     latitude: Optional[float]
     longitude: Optional[float]
-    distance: Optional[float]
     altitude: Optional[float]
     precisionBits: Optional[int]
     hopsAway: Optional[int]

@@ -14,7 +14,7 @@ from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload
 )
-from meshtastic_listener.utils import calculate_distance, coords_int_to_float, load_node_env_var
+from meshtastic_listener.utils import coords_int_to_float, load_node_env_var
 
 from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
@@ -299,19 +299,6 @@ class MeshtasticListener:
 
         node = NodeBase(**node_details)
         incoming_lat, incoming_lon = position.get('latitude'), position.get('longitude')
-        distance: float | None = None
-
-        if node.position.latitude is None or node.position.longitude is None:
-            logging.error('Host node configuration does not include latitude and longitude. Unable to calculate distance.')
-        elif incoming_lat is None and incoming_lon is None:
-            logging.error('Unable to calculate distance, incoming node position does not contain latitude or longitude.')
-        else:
-            distance = calculate_distance(
-                node.position.latitude,
-                node.position.longitude,
-                incoming_lat,
-                incoming_lon
-            )
 
         try:
             self.db.upsert_position(
@@ -320,7 +307,6 @@ class MeshtasticListener:
                 latitude=incoming_lat,
                 longitude=incoming_lon,
                 altitude=position.get('altitude'),
-                distance=distance,
                 precision_bits=position.get('precisionBits')
             )
             logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
