@@ -352,6 +352,17 @@ class ListenerDb:
                 numTxRelayCanceled=metrics.numTxRelayCanceled,
             ))
             session.commit()
+
+    def get_transmission_metrics(self, node_num: int, since_ts: int = 0) -> list[TransmissionMetrics]:
+        with self.session() as session:
+            return session.query(
+                TransmissionMetrics
+            ).filter(
+                TransmissionMetrics.nodeNum == node_num,
+                TransmissionMetrics.rxTime >= since_ts
+            ).order_by(
+                TransmissionMetrics.rxTime.asc()
+            ).all()
     
     def insert_environment_metrics(self, node_num: int, rxTime: int, metrics: EnvironmentPayload) -> None:
         with self.session() as session:

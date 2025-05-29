@@ -70,10 +70,11 @@ class MeshtasticListener:
         self.local_node_id = self.interface.localNode.nodeNum
 
         self.max_channel_utilization = 35.0
-        self.channel_usage_statistics: list[float] = []
 
-        self.node_refresh_ts: float = time.time() - timedelta(hours=1).total_seconds()
-        self.traceroute_ts: float = time.time() - timedelta(hours=1).total_seconds()
+        starting_ts = time.time() - timedelta(hours=1).total_seconds()
+        self.node_refresh_ts: float = starting_ts
+        self.traceroute_ts: float = starting_ts
+        self.node_health_ts: float = starting_ts
         self.update_interval = timedelta(minutes=update_interval)
         logging.info(f'Update interval set to every {update_interval} minutes')
 
@@ -134,13 +135,30 @@ class MeshtasticListener:
                     self.db.insert_node(node=node)
             self.node_refresh_ts = now
 
-    def __check_channel_usage__(self, n_cycles: int = 5) -> None:
-        if len(self.channel_usage_statistics) > n_cycles:
-            mean_usage = round(mean(self.channel_usage_statistics), 2)
-            if mean_usage > self.max_channel_utilization:
-                logging.info(f'High channel usage reported for past {n_cycles} cycles. Sending notification to admins...')
-                self.__notify_admins__(f'{self.__human_readable_ts__()}\nHigh channel usage for the past {n_cycles} cycles:\n{mean_usage}%')
-            self.channel_usage_statistics = []
+    def __check_node_health__(self) -> None:
+        '''
+        Using the software host node ID, pull the last n hours of metrics and see what general trends are
+        We'll use this to trigger alerts for items such as:
+            - Gather and analyze error rates for messages (what we see on the notification card on phones)
+            - TODO: Paths through the network with their forward and back SNR, and RX/TX times.
+            - TODO: Temperatures and Humidity (if applicable)
+            - TODO: Battery level trend over time? ie: downward trend of battery level over n days.
+        '''
+        now = time.time()
+        if now < self.node_health_ts:
+            return
+        
+        # TODO - eventually add a way to monitor multiple nodes at once with a one to many relationship of admins to those nodes
+
+        transmission_stats = self.db.get_transmission_metrics(
+            node_num=self.local_node_id,
+            since_ts=int(time.time() - timedelta(days=1).total_seconds())
+        )
+        avg_ch_usage = mean([x.airUtilTx for x in transmission_stats if isinstance(x.airUtilTx, float)])
+        if avg_ch_usage >= self.max_channel_utilization:
+            self.__notify_admins__(f'{self.__human_readable_ts__()}\nDetected high channel usage for {self.interface.getLongName()}: {round(avg_ch_usage, 4)}')
+
+        self.node_health_ts = now
 
     def __send_messages__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
@@ -319,11 +337,9 @@ class MeshtasticListener:
         now = time.time()
         # send traceroutes to nearby routers every n minutes
         if now - self.traceroute_ts > self.update_interval.total_seconds():
-            usage = self.__get_channel_utilization__()
-            if usage > self.max_channel_utilization:
+            if self.__get_channel_utilization__() > self.max_channel_utilization:
                 logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
                 self.traceroute_ts = now + timedelta(minutes=15).total_seconds()
-                self.channel_usage_statistics.append(usage)
                 return None
             
             target = self.db.select_traceroute_target(
@@ -359,6 +375,7 @@ class MeshtasticListener:
 
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.get_node(node_num):
+            # if we don't see the node in the db, force a dump of nodes from the interface db -> postgres
             self.__load_local_nodes__(force=True)
 
     def __handle_waypoint__(self, packet: dict) -> None:
@@ -491,7 +508,7 @@ class MeshtasticListener:
                 sys.stdout.flush()
                 self.__load_local_nodes__()
                 self.__traceroute_upstream__()
-                self.__check_channel_usage__()
+                self.__check_node_health__()
                 time.sleep(1)
             except Exception as e:
                 logging.exception(f"Encountered fatal error in main loop: {e}")
