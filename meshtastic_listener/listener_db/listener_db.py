@@ -6,21 +6,17 @@ from typing import Optional
 
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
-    EnvironmentPayload, MessageReceived,
-    WaypointPayload, NodeRoles
+    EnvironmentPayload, WaypointPayload, NodeRoles
 )
 from meshtastic_listener.listener_db.db_tables import (
-    Node, BulletinBoardMessage, BulletinBoardCategory,
-    DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
-    Traceroute, MessageHistory, OutgoingNotifications,
-    Subscriptions, Neighbor, Waypoints, Subscriptions, AdminNodes,
-    AttemptedTraceroutes
+    Node, DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
+    Traceroute, MessageHistory, OutgoingNotifications, Subscriptions,
+    Neighbor, Waypoints, AdminNodes, AttemptedTraceroutes
 )
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import Insert
-from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger(__name__)
 
@@ -39,108 +35,12 @@ class ListenerDb:
             username: str,
             password: str,
             db_name: str = 'listener_db',
-            port: int = 5432,
-            default_categories: list[str] = ['General', 'Annoucements', 'Events']
+            port: int = 5432
         ) -> None:
 
         self.engine = create_engine(f'postgresql://{username}:{password}@{hostname}:{port}/{db_name}')
         self.session = sessionmaker(bind=self.engine)
-        self.create_default_categories(default_categories)
         logger.info(f'Connected to postgres database: {hostname}/{db_name}')
-    
-    ### MESSAGES ###
-    def post_bbs_message(self, payload: MessageReceived, category_id: int = 1) -> None:
-        with self.session() as session:
-            session.add(BulletinBoardMessage(
-                rxTime=payload.rxTime,
-                fromId=payload.fromId,
-                toId=payload.toId,
-                message=payload.decoded.text,
-                categoryId=category_id,
-                rxSnr=payload.rxSnr,
-                rxRssi=payload.rxRssi,
-                hopStart=payload.hopStart,
-                hopLimit=payload.hopLimit,
-            ))
-            session.commit()
-
-    def mark_bbs_message_read(self, bbs_message_ids: list[int]) -> None:
-        with self.session() as session:
-            session.query(BulletinBoardMessage).filter(
-                BulletinBoardMessage.id.in_(bbs_message_ids)
-            ).update(
-                {BulletinBoardMessage.readCount: BulletinBoardMessage.readCount + 1})
-            session.commit()
-
-    def get_bbs_messages(self, days_past: int = 7, category_id: int = 1) -> list[BulletinBoardMessage]:
-        with self.session() as session:
-            look_back = int(time() - (days_past * 24 * 3600))
-            results = session.query(BulletinBoardMessage).filter(
-                BulletinBoardMessage.rxTime > look_back,
-                BulletinBoardMessage.isDeleted == False,
-                BulletinBoardMessage.categoryId == category_id
-            ).all()
-
-            logger.info(f'Found {len(results)} bbs messages from the last {days_past} days in category {category_id}')
-            [self.mark_bbs_message_read([result.id]) for result in results]
-            return results
-            
-    def soft_delete_bbs_messages(self) -> None:
-        with self.session() as session:
-            session.query(BulletinBoardMessage).filter(
-                BulletinBoardMessage.isDeleted == False
-            ).update({BulletinBoardMessage.isDeleted: 1})
-            session.commit()
-
-    ### CATEGORIES ###
-    def create_default_categories(self, categories: list[str]) -> None:
-        logger.info(f'Creating BBS categories: {categories}')
-        with self.session() as session:
-            existing_categories = session.query(BulletinBoardCategory).all()
-            for category in categories:
-                if category not in [cat.name for cat in existing_categories]:
-                    session.add(BulletinBoardCategory(name=category))
-            session.commit()
-
-    def list_categories(self) -> list[BulletinBoardCategory]:
-        with self.session() as session:
-            return session.query(
-                BulletinBoardCategory
-            ).order_by(
-                BulletinBoardCategory.id.asc()
-            ).all()
-        
-    def get_category_by_id(self, category_id: int) -> BulletinBoardCategory:
-        with self.session() as session:
-            return session.query(
-                BulletinBoardCategory
-            ).filter(
-                BulletinBoardCategory.id == category_id
-            ).first()
-        
-    def get_category_by_name(self, category_name: str) -> BulletinBoardCategory:
-        with self.session() as session:
-            return session.query(
-                BulletinBoardCategory
-            ).filter(
-                BulletinBoardCategory.name == category_name.title()
-            ).first()
-        
-    def select_category(self, node_num: int, category_id: int) -> None:
-        '''
-        Allows user to select a category and automatically returns the messages in that category.
-        '''
-        try:
-            with self.session() as session:
-                node = self.get_node(node_num)
-                if not node:
-                    raise ItemNotFound(f'Node {node_num} not found in db. Unable to update category.')
-                node.selectedCategory = category_id
-                session.add(node)
-                session.commit()
-
-        except IntegrityError:
-            raise InvalidCategory(f'Category {category_id} does not exist.')
 
     ### NODES ###
     def create_node(self, node: NodeBase) -> None:
@@ -248,14 +148,6 @@ class ListenerDb:
 
             session.commit()
             logger.debug(f'Successfully upserted {len(nodes)} nodes into db')
-
-    def get_node_selected_category(self, node_num: int) -> BulletinBoardCategory:
-        with self.session() as session:
-            return session.query(BulletinBoardCategory).join(
-                Node, BulletinBoardCategory.id == Node.selectedCategory
-            ).filter(
-                Node.nodeNum == node_num
-            ).first()
 
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
@@ -478,86 +370,86 @@ class ListenerDb:
                 session.commit()
 
     ### SUBSCRIPTIONS ###
-    def subscribe_to_category(self, node_num: int, category_id: int | None = None) -> None:
-        '''
-        Will raise IntegrityError if the categoryId is not valid.
-        '''
-        try:
-            with self.session() as session:
-                # check if an entry for user + category already exists
-                user_subscription = session.query(Subscriptions).filter(
-                    Subscriptions.nodeNum == node_num,
-                    Subscriptions.categoryId == category_id
-                ).first()
+    # def subscribe_to_category(self, node_num: int, category_id: int | None = None) -> None:
+    #     '''
+    #     Will raise IntegrityError if the categoryId is not valid.
+    #     '''
+    #     try:
+    #         with self.session() as session:
+    #             # check if an entry for user + category already exists
+    #             user_subscription = session.query(Subscriptions).filter(
+    #                 Subscriptions.nodeNum == node_num,
+    #                 Subscriptions.categoryId == category_id
+    #             ).first()
 
-                if user_subscription:
-                    user_subscription.timestamp = int(time())
-                    user_subscription.isSubscribed = True
-                    session.add(user_subscription)
+    #             if user_subscription:
+    #                 user_subscription.timestamp = int(time())
+    #                 user_subscription.isSubscribed = True
+    #                 session.add(user_subscription)
 
-                else:
-                    stmt = Insert(Subscriptions).values(
-                        nodeNum=node_num,
-                        categoryId=category_id,
-                        isSubscribed=True,
-                        timestamp=int(time())
-                    )
-                    session.execute(stmt)
+    #             else:
+    #                 stmt = Insert(Subscriptions).values(
+    #                     nodeNum=node_num,
+    #                     categoryId=category_id,
+    #                     isSubscribed=True,
+    #                     timestamp=int(time())
+    #                 )
+    #                 session.execute(stmt)
 
-                session.commit()
+    #             session.commit()
 
-        except IntegrityError:
-            raise InvalidCategory(f'Category {category_id} does not exist.')
+    #     except IntegrityError:
+    #         raise InvalidCategory(f'Category {category_id} does not exist.')
         
-    def subscribe_to_all(self, node_num: int) -> None:
-        with self.session() as session:
-            categories = session.query(BulletinBoardCategory).all()
-            for category in categories:
-                self.subscribe_to_category(node_num=node_num, category_id=category.id)
-            session.commit()
+    # def subscribe_to_all(self, node_num: int) -> None:
+    #     with self.session() as session:
+    #         categories = session.query(BulletinBoardCategory).all()
+    #         for category in categories:
+    #             self.subscribe_to_category(node_num=node_num, category_id=category.id)
+    #         session.commit()
 
-    def unsubscribe_from_category(self, node_num: int, category_id: int | None = None) -> None:
-        with self.session() as session:
-            subscription = session.query(Subscriptions).filter(
-                Subscriptions.nodeNum == node_num,
-                Subscriptions.categoryId == category_id
-            ).first()
-            if subscription:
-                session.delete(subscription)
-                session.commit()
-            else:
-                logger.warning(f'No subscription found for node {node_num} in category {category_id}.')
+    # def unsubscribe_from_category(self, node_num: int, category_id: int | None = None) -> None:
+    #     with self.session() as session:
+    #         subscription = session.query(Subscriptions).filter(
+    #             Subscriptions.nodeNum == node_num,
+    #             Subscriptions.categoryId == category_id
+    #         ).first()
+    #         if subscription:
+    #             session.delete(subscription)
+    #             session.commit()
+    #         else:
+    #             logger.warning(f'No subscription found for node {node_num} in category {category_id}.')
 
-    def unsubscribe_all(self, node_num: int) -> None:
-        with self.session() as session:
-            subscriptions = session.query(Subscriptions).filter(Subscriptions.nodeNum == node_num).all()
-            for subscription in subscriptions:
-                subscription.isSubscribed = False
-                session.add(subscription)
-            session.commit()
+    # def unsubscribe_all(self, node_num: int) -> None:
+    #     with self.session() as session:
+    #         subscriptions = session.query(Subscriptions).filter(Subscriptions.nodeNum == node_num).all()
+    #         for subscription in subscriptions:
+    #             subscription.isSubscribed = False
+    #             session.add(subscription)
+    #         session.commit()
 
-    def list_subscribers(self, category_id: int) -> list[int]:
-        # returns a list of node numbers that are subscribed to the given category
-        with self.session() as session:
-            subscribers = session.query(Subscriptions.nodeNum).filter(
-                Subscriptions.categoryId == category_id,
-                Subscriptions.isSubscribed == True
-            ).all()
-            return [subscriber[0] for subscriber in subscribers]
+    # def list_subscribers(self, category_id: int) -> list[int]:
+    #     # returns a list of node numbers that are subscribed to the given category
+    #     with self.session() as session:
+    #         subscribers = session.query(Subscriptions.nodeNum).filter(
+    #             Subscriptions.categoryId == category_id,
+    #             Subscriptions.isSubscribed == True
+    #         ).all()
+    #         return [subscriber[0] for subscriber in subscribers]
 
-    def list_user_subscriptions(self, node_num: int) -> list[tuple[int, str]]:
-        with self.session() as session:
-            subscriptions = session.query(
-                Subscriptions.categoryId, BulletinBoardCategory.name
-            ).join(
-                BulletinBoardCategory, Subscriptions.categoryId == BulletinBoardCategory.id
-            ).filter(
-                Subscriptions.nodeNum == node_num,
-                Subscriptions.isSubscribed == True
-            ).order_by(
-                Subscriptions.timestamp.desc()
-            ).all()
-            return subscriptions
+    # def list_user_subscriptions(self, node_num: int) -> list[tuple[int, str]]:
+    #     with self.session() as session:
+    #         subscriptions = session.query(
+    #             Subscriptions.categoryId, BulletinBoardCategory.name
+    #         ).join(
+    #             BulletinBoardCategory, Subscriptions.categoryId == BulletinBoardCategory.id
+    #         ).filter(
+    #             Subscriptions.nodeNum == node_num,
+    #             Subscriptions.isSubscribed == True
+    #         ).order_by(
+    #             Subscriptions.timestamp.desc()
+    #         ).all()
+    #         return subscriptions
         
     ### TRACEROUTES ###
     def insert_traceroute(
