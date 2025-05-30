@@ -19,6 +19,7 @@ The listener does accept some basic commands for interfacing with the notificati
     - Paths through the network with their forward and back SNR, and RX/TX times.
     - Gather and analyze error rates for messages (what we see on the notification card on phones)
     - Temperatures and Humidity (if applicable)
+    - If node not found in DB for position updates, request node info.
     - Battery level trend over time? ie: downward trend of battery level over n days.
 ~~- Remove distance() functions. it's not even used anymore.~~
 ~~- When the user runs `!waypoints`, reply with a text message to what waypoints were sent to them.~~
