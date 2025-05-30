@@ -17,6 +17,8 @@ The listener does accept some basic commands for interfacing with the notificati
     - Consider making a "Client" version of the software that doesn't have any major functions, just the db and a web UI
 - If node not found in DB for position updates, request node info.
 - Metrics Alerting Features:
+    - Define new subscription tables and allow users to sub / unsub from them
+    - Give admins the ability to add / remove admin accounts
     - Paths through the network with their forward and back SNR, and RX/TX times.
     - Gather and analyze error rates for messages (what we see on the notification card on phones)
     - Temperatures and Humidity (if applicable)
