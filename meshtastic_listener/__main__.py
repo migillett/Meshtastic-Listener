@@ -71,10 +71,11 @@ class MeshtasticListener:
 
         self.max_channel_utilization = 35.0
 
-        starting_ts = time.time() - timedelta(hours=1).total_seconds()
-        self.node_refresh_ts: float = starting_ts
-        self.traceroute_ts: float = starting_ts
-        self.node_health_ts: float = starting_ts
+        # the minimum timestamps of when the NEXT run of each scheduled task can run
+        now = time.time()
+        self.node_refresh_ts: float = now
+        self.traceroute_ts: float = now
+        self.node_health_ts: float = now
         self.update_interval = timedelta(minutes=update_interval)
         logging.info(f'Update interval set to every {update_interval} minutes')
 
@@ -96,70 +97,7 @@ class MeshtasticListener:
 
         self.__load_local_nodes__(force=True)
 
-    def __human_readable_ts__(self, rxTime: int | None = None) -> str:
-        if rxTime is None:
-            return datetime.now().strftime("%m/%d %I:%M %p")
-        else:
-            return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
-    
-    def __get_channel_utilization__(self) -> float:
-        device_metrics = self.interface.getMyNodeInfo()
-        if device_metrics is not None:
-            current_utilization = float(device_metrics.get('deviceMetrics', {}).get('channelUtilization', 0.0))
-            logging.info(f'Current channel utilization: {current_utilization}')
-            return current_utilization
-        else:
-            logging.error('Unable to get device metrics from node')
-            return 0.0
-
-    def __notify_admins__(self, message: str) -> None:
-        admin_nodes = self.db.get_active_admin_nodes()
-        if admin_nodes is not None and len(admin_nodes) > 0:
-            for admin_node in admin_nodes:
-                self.db.insert_notification(
-                    to_id=admin_node.nodeNum,
-                    message=message
-                )
-            logging.info(f"Queued notification to {len(admin_nodes)} admin nodes: {message}")
-
-    def __load_local_nodes__(self, force: bool = False) -> None:
-        now = time.time()
-        if (now - self.node_refresh_ts > self.update_interval.total_seconds() or force):
-            if self.interface.nodes is None:
-                logging.error(f'Interface reports no Nodes. Unable to load local nodes to DB.')
-            else:
-                for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
-                    if self.local_node_id == node.num:
-                        node.isHost = True
-                        node.hostSoftwareVersion = self.version
-                    self.db.insert_node(node=node)
-            self.node_refresh_ts = now
-
-    def __check_node_health__(self) -> None:
-        '''
-        Using the software host node ID, pull the last n hours of metrics and see what general trends are
-        We'll use this to trigger alerts for items such as:
-            - Gather and analyze error rates for messages (what we see on the notification card on phones)
-            - TODO: Paths through the network with their forward and back SNR, and RX/TX times.
-            - TODO: Temperatures and Humidity (if applicable)
-            - TODO: Battery level trend over time? ie: downward trend of battery level over n days.
-        '''
-        now = time.time()
-        if now < self.node_health_ts:
-            return
-        
-        # TODO - eventually add a way to monitor multiple nodes at once with a one to many relationship of admins to those nodes
-
-        transmission_stats = self.db.get_transmission_metrics(
-            node_num=self.local_node_id,
-            since_ts=int(time.time() - timedelta(days=1).total_seconds())
-        )
-        avg_ch_usage = mean([x.airUtilTx for x in transmission_stats if isinstance(x.airUtilTx, float)])
-        if avg_ch_usage >= self.max_channel_utilization:
-            self.__notify_admins__(f'{self.__human_readable_ts__()}\nDetected high channel usage for {self.interface.getLongName()}: {round(avg_ch_usage, 4)}')
-
-        self.node_health_ts = now
-
+    ### UTILITY FUNCTIONS
     def __send_messages__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
         # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
@@ -190,7 +128,100 @@ class MeshtasticListener:
         log_insert = f"node {node_num}" if str(shortname) == str(node_num) else f"{shortname} ({node_num})"
 
         logger(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi, {snr} rxSNR): {json.dumps(packet)}")
+
+    def __human_readable_ts__(self, rxTime: int | None = None) -> str:
+        if rxTime is None:
+            return datetime.now().strftime("%m/%d %I:%M %p")
+        else:
+            return datetime.fromtimestamp(rxTime).strftime("%m/%d %I:%M %p")
     
+    def __get_channel_utilization__(self) -> float:
+        device_metrics = self.interface.getMyNodeInfo()
+        if device_metrics is not None:
+            current_utilization = float(device_metrics.get('deviceMetrics', {}).get('channelUtilization', 0.0))
+            logging.info(f'Current channel utilization: {current_utilization}')
+            return current_utilization
+        else:
+            logging.error('Unable to get device metrics from node')
+            return 0.0
+
+    def __sanitize_packet__(self, packet: dict) -> dict:
+        response = {}
+        for key in packet:
+            if isinstance(packet[key], bytes) or key == 'raw':
+                logging.debug(f'Dropping raw bytes from packet: {key}:{packet[key]}')
+            elif isinstance(packet[key], dict):
+                response[key] = self.__sanitize_packet__(packet[key])
+            else:
+                response[key] = packet[key]
+        return response
+
+    ### SCHEDULED TASKS ###
+    def __load_local_nodes__(self, force: bool = False) -> None:
+        now = time.time()
+        if self.node_refresh_ts <= now or force:
+            if self.interface.nodes is None:
+                logging.error(f'Interface reports no Nodes. Unable to load local nodes to DB.')
+            else:
+                for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
+                    if self.local_node_id == node.num:
+                        node.isHost = True
+                        node.hostSoftwareVersion = self.version
+                    self.db.insert_node(node=node)
+            self.node_refresh_ts = now + self.update_interval.total_seconds()
+
+    def __traceroute_upstream__(self, max_hops: int = 5) -> None:
+        '''
+        runs a traceroute to nearby infrastructure nodes on a cron job
+        '''
+        now = time.time()
+        # send traceroutes to nearby routers every n minutes
+        if self.traceroute_ts <= now:
+            if self.__get_channel_utilization__() > self.max_channel_utilization:
+                logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
+                self.traceroute_ts = now + timedelta(minutes=15).total_seconds()
+                return None
+            
+            target = self.db.select_traceroute_target(
+                fromId=self.local_node_id,
+                maxHops=max_hops
+            )
+            if not target:
+                logging.info("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
+                self.traceroute_ts = now + timedelta(hours=1).total_seconds()
+                return None
+            else:
+                try:
+                    logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")
+                    self.db.insert_traceroute_attempt(toId=target.nodeNum)
+                    self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=max_hops)
+                except MeshInterface.MeshInterfaceError as e:
+                    logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
+            self.traceroute_ts = now + self.update_interval.total_seconds()
+
+    def __check_node_health__(self) -> None:
+        '''
+        Using the software host node ID, pull the last n hours of metrics and see what general trends are
+        We'll use this to trigger alerts for items such as:
+            - Gather and analyze error rates for messages (what we see on the notification card on phones)
+            - TODO: Paths through the network with their forward and back SNR, and RX/TX times.
+            - TODO: Temperatures and Humidity (if applicable)
+            - TODO: Battery level trend over time? ie: downward trend of battery level over n days.
+        '''
+        now = time.time()
+        if self.node_health_ts <= now:
+            # TODO - eventually add a way to monitor multiple nodes at once with a one to many relationship of admins to those nodes
+            transmission_stats = self.db.get_transmission_metrics(
+                node_num=self.local_node_id,
+                since_ts=int(time.time() - timedelta(days=1).total_seconds())
+            )
+            avg_ch_usage = mean([x.airUtilTx for x in transmission_stats if isinstance(x.airUtilTx, float)])
+            if avg_ch_usage >= self.max_channel_utilization:
+                self.__notify_admins__(f'{self.__human_readable_ts__()}\nDetected high channel usage for {self.interface.getLongName()}: {round(avg_ch_usage, 4)}')
+
+            self.node_health_ts = now + self.update_interval.total_seconds()
+
+    ### PACKET HANDLERS ###
     def __handle_text_message__(self, packet: dict) -> None:
         self.__print_packet_received__(logging.info, packet)
 
@@ -330,35 +361,6 @@ class MeshtasticListener:
         except ItemNotFound as e:
             logging.warning(e)
 
-    def __traceroute_upstream__(self, max_hops: int = 5) -> None:
-        '''
-        runs a traceroute to nearby infrastructure nodes on a cron job
-        '''
-        now = time.time()
-        # send traceroutes to nearby routers every n minutes
-        if now - self.traceroute_ts > self.update_interval.total_seconds():
-            if self.__get_channel_utilization__() > self.max_channel_utilization:
-                logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
-                self.traceroute_ts = now + timedelta(minutes=15).total_seconds()
-                return None
-            
-            target = self.db.select_traceroute_target(
-                fromId=self.local_node_id,
-                maxHops=max_hops
-            )
-            if not target:
-                logging.info("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
-                self.traceroute_ts = now + timedelta(hours=1).total_seconds()
-                return None
-            else:
-                try:
-                    logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")
-                    self.db.insert_traceroute_attempt(toId=target.nodeNum)
-                    self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=max_hops)
-                except MeshInterface.MeshInterfaceError as e:
-                    logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
-            self.traceroute_ts = now
-
     def __handle_neighbor_update__(self, packet: dict) -> None:
         neighbor_info = packet.get('decoded', {}).get('neighborinfo', {})
         self.__print_packet_received__(logging.info, packet)
@@ -389,6 +391,17 @@ class MeshtasticListener:
         else:
             logging.info(f'Waypoint packet received from non-admin node: {self.db.get_shortname(sender)}. Ignoring.')
 
+    ### NOTIFICATIONS ###
+    def __notify_admins__(self, message: str) -> None:
+        admin_nodes = self.db.get_active_admin_nodes()
+        if admin_nodes is not None and len(admin_nodes) > 0:
+            for admin_node in admin_nodes:
+                self.db.insert_notification(
+                    to_id=admin_node.nodeNum,
+                    message=message
+                )
+            logging.info(f"Queued notification to {len(admin_nodes)} admin nodes: {message}")
+            
     def __trigger_notifications__(self, node_num: int, lookback_days: int = 3) -> None:
         pending_notifications = self.db.get_pending_notifications(
             to_id=node_num,
@@ -422,18 +435,8 @@ class MeshtasticListener:
             logging.debug(f"Received ROUTER_APP packet with no valid requestId. Ignoring.")
             return
         self.db.mark_notification_received(notif_tx_id=request_id)
-
-    def __sanitize_packet__(self, packet: dict) -> dict:
-        response = {}
-        for key in packet:
-            if isinstance(packet[key], bytes) or key == 'raw':
-                logging.debug(f'Dropping raw bytes from packet: {key}:{packet[key]}')
-            elif isinstance(packet[key], dict):
-                response[key] = self.__sanitize_packet__(packet[key])
-            else:
-                response[key] = packet[key]
-        return response
  
+    ### MAIN FUNCTIONS ###
     def __on_receive__(self, packet: dict, interface: MeshInterface | None = None) -> None:
         try:
             if 'encrypted' in packet:
@@ -478,10 +481,7 @@ class MeshtasticListener:
                 case PortNum.ROUTING_APP:
                     # this is how we confirm that a message was received by the notify_node
                     self.__check_notification_received__(packet)
-                case PortNum.STORE_FORWARD_APP:
-                    pass
-                # TODO - define and handle a custom portnum for DB Syncing
-                case PortNum.ADMIN_APP:
+                case PortNum.STORE_FORWARD_APP | PortNum.ADMIN_APP | PortNum.ATAK_PLUGIN:
                     pass
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
