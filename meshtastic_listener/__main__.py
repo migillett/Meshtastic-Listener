@@ -138,7 +138,7 @@ class MeshtasticListener:
     def __get_channel_utilization__(self) -> float:
         device_metrics = self.interface.getMyNodeInfo()
         if device_metrics is not None:
-            current_utilization = float(device_metrics.get('deviceMetrics', {}).get('channelUtilization', 0.0))
+            current_utilization = round(float(device_metrics.get('deviceMetrics', {}).get('channelUtilization', 0.0)), 2)
             logging.info(f'Current channel utilization: {current_utilization}')
             return current_utilization
         else:
