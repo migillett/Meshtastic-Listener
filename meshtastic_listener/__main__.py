@@ -401,7 +401,7 @@ class MeshtasticListener:
                     message=message
                 )
             logging.info(f"Queued notification to {len(admin_nodes)} admin nodes: {message}")
-            
+
     def __trigger_notifications__(self, node_num: int, lookback_days: int = 3) -> None:
         pending_notifications = self.db.get_pending_notifications(
             to_id=node_num,
@@ -489,7 +489,7 @@ class MeshtasticListener:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
         except Exception as e:
             logging.exception(f"Encountered fatal error in main loop: {e}")
-            self.__notify_admins__(f'BBS Encountered a Fatal Error: {str(e)}')
+            self.__notify_admins__(f'Encountered a Fatal Error: {str(e)}')
 
     def __exit__(self, signum, frame) -> None:
         logging.info("Received shutdown signal. Exiting gracefully...")
@@ -529,16 +529,12 @@ if __name__ == "__main__":
         username=environ.get("POSTGRES_USER", 'postgres'),
         password=environ.get("POSTGRES_PASSWORD", 'password'),
         db_name=environ.get("POSTGRES_DB", 'listener_db'),
-        default_categories=[
-            c.title().strip() for c in environ.get("DEFAULT_CATEGORIES", 'Annoucements,General,Events').split(',')
-        ],
     )
 
     cmd_handler = CommandHandler(
         cmd_db=db_object,
         server_node_id=int(interface.localNode.nodeNum),
-        prefix=environ.get("CMD_PREFIX", '!'),
-        bbs_lookback=int(environ.get("BBS_DAYS", 7))
+        prefix=environ.get("CMD_PREFIX", '!')
     )
 
     listener = MeshtasticListener(
