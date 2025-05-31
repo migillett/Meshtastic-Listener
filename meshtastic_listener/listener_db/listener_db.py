@@ -327,7 +327,7 @@ class ListenerDb:
             session.add(OutgoingNotifications(
                 toId=to_id,
                 message=message,
-                timestamp=int(time()),
+                timestamp=int(time())
             ))
             session.commit()
 
