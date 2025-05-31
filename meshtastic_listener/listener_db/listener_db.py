@@ -6,17 +6,21 @@ from typing import Optional
 
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
-    EnvironmentPayload, WaypointPayload, NodeRoles
+    EnvironmentPayload, WaypointPayload, NodeRoles,
+    NodeAlerts
 )
 from meshtastic_listener.listener_db.db_tables import (
     Node, DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
     Traceroute, MessageHistory, OutgoingNotifications, Subscriptions,
-    Neighbor, Waypoints, AdminNodes, AttemptedTraceroutes
+    Neighbor, Waypoints, AdminNodes, AttemptedTraceroutes,
+    NodeAlarmStatus
 )
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import Insert
+from sqlalchemy import func
+from time import time
 
 logger = logging.getLogger(__name__)
 
@@ -245,17 +249,17 @@ class ListenerDb:
             ))
             session.commit()
 
-    def get_transmission_metrics(self, node_num: int, since_ts: int = 0) -> list[TransmissionMetrics]:
+    def get_average_air_util(self, node_num: int, lookback_hours: int = 6) -> float:
+        cutoff_time = int(time() - lookback_hours * 3600)
         with self.session() as session:
-            return session.query(
-                TransmissionMetrics
+            avg_air_util = session.query(
+                func.avg(TransmissionMetrics.airUtilTx)
             ).filter(
-                TransmissionMetrics.nodeNum == node_num,
-                TransmissionMetrics.rxTime >= since_ts
-            ).order_by(
-                TransmissionMetrics.rxTime.asc()
-            ).all()
-    
+                TransmissionMetrics.rxTime >= cutoff_time,
+                TransmissionMetrics.nodeNum == node_num
+            ).scalar()
+            return avg_air_util if avg_air_util is not None else 0.0
+
     def insert_environment_metrics(self, node_num: int, rxTime: int, metrics: EnvironmentPayload) -> None:
         with self.session() as session:
             session.add(EnvironmentMetrics(
@@ -368,6 +372,43 @@ class ListenerDb:
                 notification.received = True
                 session.add(notification)
                 session.commit()
+
+    ### ALERTS ###
+    def get_node_alert_status(self, node_num: int) -> NodeAlerts:
+        with self.session() as session:
+            status = session.query(
+                NodeAlarmStatus
+            ).filter(
+                NodeAlarmStatus.nodeNum == node_num
+            ).first()
+
+            if not status:
+                return NodeAlerts(nodeNum=node_num)
+            return NodeAlerts(**status.__dict__)
+        
+    def update_node_alert_status(self, update_payload: NodeAlerts) -> None:
+        with self.session() as session:
+            stmt = Insert(NodeAlarmStatus).values(
+                nodeNum=update_payload.nodeNum,
+                temperatureAlarm=update_payload.temperatureAlarm,
+                humidityAlarm=update_payload.humidityAlarm,
+                channelUsageAlarm=update_payload.channelUsageAlarm,
+                batteryLevelAlarm=update_payload.batteryLevelAlarm,
+                networkPathAlarm=update_payload.networkPathAlarm,
+                errorRateAlarm=update_payload.networkPathAlarm
+            ).on_conflict_do_update(
+                index_elements=['nodeNum'],
+                set_={
+                    'temperatureAlarm': update_payload.temperatureAlarm,
+                    'humidityAlarm': update_payload.humidityAlarm,
+                    'channelUsageAlarm': update_payload.channelUsageAlarm,
+                    'batteryLevelAlarm': update_payload.batteryLevelAlarm,
+                    'networkPathAlarm': update_payload.networkPathAlarm,
+                    'errorRateAlarm': update_payload.networkPathAlarm
+                }
+            )
+            session.execute(stmt)
+            session.commit()
 
     ### SUBSCRIPTIONS ###
     # def subscribe_to_category(self, node_num: int, category_id: int | None = None) -> None:

@@ -199,26 +199,21 @@ class MeshtasticListener:
                     logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
             self.traceroute_ts = now + self.update_interval.total_seconds()
 
-    def __check_node_health__(self) -> None:
+    def __check_node_health__(self, lookback_hours: int = 6) -> None:
         '''
-        Using the software host node ID, pull the last n hours of metrics and see what general trends are
-        We'll use this to trigger alerts for items such as:
-            - Gather and analyze error rates for messages (what we see on the notification card on phones)
-            - TODO: Paths through the network with their forward and back SNR, and RX/TX times.
-            - TODO: Temperatures and Humidity (if applicable)
-            - TODO: Battery level trend over time? ie: downward trend of battery level over n days.
+        Using the software host node ID, pull the last n hours of metrics and see what general trends are.
         '''
         now = time.time()
         if self.node_health_ts <= now:
-            # TODO - eventually add a way to monitor multiple nodes at once with a one to many relationship of admins to those nodes
-            transmission_stats = self.db.get_transmission_metrics(
-                node_num=self.local_node_id,
-                since_ts=int(time.time() - timedelta(days=1).total_seconds())
-            )
-            avg_ch_usage = mean([x.airUtilTx for x in transmission_stats if isinstance(x.airUtilTx, float)])
-            if avg_ch_usage >= self.max_channel_utilization:
-                self.__notify_admins__(f'{self.__human_readable_ts__()}\nDetected high channel usage for {self.interface.getLongName()}: {round(avg_ch_usage, 4)}')
+            node_alarms = self.db.get_node_alert_status(node_num=self.local_node_id)
+            logging.info(f'Current alert status: {node_alarms.model_dump()}')
 
+            air_usage = self.db.get_average_air_util(node_num=self.local_node_id, lookback_hours=lookback_hours)
+            node_alarms.channelUsageAlarm = air_usage >= self.max_channel_utilization
+            if node_alarms.channelUsageAlarm:
+                self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\nHigh Channel Usage: {air_usage}\nLookback Period: {lookback_hours} hours')
+
+            self.db.update_node_alert_status(node_alarms)
             self.node_health_ts = now + self.update_interval.total_seconds()
 
     ### PACKET HANDLERS ###

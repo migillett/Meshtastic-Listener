@@ -23,6 +23,16 @@ class Decoded(BaseModel):
     bitfield: Optional[int] = None
     text: Optional[str] = ''
 
+
+class NodeAlerts(BaseModel):
+    nodeNum: int
+    temperatureAlarm: bool = False
+    humidityAlarm: bool = False
+    channelUsageAlarm: bool = False
+    batteryLevelAlarm: bool = False
+    networkPathAlarm: bool = False
+    errorRateAlarm: bool = False
+
 class MessageReceived(BaseModel):
     fromId: int
     toId: int
