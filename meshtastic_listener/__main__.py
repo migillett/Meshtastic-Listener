@@ -3,7 +3,6 @@ import sys
 from os import environ, path, mkdir
 from datetime import timedelta, datetime
 from typing import Callable
-from statistics import mean
 import logging
 import json
 import signal
@@ -22,6 +21,7 @@ from meshtastic.serial_interface import SerialInterface
 from meshtastic.protobuf.portnums_pb2 import PortNum
 from meshtastic.mesh_interface import MeshInterface
 import toml
+from threading import Thread
 
 
 # the `/data` directory is for storing logs and .db files
@@ -95,8 +95,6 @@ class MeshtasticListener:
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
 
-        self.__load_local_nodes__(force=True)
-
     ### UTILITY FUNCTIONS
     def __send_messages__(self, text: str, destinationId: int) -> None:
         # splits the input text into chunks of char_limit length
@@ -156,40 +154,37 @@ class MeshtasticListener:
                 response[key] = packet[key]
         return response
 
-    ### SCHEDULED TASKS ###
-    def __load_local_nodes__(self, force: bool = False) -> None:
-        now = time.time()
-        if self.node_refresh_ts <= now or force:
-            if self.interface.nodes is None:
-                logging.error(f'Interface reports no Nodes. Unable to load local nodes to DB.')
-            else:
-                for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
-                    if self.local_node_id == node.num:
-                        node.isHost = True
-                        node.hostSoftwareVersion = self.version
-                    self.db.insert_node(node=node)
-            self.node_refresh_ts = now + self.update_interval.total_seconds()
+    ### SCHEDULED THREADED TASKS ###
+    def __load_local_nodes__(self) -> None:
+        if self.interface.nodes is None:
+            raise MeshInterface.MeshInterfaceError(
+                f'Interface reports no Nodes. Unable to load local nodes to DB.')
+        else:
+            for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
+                if self.local_node_id == node.num:
+                    node.isHost = True
+                    node.hostSoftwareVersion = self.version
+                self.db.insert_node(node=node)
+
+        time.sleep(int(self.update_interval.total_seconds()))
 
     def __traceroute_upstream__(self, max_hops: int = 5) -> None:
         '''
         runs a traceroute to nearby infrastructure nodes on a cron job
         '''
-        now = time.time()
-        # send traceroutes to nearby routers every n minutes
-        if self.traceroute_ts <= now:
-            if self.__get_channel_utilization__() > self.max_channel_utilization:
-                logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
-                self.traceroute_ts = now + timedelta(minutes=15).total_seconds()
-                return None
-            
+        sleep_time = self.update_interval
+        if self.__get_channel_utilization__() > self.max_channel_utilization:
+            logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
+            sleep_time = timedelta(minutes=15)
+        
+        else:
             target = self.db.select_traceroute_target(
                 fromId=self.local_node_id,
                 maxHops=max_hops
             )
             if not target:
                 logging.info("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
-                self.traceroute_ts = now + timedelta(hours=1).total_seconds()
-                return None
+                sleep_time = timedelta(hours=1)
             else:
                 try:
                     logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")
@@ -197,24 +192,24 @@ class MeshtasticListener:
                     self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=max_hops)
                 except MeshInterface.MeshInterfaceError as e:
                     logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
-            self.traceroute_ts = now + self.update_interval.total_seconds()
+
+        time.sleep(int(sleep_time.total_seconds()))
 
     def __check_node_health__(self, lookback_hours: int = 6) -> None:
         '''
         Using the software host node ID, pull the last n hours of metrics and see what general trends are.
         '''
-        now = time.time()
-        if self.node_health_ts <= now:
-            node_alarms = self.db.get_node_alert_status(node_num=self.local_node_id)
-            logging.info(f'Current alert status: {node_alarms.model_dump()}')
+        node_alarms = self.db.get_node_alert_status(node_num=self.local_node_id)
+        logging.info(f'Current alert status: {node_alarms.model_dump()}')
 
-            air_usage = self.db.get_average_air_util(node_num=self.local_node_id, lookback_hours=lookback_hours)
-            node_alarms.channelUsageAlarm = air_usage >= self.max_channel_utilization
-            if node_alarms.channelUsageAlarm:
-                self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\nHigh Channel Usage: {air_usage}\nLookback Period: {lookback_hours} hours')
+        air_usage = self.db.get_average_air_util(node_num=self.local_node_id, lookback_hours=lookback_hours)
+        node_alarms.channelUsageAlarm = air_usage >= self.max_channel_utilization
+        if node_alarms.channelUsageAlarm:
+            self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\nHigh Channel Usage: {air_usage}\nLookback Period: {lookback_hours} hours')
 
-            self.db.update_node_alert_status(node_alarms)
-            self.node_health_ts = now + self.update_interval.total_seconds()
+        self.db.update_node_alert_status(node_alarms)
+
+        time.sleep(int(self.update_interval.total_seconds()))
 
     ### PACKET HANDLERS ###
     def __handle_text_message__(self, packet: dict) -> None:
@@ -462,9 +457,6 @@ class MeshtasticListener:
                     self.__handle_text_message__(packet)
                 case PortNum.TELEMETRY_APP:
                     self.__handle_telemetry__(packet)
-                case PortNum.NODEINFO_APP:
-                    logging.debug(f'NODEINFO_APP packet received from {packet["from"]}. Refreshing local nodes...')
-                    self.__load_local_nodes__(force=True)
                 case PortNum.TRACEROUTE_APP:
                     self.__handle_traceroute__(packet)
                 case PortNum.POSITION_APP:
@@ -476,7 +468,9 @@ class MeshtasticListener:
                 case PortNum.ROUTING_APP:
                     # this is how we confirm that a message was received by the notify_node
                     self.__check_notification_received__(packet)
-                case PortNum.STORE_FORWARD_APP | PortNum.ADMIN_APP | PortNum.ATAK_PLUGIN:
+                case PortNum.STORE_FORWARD_APP | PortNum.ADMIN_APP | PortNum.ATAK_PLUGIN | PortNum.NODEINFO_APP:
+                    # Note: we used to handle NODEINFO_APP packets, but it caused too many pulls of the node DB
+                    # now we're just running it on a n minute cron refresh to local
                     pass
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
@@ -491,25 +485,34 @@ class MeshtasticListener:
         self.interface.close()
         logging.info("====== Meshtastic Listener Exiting ======")
         exit(0)
-    
-    def run(self):
+
+    def run(self) -> None:
         signal.signal(signal.SIGTERM, self.__exit__)
 
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
         logging.info("Subscribed to meshtastic.receive")
         
-        while True:
-            try:
+        threads = [
+            Thread(target=self.__load_local_nodes__, daemon=True),
+            Thread(target=self.__traceroute_upstream__, daemon=True),
+            Thread(target=self.__check_node_health__, daemon=True),
+        ]
+
+        try:
+            for thread in threads:
+                thread.start()
+
+            while True:
                 sys.stdout.flush()
-                self.__load_local_nodes__()
-                self.__traceroute_upstream__()
-                self.__check_node_health__()
                 time.sleep(1)
-            except Exception as e:
-                logging.exception(f"Encountered fatal error in main loop: {e}")
-                self.__notify_admins__(f'BBS Encountered a Fatal Error: {str(e)}')
-            except KeyboardInterrupt:
-                self.__exit__(None, None)
+
+        except Exception as e:
+            logging.exception(f"Encountered fatal error in main loop: {e}")
+            self.__notify_admins__(f'BBS Encountered a Fatal Error: {str(e)}')
+
+        except KeyboardInterrupt:
+            self.__exit__(None, None)
+
 
 if __name__ == "__main__":
     device_ip = environ.get("DEVICE_IP")
@@ -539,5 +542,5 @@ if __name__ == "__main__":
         update_interval=int(environ.get("UPDATE_INTERVAL", 15)),
         admin_nodes=load_node_env_var("ADMIN_NODE_IDS")
     )
-    
+
     listener.run()
