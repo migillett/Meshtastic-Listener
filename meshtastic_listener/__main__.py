@@ -55,7 +55,7 @@ class MeshtasticListener:
             interface: TCPInterface | SerialInterface,
             db_object: ListenerDb,
             cmd_handler: CommandHandler,
-            update_interval: int = 15,
+            update_interval_minutes: int = 15,
             admin_nodes: list[int] | None = None,
         ) -> None:
 
@@ -76,8 +76,8 @@ class MeshtasticListener:
         self.node_refresh_ts: float = now
         self.traceroute_ts: float = now
         self.node_health_ts: float = now
-        self.update_interval = timedelta(minutes=update_interval)
-        logging.info(f'Update interval set to every {update_interval} minutes')
+        self.update_interval = timedelta(minutes=update_interval_minutes)
+        logging.info(f'Update interval set to every {update_interval_minutes} minutes')
 
         # where to send critical service notification messages
         if admin_nodes is not None:
@@ -193,7 +193,7 @@ class MeshtasticListener:
                     maxHops=max_hops
                 )
                 if not target:
-                    logging.info("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
+                    logging.warning("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
                     sleep_time = timedelta(hours=1)
                 else:
                     try:
@@ -201,7 +201,7 @@ class MeshtasticListener:
                         self.db.insert_traceroute_attempt(toId=target.nodeNum)
                         self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=max_hops)
                     except MeshInterface.MeshInterfaceError as e:
-                        logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
+                        logging.warning(f"Failed to send traceroute to {target.nodeNum}: {e}")
 
             time.sleep(int(sleep_time.total_seconds()))
 
@@ -553,7 +553,7 @@ if __name__ == "__main__":
         interface=interface,
         db_object=db_object,
         cmd_handler=cmd_handler,
-        update_interval=int(environ.get("UPDATE_INTERVAL", 15)),
+        update_interval_minutes=int(environ.get("UPDATE_INTERVAL", 10)),
         admin_nodes=load_node_env_var("ADMIN_NODE_IDS")
     )
 
