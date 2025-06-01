@@ -555,7 +555,6 @@ class ListenerDb:
                 Node.lastHeard.desc()
             ).first()
 
-
     ### WAYPOINTS ###
     def insert_waypoint(self, waypoint: WaypointPayload) -> None:
         with self.session() as session:
