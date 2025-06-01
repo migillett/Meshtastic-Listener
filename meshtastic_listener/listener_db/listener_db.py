@@ -47,35 +47,6 @@ class ListenerDb:
         logger.info(f'Connected to postgres database: {hostname}/{db_name}')
 
     ### NODES ###
-    def create_node(self, node: NodeBase) -> None:
-        with self.session() as session:
-            stmt = Insert(Node).values(
-                nodeNum=node.num,
-                longName=node.user.longName,
-                shortName=node.user.shortName,
-                macAddr=node.user.macaddr,
-                hwModel=node.user.hwModel,
-                publicKey=node.user.publicKey,
-                nodeRole=node.user.role,
-                lastHeard=node.lastHeard,
-                hopsAway=node.hopsAway,
-            ).on_conflict_do_update(
-                index_elements=['nodeNum'],
-                set_={
-                    'longName': node.user.longName,
-                    'shortName': node.user.shortName,
-                    'macAddr': node.user.macaddr,
-                    'hwModel': node.user.hwModel,
-                    'publicKey': node.user.publicKey,
-                    'nodeRole': node.user.role,
-                    'lastHeard': node.lastHeard,
-                    'hopsAway': node.hopsAway,
-                }
-            )
-            session.execute(stmt)
-            session.commit()
-            logger.debug(f'Successfully inserted {node.num} into db')
-
     def insert_node(self, node: NodeBase) -> None:
         with self.session() as session:
             stmt = Insert(Node).values(
@@ -92,6 +63,7 @@ class ListenerDb:
                     lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
                     isHost=node.isHost,
+                    isFavorite=node.isFavorite
                     hostSoftwareVersion=node.hostSoftwareVersion,
                 ).on_conflict_do_update(
                     index_elements=['nodeNum'],
@@ -108,6 +80,7 @@ class ListenerDb:
                         'lastHeard': node.lastHeard,
                         'hopsAway': node.hopsAway,
                         'isHost': node.isHost,
+                        'isFavorite': node.isFavorite,
                         'hostSoftwareVersion': node.hostSoftwareVersion,
                     }
                 )
@@ -130,6 +103,7 @@ class ListenerDb:
                     longitude=node.position.longitude,
                     altitude=node.position.altitude,
                     lastHeard=node.lastHeard,
+                    isFavorite=node.isFavorite,
                     hopsAway=node.hopsAway,
                 ).on_conflict_do_update(
                     index_elements=['nodeNum'],
@@ -145,6 +119,7 @@ class ListenerDb:
                         'altitude': node.position.altitude,
                         'lastHeard': node.lastHeard,
                         'hopsAway': node.hopsAway,
+                        'isFavorite': node.isFavorite,
                     }
                 )
 
