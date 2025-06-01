@@ -533,6 +533,7 @@ class ListenerDb:
         Returns 1 node (if any) nodes where role == router | router_late,
         is less than 6 hops away,
         is NOT the current node,
+        was last heard less than 1 week ago
         and has not had a traceroute attempt sent to it in the past 3 hours.
         '''
         with self.session() as session:
