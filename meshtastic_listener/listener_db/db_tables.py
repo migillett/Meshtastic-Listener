@@ -34,6 +34,7 @@ class Node(Base):
     altitude = Column(Float, default=None)
     precisionBits = Column(Integer, default=None)
     hopsAway = Column(Integer, default=None)
+    isFavorite = Column(Boolean, default=False)
     # tells us if 1. the node here is self or 2. if the node is also running this software (TODO)
     isHost = Column(Boolean, default=False)
     hostSoftwareVersion = Column(String(length=15), default=None)

@@ -542,7 +542,7 @@ class ListenerDb:
             return session.query(
                 Node
             ).filter(
-                (Node.nodeRole == NodeRoles.ROUTER.value) | (Node.nodeRole == NodeRoles.ROUTER_LATE.value),
+                (Node.nodeRole == NodeRoles.ROUTER.value) | (Node.nodeRole == NodeRoles.ROUTER_LATE.value) | (Node.isFavorite == True),
                 Node.hopsAway <= maxHops,
                 Node.nodeNum != fromId,
                 Node.lastHeard >= one_week_ago,
