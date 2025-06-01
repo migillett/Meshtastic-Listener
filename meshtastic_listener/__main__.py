@@ -156,60 +156,73 @@ class MeshtasticListener:
 
     ### SCHEDULED THREADED TASKS ###
     def __load_local_nodes__(self) -> None:
-        if self.interface.nodes is None:
-            raise MeshInterface.MeshInterfaceError(
-                f'Interface reports no Nodes. Unable to load local nodes to DB.')
-        else:
-            for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
-                if self.local_node_id == node.num:
-                    node.isHost = True
-                    node.hostSoftwareVersion = self.version
-                self.db.insert_node(node=node)
+        '''
+        Every n minutes, sync the local database of nodes to the node's database
 
-        time.sleep(int(self.update_interval.total_seconds()))
+        This function is designed to run in a thread in a loop.
+        '''
+        while True:
+            if self.interface.nodes is None:
+                raise MeshInterface.MeshInterfaceError(
+                    f'Interface reports no Nodes. Unable to load local nodes to DB.')
+            else:
+                for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
+                    if self.local_node_id == node.num:
+                        node.isHost = True
+                        node.hostSoftwareVersion = self.version
+                    self.db.insert_node(node=node)
+
+            time.sleep(int(self.update_interval.total_seconds()))
+            self.__load_local_nodes__()
 
     def __traceroute_upstream__(self, max_hops: int = 5) -> None:
         '''
         runs a traceroute to nearby infrastructure nodes on a cron job
-        '''
-        sleep_time = self.update_interval
-        if self.__get_channel_utilization__() > self.max_channel_utilization:
-            logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
-            sleep_time = timedelta(minutes=15)
-        
-        else:
-            target = self.db.select_traceroute_target(
-                fromId=self.local_node_id,
-                maxHops=max_hops
-            )
-            if not target:
-                logging.info("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
-                sleep_time = timedelta(hours=1)
-            else:
-                try:
-                    logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")
-                    self.db.insert_traceroute_attempt(toId=target.nodeNum)
-                    self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=max_hops)
-                except MeshInterface.MeshInterfaceError as e:
-                    logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
 
-        time.sleep(int(sleep_time.total_seconds()))
+        This function is designed to run in a thread in a loop.
+        '''
+        while True:
+            sleep_time = self.update_interval
+            if self.__get_channel_utilization__() > self.max_channel_utilization:
+                logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
+                sleep_time = timedelta(minutes=15)
+            
+            else:
+                target = self.db.select_traceroute_target(
+                    fromId=self.local_node_id,
+                    maxHops=max_hops
+                )
+                if not target:
+                    logging.info("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
+                    sleep_time = timedelta(hours=1)
+                else:
+                    try:
+                        logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")
+                        self.db.insert_traceroute_attempt(toId=target.nodeNum)
+                        self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=max_hops)
+                    except MeshInterface.MeshInterfaceError as e:
+                        logging.error(f"Failed to send traceroute to {target.nodeNum}: {e}")
+
+            time.sleep(int(sleep_time.total_seconds()))
 
     def __check_node_health__(self, lookback_hours: int = 6) -> None:
         '''
         Using the software host node ID, pull the last n hours of metrics and see what general trends are.
+
+        This function is designed to run in a thread in a loop.
         '''
-        node_alarms = self.db.get_node_alert_status(node_num=self.local_node_id)
-        logging.info(f'Current alert status: {node_alarms.model_dump()}')
+        while True:
+            node_alarms = self.db.get_node_alert_status(node_num=self.local_node_id)
+            logging.info(f'Current alert status: {node_alarms.model_dump()}')
 
-        air_usage = self.db.get_average_air_util(node_num=self.local_node_id, lookback_hours=lookback_hours)
-        node_alarms.channelUsageAlarm = air_usage >= self.max_channel_utilization
-        if node_alarms.channelUsageAlarm:
-            self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\nHigh Channel Usage: {air_usage}\nLookback Period: {lookback_hours} hours')
+            air_usage = self.db.get_average_air_util(node_num=self.local_node_id, lookback_hours=lookback_hours)
+            node_alarms.channelUsageAlarm = air_usage >= self.max_channel_utilization
+            if node_alarms.channelUsageAlarm:
+                self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\nHigh Channel Usage: {air_usage}\nLookback Period: {lookback_hours} hours')
 
-        self.db.update_node_alert_status(node_alarms)
+            self.db.update_node_alert_status(node_alarms)
 
-        time.sleep(int(self.update_interval.total_seconds()))
+            time.sleep(int(self.update_interval.total_seconds()))
 
     ### PACKET HANDLERS ###
     def __handle_text_message__(self, packet: dict) -> None:
@@ -500,6 +513,7 @@ class MeshtasticListener:
 
         try:
             for thread in threads:
+                # each of the threads contains a while True loop and should run presistently
                 thread.start()
 
             while True:
