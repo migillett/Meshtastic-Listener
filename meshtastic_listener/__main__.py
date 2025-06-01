@@ -368,7 +368,7 @@ class MeshtasticListener:
     def __handle_new_node__(self, node_num: int) -> None:
         if not self.db.get_node(node_num):
             # if we don't see the node in the db, force a dump of nodes from the interface db -> postgres
-            self.__load_local_nodes__(force=True)
+            self.__load_local_nodes__()
 
     def __handle_waypoint__(self, packet: dict) -> None:
         sender = int(packet.get('from', 0))
