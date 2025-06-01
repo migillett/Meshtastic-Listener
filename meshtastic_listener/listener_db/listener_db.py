@@ -63,7 +63,7 @@ class ListenerDb:
                     lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
                     isHost=node.isHost,
-                    isFavorite=node.isFavorite
+                    isFavorite=node.isFavorite,
                     hostSoftwareVersion=node.hostSoftwareVersion,
                 ).on_conflict_do_update(
                     index_elements=['nodeNum'],
