@@ -109,7 +109,7 @@ class Traceroute(Base):
 
 class AttemptedTraceroutes(Base):
     __tablename__ = 'attempted_traceroutes'
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True)
     timestamp  = Column(BigInteger, nullable=False)
     toId = Column(BigInteger, nullable=False)
 

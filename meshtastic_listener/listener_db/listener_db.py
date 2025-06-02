@@ -489,10 +489,11 @@ class ListenerDb:
             )
             session.commit()
 
-    def insert_traceroute_attempt(self, toId: int) -> None:
+    def insert_traceroute_attempt(self, traceroute_id: int, toId: int) -> None:
         with self.session() as session:
             session.add(
                 AttemptedTraceroutes(
+                    id=traceroute_id,
                     timestamp=int(time()),
                     toId=toId
                 )

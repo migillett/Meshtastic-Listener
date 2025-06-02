@@ -6,6 +6,8 @@ from typing import Callable
 import logging
 import json
 import signal
+import re
+import threading
 
 from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
 from meshtastic_listener.commands.cmd_handler import CommandHandler, UnknownCommandError
@@ -19,9 +21,9 @@ from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
 from meshtastic.protobuf.portnums_pb2 import PortNum
+from meshtastic.protobuf.mesh_pb2 import RouteDiscovery
 from meshtastic.mesh_interface import MeshInterface
 import toml
-from threading import Thread
 
 
 # the `/data` directory is for storing logs and .db files
@@ -66,6 +68,8 @@ class MeshtasticListener:
         self.db = db_object
         self.cmd_handler = cmd_handler
         self.char_limit = 200
+        self.shutdown_flag = threading.Event()
+        self.threads: list[threading.Thread] = []
 
         self.local_node_id = self.interface.localNode.nodeNum
 
@@ -154,6 +158,12 @@ class MeshtasticListener:
                 response[key] = packet[key]
         return response
 
+    def __sanitize_string__(self, long_name: str) -> str:
+        '''
+        some node names utilize emojis that don't map to UTF-8 very well.
+        '''
+        return re.sub(r'[^\w\s,]', '', long_name)
+
     ### SCHEDULED THREADED TASKS ###
     def __load_local_nodes__(self) -> None:
         '''
@@ -161,7 +171,7 @@ class MeshtasticListener:
 
         This function is designed to run in a thread in a loop.
         '''
-        while True:
+        while not self.shutdown_flag.is_set():
             if self.interface.nodes is None:
                 raise MeshInterface.MeshInterfaceError(
                     f'Interface reports no Nodes. Unable to load local nodes to DB.')
@@ -181,7 +191,7 @@ class MeshtasticListener:
 
         This function is designed to run in a thread in a loop.
         '''
-        while True:
+        while not self.shutdown_flag.is_set():
             sleep_time = self.update_interval
             if self.__get_channel_utilization__() > self.max_channel_utilization:
                 logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
@@ -196,12 +206,23 @@ class MeshtasticListener:
                     logging.warning("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
                     sleep_time = timedelta(hours=1)
                 else:
-                    try:
-                        logging.info(f"Sending traceroute to node: {target.nodeNum} ({target.longName})")
-                        self.db.insert_traceroute_attempt(toId=target.nodeNum)
-                        self.interface.sendTraceRoute(dest=target.nodeNum, hopLimit=max_hops)
-                    except MeshInterface.MeshInterfaceError as e:
-                        logging.warning(f"Failed to send traceroute to {target.nodeNum}: {e}")
+
+                    logging.info(f"Sending traceroute to node: {target.nodeNum} ({self.__sanitize_string__(str(target.longName))})")
+                    # going custom on this packet since the default traceroute function has a sleep built-in.
+                    r = RouteDiscovery()
+                    response = self.interface.sendData(
+                        r,
+                        destinationId=target.nodeNum,
+                        portNum=PortNum.TRACEROUTE_APP,
+                        wantResponse=True,
+                        onResponse=self.interface.onResponseTraceRoute,
+                        channelIndex=0,
+                        hopLimit=max_hops,
+                    )
+                    self.db.insert_traceroute_attempt(
+                        traceroute_id=response.id,
+                        toId=target.nodeNum
+                    )
 
             time.sleep(int(sleep_time.total_seconds()))
 
@@ -211,18 +232,25 @@ class MeshtasticListener:
 
         This function is designed to run in a thread in a loop.
         '''
-        while True:
-            node_alarms = self.db.get_node_alert_status(node_num=self.local_node_id)
-            logging.info(f'Current alert status: {node_alarms.model_dump()}')
+        while not self.shutdown_flag.is_set():
+            try:
+                node_alarms = self.db.get_node_alert_status(node_num=self.local_node_id)
+                logging.info(f'Current alert status: {node_alarms.model_dump()}')
 
-            air_usage = self.db.get_average_air_util(node_num=self.local_node_id, lookback_hours=lookback_hours)
-            node_alarms.channelUsageAlarm = air_usage >= self.max_channel_utilization
-            if node_alarms.channelUsageAlarm:
-                self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\nHigh Channel Usage: {air_usage}\nLookback Period: {lookback_hours} hours')
+                air_usage = self.db.get_average_air_util(node_num=self.local_node_id, lookback_hours=lookback_hours)
+                node_alarms.channelUsageAlarm = air_usage >= self.max_channel_utilization
+                if node_alarms.channelUsageAlarm:
+                    self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\nHigh Channel Usage: {air_usage}\nLookback Period: {lookback_hours} hours')
 
-            self.db.update_node_alert_status(node_alarms)
+                self.db.update_node_alert_status(node_alarms)
 
-            time.sleep(int(self.update_interval.total_seconds()))
+                time.sleep(int(self.update_interval.total_seconds()))
+
+            except Exception as e:
+                error = f"Exception in __check_node_health__ thread: {e}"
+                logging.exception(error)
+                self.__notify_admins__(error)
+                time.sleep(int(self.update_interval.total_seconds()))
 
     ### PACKET HANDLERS ###
     def __handle_text_message__(self, packet: dict) -> None:
@@ -335,8 +363,10 @@ class MeshtasticListener:
             direct_connection=direct_connection,
         )
 
+        longname_sanitized = self.__sanitize_string__(str(self.db.get_node(packet['from']).longName))
+
         self.__notify_admins__(
-            message=f"rxTime: {self.__human_readable_ts__(packet.get('rxTime', 0))}\nTraceroute from {self.db.get_shortname(packet['from'])}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops}\nDIRECT CONNECT: {direct_connection}"
+            message=f"rxTime: {self.__human_readable_ts__(packet.get('rxTime', 0))}\nTraceroute from {longname_sanitized}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops}\nDIRECT CONNECT: {direct_connection}"
         )
 
     def __handle_position__(self, packet: dict) -> None:
@@ -495,6 +525,11 @@ class MeshtasticListener:
 
     def __exit__(self, signum, frame) -> None:
         logging.info("Received shutdown signal. Exiting gracefully...")
+        self.shutdown_flag.set()
+        # for thread in self.threads:
+        #     logging.info(f'Exiting thread: {thread.name}')
+        #     thread.join(timeout=10)
+        logging.info('All threads cleanly exited.')
         self.interface.close()
         logging.info("====== Meshtastic Listener Exiting ======")
         exit(0)
@@ -504,17 +539,21 @@ class MeshtasticListener:
 
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
         logging.info("Subscribed to meshtastic.receive")
-        
-        threads = [
-            Thread(target=self.__load_local_nodes__, daemon=True),
-            Thread(target=self.__traceroute_upstream__, daemon=True),
-            Thread(target=self.__check_node_health__, daemon=True),
+
+        # Use multiprocessing for CPU-bound tasks, threading for IO-bound
+        # Here, we use multiprocessing.Pool for scheduled tasks
+        # Each task runs in its own process
+
+        self.threads = [
+            threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
+            threading.Thread(target=self.__load_local_nodes__, name='node_db_sync_task', daemon=True),
+            threading.Thread(target=self.__check_node_health__, name='node_healthcheck_task', daemon=True),
         ]
 
         try:
-            for thread in threads:
-                # each of the threads contains a while True loop and should run presistently
+            for thread in self.threads:
                 thread.start()
+                logging.info(f'Started thread: {thread.name}')
 
             while True:
                 sys.stdout.flush()
