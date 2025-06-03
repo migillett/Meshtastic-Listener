@@ -350,7 +350,9 @@ class MeshtasticListener:
             logging.error(f"Unknown telemetry type: {telemetry}")
 
     def __handle_traceroute__(self, packet: dict) -> None:
-        traceroute_details = packet.get('decoded', {}).get('traceroute', {})
+        packet_decoded = packet.get('decoded', {})
+        id = packet_decoded.get('requestId', packet['id'])
+        traceroute_details = packet_decoded.get('traceroute', {})
         
         self.__print_packet_received__(logging.info, packet)
 
@@ -360,7 +362,7 @@ class MeshtasticListener:
         n_forward_hops = len(traceroute_details.get('route', []))
 
         self.db.insert_received_traceroute(
-            id=traceroute_details.get('requestId', packet['id']),
+            id=id,
             fromId=packet['from'],
             toId=packet['to'],
             rxTime=int(time.time()),
