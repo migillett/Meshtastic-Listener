@@ -98,7 +98,7 @@ class EnvironmentMetrics(Base):
 
 class Traceroute(Base):
     __tablename__ = 'traceroutes'
-    tracerouteId = Column(Integer, primary_key=True)
+    id = Column(BigInteger, primary_key=True)
     txTime = Column(BigInteger, nullable=True)
     rxTime = Column(BigInteger, nullable=True)
     fromId = Column(BigInteger, nullable=False)

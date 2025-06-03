@@ -226,7 +226,7 @@ class MeshtasticListener:
                     )
                     self.db.insert_traceroute_attempt(
                         source_node=self.local_node_id,
-                        traceroute_id=response.id,
+                        id=response.id,
                         toId=target.nodeNum
                     )
 
@@ -360,7 +360,7 @@ class MeshtasticListener:
         n_forward_hops = len(traceroute_details.get('route', []))
 
         self.db.insert_received_traceroute(
-            tracerouteId=packet['id'],
+            id=packet['id'],
             fromId=packet['from'],
             toId=packet['to'],
             rxTime=packet['rxTime'],

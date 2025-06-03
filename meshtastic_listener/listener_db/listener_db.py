@@ -485,7 +485,7 @@ class ListenerDb:
     ### TRACEROUTES ###
     def insert_received_traceroute(
             self,
-            tracerouteId: int,
+            id: int,
             fromId: str,
             toId: str,
             rxTime: int,
@@ -494,7 +494,7 @@ class ListenerDb:
             direct_connection: bool) -> None:
         with self.session() as session:
             stmt = Insert(Traceroute).values(
-                tracerouteId=tracerouteId,
+                id=id,
                 rxTime=rxTime,
                 fromId=fromId,
                 toId=toId,
@@ -504,7 +504,7 @@ class ListenerDb:
             ).on_conflict_do_update(
                 # we only have a duplicate id if we initiated the traceroute
                 # if so, we can ignore fromId and toId since we already know that from before
-                index_elements=['tracerouteId'],
+                index_elements=['id'],
                 set_={
                     'rxTime': rxTime,
                     'tracerouteDetails': traceroute_dict,
@@ -515,11 +515,11 @@ class ListenerDb:
             session.execute(stmt)
             session.commit()
 
-    def insert_traceroute_attempt(self, source_node: int, traceroute_id: int, toId: int) -> None:
+    def insert_traceroute_attempt(self, source_node: int, id: int, toId: int) -> None:
         with self.session() as session:
             session.add(
                 Traceroute(
-                    tracerouteId=traceroute_id,
+                    id=id,
                     txTime=int(time()),
                     fromId=source_node,
                     toId=toId,
