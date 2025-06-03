@@ -125,7 +125,7 @@ class MeshtasticListener:
         msg_type = packet.get('portnum', 'UNKNOWN')
 
         shortname = self.db.get_shortname(node_num)
-        log_insert = f"node {node_num}" if str(shortname) == str(node_num) else f"{shortname} ({node_num})"
+        log_insert = f"node {node_num}" if str(shortname) == str(node_num) else f"{node_num} ({shortname})"
 
         logger(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi, {snr} rxSNR): {json.dumps(packet)}")
 
