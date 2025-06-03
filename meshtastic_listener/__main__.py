@@ -363,7 +363,7 @@ class MeshtasticListener:
             id=packet['id'],
             fromId=packet['from'],
             toId=packet['to'],
-            rxTime=packet['rxTime'],
+            rxTime=int(time.time()),
             traceroute_dict=traceroute_details,
             snr_avg=snr_avg,
             direct_connection=direct_connection,
