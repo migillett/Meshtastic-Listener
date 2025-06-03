@@ -220,6 +220,7 @@ class MeshtasticListener:
                         hopLimit=max_hops,
                     )
                     self.db.insert_traceroute_attempt(
+                        source_node=self.local_node_id,
                         traceroute_id=response.id,
                         toId=target.nodeNum
                     )
@@ -354,7 +355,8 @@ class MeshtasticListener:
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
         n_forward_hops = len(traceroute_details.get('route', []))
 
-        self.db.insert_traceroute(
+        self.db.insert_received_traceroute(
+            tracerouteId=packet[id],
             fromId=packet['from'],
             toId=packet['to'],
             rxTime=packet['rxTime'],

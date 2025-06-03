@@ -12,8 +12,7 @@ from meshtastic_listener.data_structures import (
 from meshtastic_listener.listener_db.db_tables import (
     Node, DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
     Traceroute, MessageHistory, OutgoingNotifications, Subscriptions,
-    Neighbor, Waypoints, AdminNodes, AttemptedTraceroutes,
-    NodeAlarmStatus
+    Neighbor, Waypoints, AdminNodes, NodeAlarmStatus
 )
 
 from sqlalchemy import create_engine
@@ -468,8 +467,9 @@ class ListenerDb:
     #         return subscriptions
         
     ### TRACEROUTES ###
-    def insert_traceroute(
+    def insert_received_traceroute(
             self,
+            tracerouteId: int,
             fromId: str,
             toId: str,
             rxTime: int,
@@ -477,25 +477,36 @@ class ListenerDb:
             snr_avg: float,
             direct_connection: bool) -> None:
         with self.session() as session:
-            session.add(
-                Traceroute(
-                    rxTime=rxTime,
-                    fromId=fromId,
-                    toId=toId,
-                    tracerouteDetails=traceroute_dict,
-                    snrAvg=snr_avg,
-                    directConnection=direct_connection,
-                )
+            stmt = Insert(Traceroute).values(
+                tracerouteId=tracerouteId,
+                rxTime=rxTime,
+                fromId=fromId,
+                toId=toId,
+                tracerouteDetails=traceroute_dict,
+                snrAvg=snr_avg,
+                directConnection=direct_connection,
+            ).on_conflict_do_update(
+                # we only have a duplicate id if we initiated the traceroute
+                # if so, we can ignore fromId and toId since we already know that from before
+                index_elements=['tracerouteId'],
+                set_={
+                    'rxTime': rxTime,
+                    'tracerouteDetails': traceroute_dict,
+                    'snr_avg': snr_avg,
+                    'direct_connection': direct_connection
+                }
             )
+            session.execute(stmt)
             session.commit()
 
-    def insert_traceroute_attempt(self, traceroute_id: int, toId: int) -> None:
+    def insert_traceroute_attempt(self, source_node: int, traceroute_id: int, toId: int) -> None:
         with self.session() as session:
             session.add(
-                AttemptedTraceroutes(
-                    id=traceroute_id,
-                    timestamp=int(time()),
-                    toId=toId
+                Traceroute(
+                    tracerouteId=traceroute_id,
+                    txTime=int(time()),
+                    fromId=source_node,
+                    toId=toId,
                 )
             )
             session.commit()
@@ -523,8 +534,8 @@ class ListenerDb:
                 Node.nodeNum != fromId,
                 Node.lastHeard >= one_week_ago,
                 ~Node.nodeNum.in_(
-                    session.query(AttemptedTraceroutes.toId).filter(
-                        AttemptedTraceroutes.timestamp > three_hours_ago
+                    session.query(Traceroute.toId).filter(
+                        Traceroute.rxTime > three_hours_ago,
                     )
                 )
             ).order_by(

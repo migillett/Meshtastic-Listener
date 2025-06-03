@@ -99,19 +99,14 @@ class EnvironmentMetrics(Base):
 class Traceroute(Base):
     __tablename__ = 'traceroutes'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
+    tracerouteId = Column(BigInteger, nullable=True)
+    txTime = Column(BigInteger, nullable=True)
+    rxTime = Column(BigInteger, nullable=True)
     fromId = Column(BigInteger, nullable=False)
     toId = Column(BigInteger, nullable=False)
     tracerouteDetails = Column(JSON, default=None)
     snrAvg = Column(Float, default=None)
     directConnection = Column(Boolean, default=False)
-
-
-class AttemptedTraceroutes(Base):
-    __tablename__ = 'attempted_traceroutes'
-    id = Column(BigInteger, primary_key=True)
-    timestamp  = Column(BigInteger, nullable=False)
-    toId = Column(BigInteger, nullable=False)
 
 
 class MessageHistory(Base):
