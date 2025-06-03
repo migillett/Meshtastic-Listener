@@ -2,7 +2,7 @@ import time
 import sys
 from os import environ, path, mkdir
 from datetime import timedelta, datetime
-from typing import Callable
+from typing import Callable, Optional
 import logging
 import json
 import signal
@@ -73,18 +73,16 @@ class MeshtasticListener:
 
         self.local_node_id = self.interface.localNode.nodeNum
 
-        self.max_channel_utilization = 35.0
+        # utilization >= 25% typically results in packet collisions
+        self.max_channel_utilization = 20.0
 
-        # the minimum timestamps of when the NEXT run of each scheduled task can run
-        now = time.time()
-        self.node_refresh_ts: float = now
-        self.traceroute_ts: float = now
-        self.node_health_ts: float = now
         self.update_interval = timedelta(minutes=update_interval_minutes)
         logging.info(f'Update interval set to every {update_interval_minutes} minutes')
 
         # where to send critical service notification messages
         if admin_nodes is not None:
+            # prevents any removed admins from env vars from still remaining active
+            self.db.disable_admins()
             for node in admin_nodes:
                 if not isinstance(node, int):
                     raise EnvironmentError(f"Invalid admin node ID: {node}. Must be an integer.")
@@ -164,27 +162,33 @@ class MeshtasticListener:
         '''
         return re.sub(r'[^\w\s,]', '', long_name)
 
-    ### SCHEDULED THREADED TASKS ###
+    def __sleep_with_exit__(self, sleep_interval_minutes: Optional[int] = None) -> None:
+        '''
+        Defaults to sleep interval defined by update_interval unless otherwise specified.
+        '''
+        sleepy_time = int(self.update_interval.total_seconds()) if sleep_interval_minutes is None else sleep_interval_minutes * 60
+        for _ in range(sleepy_time):
+            if self.shutdown_flag.is_set():
+                return
+            time.sleep(1)
+
     def __load_local_nodes__(self) -> None:
         '''
-        Every n minutes, sync the local database of nodes to the node's database
+        Runs before __traceroute_upstream__ function.
 
-        This function is designed to run in a thread in a loop.
+        Takes the node's local DB and writes it to postgres.
         '''
-        while not self.shutdown_flag.is_set():
-            if self.interface.nodes is None:
-                raise MeshInterface.MeshInterfaceError(
-                    f'Interface reports no Nodes. Unable to load local nodes to DB.')
-            else:
-                for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
-                    if self.local_node_id == node.num:
-                        node.isHost = True
-                        node.hostSoftwareVersion = self.version
-                    self.db.insert_node(node=node)
+        if self.interface.nodes is None:
+            raise MeshInterface.MeshInterfaceError(
+                f'Interface reports no Nodes. Unable to load local nodes to DB.')
+        else:
+            for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
+                if self.local_node_id == node.num:
+                    node.isHost = True
+                    node.hostSoftwareVersion = self.version
+                self.db.insert_node(node=node)
 
-            time.sleep(int(self.update_interval.total_seconds()))
-            self.__load_local_nodes__()
-
+    ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self, max_hops: int = 5) -> None:
         '''
         runs a traceroute to nearby infrastructure nodes on a cron job
@@ -192,10 +196,11 @@ class MeshtasticListener:
         This function is designed to run in a thread in a loop.
         '''
         while not self.shutdown_flag.is_set():
-            sleep_time = self.update_interval
+            self.__load_local_nodes__()
+
             if self.__get_channel_utilization__() > self.max_channel_utilization:
                 logging.warning(f'Channel utilization is greater than {self.max_channel_utilization}. Waiting for 15 minutes before sending the next traceroute.')
-                sleep_time = timedelta(minutes=15)
+                self.__sleep_with_exit__(sleep_interval_minutes=15)
             
             else:
                 target = self.db.select_traceroute_target(
@@ -204,7 +209,7 @@ class MeshtasticListener:
                 )
                 if not target:
                     logging.warning("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
-                    sleep_time = timedelta(hours=1)
+                    self.__sleep_with_exit__(sleep_interval_minutes=60)
                 else:
 
                     logging.info(f"Sending traceroute to node: {target.nodeNum} ({self.__sanitize_string__(str(target.longName))})")
@@ -225,7 +230,7 @@ class MeshtasticListener:
                         toId=target.nodeNum
                     )
 
-            time.sleep(int(sleep_time.total_seconds()))
+            self.__sleep_with_exit__()
 
     def __check_node_health__(self, lookback_hours: int = 6) -> None:
         '''
@@ -527,10 +532,9 @@ class MeshtasticListener:
     def __exit__(self, signum, frame) -> None:
         logging.info("Received shutdown signal. Exiting gracefully...")
         self.shutdown_flag.set()
-        # for thread in self.threads:
-        #     logging.info(f'Exiting thread: {thread.name}')
-        #     thread.join(timeout=10)
-        logging.info('All threads cleanly exited.')
+        for thread in self.threads:
+            logging.info(f'Exiting thread: {thread.name}')
+            thread.join(timeout=10)
         self.interface.close()
         logging.info("====== Meshtastic Listener Exiting ======")
         exit(0)
@@ -547,7 +551,6 @@ class MeshtasticListener:
 
         self.threads = [
             threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
-            threading.Thread(target=self.__load_local_nodes__, name='node_db_sync_task', daemon=True),
             threading.Thread(target=self.__check_node_health__, name='node_healthcheck_task', daemon=True),
         ]
 

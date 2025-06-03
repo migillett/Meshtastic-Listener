@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 
 router = APIRouter(
     prefix="/traceroutes",
-    tags=["traceroutes"],
+    tags=["Traceroutes"],
     responses={404: {"description": "Not found"}},
 )
 

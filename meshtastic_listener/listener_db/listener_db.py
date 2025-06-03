@@ -183,13 +183,26 @@ class ListenerDb:
     def get_active_admin_nodes(self) -> list[AdminNodes]:
         with self.session() as session:
             return session.query(AdminNodes).filter(AdminNodes.enabled == True).all()
-        
+
+    def disable_admins(self) -> None:
+        with self.session() as session:
+            session.query(AdminNodes).update({AdminNodes.enabled: False})
+            session.commit()
+
     def insert_admin_node(self, node_num: int) -> None:
         with self.session() as session:
             stmt = Insert(AdminNodes).values(
                 nodeNum=node_num,
-                timestamp=int(time())
-            ).on_conflict_do_nothing()
+                timestamp=int(time()),
+                enabled=True
+            ).on_conflict_do_update(
+                index_elements=['nodeNum'],
+                set_={
+                    'enabled': True,
+                    'timestamp': int(time())
+                }
+            )
+            # on conflict, set to enabled
             session.execute(stmt)
             session.commit()
     
