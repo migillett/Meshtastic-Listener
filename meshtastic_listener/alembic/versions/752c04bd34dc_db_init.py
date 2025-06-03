@@ -1,8 +1,8 @@
 """db init
 
-Revision ID: d900b2a42fea
+Revision ID: 752c04bd34dc
 Revises: 
-Create Date: 2025-05-24 13:56:37.281100
+Create Date: 2025-06-03 09:15:11.532223
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'd900b2a42fea'
+revision: str = '752c04bd34dc'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -27,18 +27,6 @@ def upgrade() -> None:
     sa.Column('enabled', sa.Boolean(), nullable=True),
     sa.Column('timestamp', sa.BigInteger(), nullable=True),
     sa.PrimaryKeyConstraint('nodeNum')
-    )
-    op.create_table('bbs_categories',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('description', sa.String(length=200), nullable=True),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('db_hash_table',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('hash_value', sa.String(length=64), nullable=False),
-    sa.Column('timestamp', sa.BigInteger(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('device_metrics',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -80,6 +68,35 @@ def upgrade() -> None:
     sa.Column('snr', sa.Float(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('node_alarm_status',
+    sa.Column('nodeNum', sa.BigInteger(), nullable=False),
+    sa.Column('temperatureAlarm', sa.Boolean(), nullable=True),
+    sa.Column('humidityAlarm', sa.Boolean(), nullable=True),
+    sa.Column('channelUsageAlarm', sa.Boolean(), nullable=True),
+    sa.Column('batteryLevelAlarm', sa.Boolean(), nullable=True),
+    sa.Column('networkPathAlarm', sa.Boolean(), nullable=True),
+    sa.Column('errorRateAlarm', sa.Boolean(), nullable=True),
+    sa.PrimaryKeyConstraint('nodeNum')
+    )
+    op.create_table('nodes',
+    sa.Column('nodeNum', sa.BigInteger(), nullable=False),
+    sa.Column('longName', sa.String(length=100), nullable=True),
+    sa.Column('shortName', sa.String(length=4), nullable=True),
+    sa.Column('macAddr', sa.String(length=100), nullable=True),
+    sa.Column('hwModel', sa.String(length=100), nullable=True),
+    sa.Column('publicKey', sa.String(length=100), nullable=True),
+    sa.Column('nodeRole', sa.String(length=100), nullable=True),
+    sa.Column('lastHeard', sa.BigInteger(), nullable=True),
+    sa.Column('latitude', sa.Float(), nullable=True),
+    sa.Column('longitude', sa.Float(), nullable=True),
+    sa.Column('altitude', sa.Float(), nullable=True),
+    sa.Column('precisionBits', sa.Integer(), nullable=True),
+    sa.Column('hopsAway', sa.Integer(), nullable=True),
+    sa.Column('isFavorite', sa.Boolean(), nullable=True),
+    sa.Column('isHost', sa.Boolean(), nullable=True),
+    sa.Column('hostSoftwareVersion', sa.String(length=15), nullable=True),
+    sa.PrimaryKeyConstraint('nodeNum')
+    )
     op.create_table('outgoing_notifications',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('timestamp', sa.Integer(), nullable=False),
@@ -90,15 +107,24 @@ def upgrade() -> None:
     sa.Column('txId', sa.BigInteger(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('traceroutes',
+    op.create_table('subscriptions',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('rxTime', sa.BigInteger(), nullable=False),
+    sa.Column('nodeNum', sa.BigInteger(), nullable=False),
+    sa.Column('isSubscribed', sa.Boolean(), nullable=True),
+    sa.Column('timestamp', sa.Integer(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('traceroutes',
+    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('txTime', sa.BigInteger(), nullable=True),
+    sa.Column('rxTime', sa.BigInteger(), nullable=True),
     sa.Column('fromId', sa.BigInteger(), nullable=False),
     sa.Column('toId', sa.BigInteger(), nullable=False),
     sa.Column('tracerouteDetails', sa.JSON(), nullable=True),
     sa.Column('snrAvg', sa.Float(), nullable=True),
     sa.Column('directConnection', sa.Boolean(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('id')
     )
     op.create_table('transmission_metrics',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -124,69 +150,22 @@ def upgrade() -> None:
     sa.Column('longitudeI', sa.BigInteger(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('bbs_messages',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('rxTime', sa.BigInteger(), nullable=False),
-    sa.Column('fromId', sa.BigInteger(), nullable=False),
-    sa.Column('toId', sa.BigInteger(), nullable=False),
-    sa.Column('categoryId', sa.Integer(), nullable=False),
-    sa.Column('message', sa.String(length=200), nullable=False),
-    sa.Column('rxSnr', sa.Float(), nullable=False),
-    sa.Column('rxRssi', sa.Integer(), nullable=False),
-    sa.Column('hopStart', sa.Integer(), nullable=False),
-    sa.Column('hopLimit', sa.Integer(), nullable=False),
-    sa.Column('readCount', sa.Integer(), nullable=True),
-    sa.Column('isDeleted', sa.Boolean(), nullable=True),
-    sa.Column('messageHash', sa.String(length=100), nullable=True),
-    sa.ForeignKeyConstraint(['categoryId'], ['bbs_categories.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('nodes',
-    sa.Column('nodeNum', sa.BigInteger(), nullable=False),
-    sa.Column('longName', sa.String(length=100), nullable=True),
-    sa.Column('shortName', sa.String(length=4), nullable=True),
-    sa.Column('macAddr', sa.String(length=100), nullable=True),
-    sa.Column('hwModel', sa.String(length=100), nullable=True),
-    sa.Column('publicKey', sa.String(length=100), nullable=True),
-    sa.Column('nodeRole', sa.String(length=100), nullable=True),
-    sa.Column('lastHeard', sa.BigInteger(), nullable=True),
-    sa.Column('latitude', sa.Float(), nullable=True),
-    sa.Column('longitude', sa.Float(), nullable=True),
-    sa.Column('distance', sa.Float(), nullable=True),
-    sa.Column('altitude', sa.Float(), nullable=True),
-    sa.Column('precisionBits', sa.Integer(), nullable=True),
-    sa.Column('hopsAway', sa.Integer(), nullable=True),
-    sa.Column('selectedCategory', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['selectedCategory'], ['bbs_categories.id'], ),
-    sa.PrimaryKeyConstraint('nodeNum')
-    )
-    op.create_table('subscriptions',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('nodeNum', sa.BigInteger(), nullable=False),
-    sa.Column('categoryId', sa.Integer(), nullable=True),
-    sa.Column('isSubscribed', sa.Boolean(), nullable=True),
-    sa.Column('timestamp', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['categoryId'], ['bbs_categories.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table('subscriptions')
-    op.drop_table('nodes')
-    op.drop_table('bbs_messages')
     op.drop_table('waypoints')
     op.drop_table('transmission_metrics')
     op.drop_table('traceroutes')
+    op.drop_table('subscriptions')
     op.drop_table('outgoing_notifications')
+    op.drop_table('nodes')
+    op.drop_table('node_alarm_status')
     op.drop_table('neighbors')
     op.drop_table('message_history')
     op.drop_table('environment_metrics')
     op.drop_table('device_metrics')
-    op.drop_table('db_hash_table')
-    op.drop_table('bbs_categories')
     op.drop_table('admin_nodes')
     # ### end Alembic commands ###
