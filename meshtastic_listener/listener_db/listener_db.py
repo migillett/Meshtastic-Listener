@@ -527,7 +527,7 @@ class ListenerDb:
         is less than 6 hops away,
         is NOT the current node,
         was last heard less than 1 week ago
-        and has not had a traceroute attempt sent to it in the past 3 hours.
+        and has not had a traceroute attempt (txTime) sent to it in the past 3 hours.
         '''
         with self.session() as session:
             three_hours_ago = int(time() - timedelta(hours=3).total_seconds())
@@ -541,7 +541,7 @@ class ListenerDb:
                 Node.lastHeard >= one_week_ago,
                 ~Node.nodeNum.in_(
                     session.query(Traceroute.toId).filter(
-                        Traceroute.rxTime > three_hours_ago,
+                        Traceroute.txTime > three_hours_ago
                     )
                 )
             ).order_by(

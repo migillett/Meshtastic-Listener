@@ -245,13 +245,12 @@ class MeshtasticListener:
 
                 self.db.update_node_alert_status(node_alarms)
 
-                time.sleep(int(self.update_interval.total_seconds()))
-
             except Exception as e:
                 error = f"Exception in __check_node_health__ thread: {e}"
                 logging.exception(error)
                 self.__notify_admins__(error)
-                time.sleep(int(self.update_interval.total_seconds()))
+
+            time.sleep(int(self.update_interval.total_seconds()))
 
     ### PACKET HANDLERS ###
     def __handle_text_message__(self, packet: dict) -> None:
@@ -356,7 +355,7 @@ class MeshtasticListener:
         n_forward_hops = len(traceroute_details.get('route', []))
 
         self.db.insert_received_traceroute(
-            tracerouteId=packet[id],
+            tracerouteId=packet['id'],
             fromId=packet['from'],
             toId=packet['to'],
             rxTime=packet['rxTime'],
