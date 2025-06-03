@@ -358,9 +358,9 @@ class MeshtasticListener:
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
         n_forward_hops = len(traceroute_details.get('route', []))
-
+        
         self.db.insert_received_traceroute(
-            id=packet['id'],
+            id=traceroute_details.get('requestId', packet['id']),
             fromId=packet['from'],
             toId=packet['to'],
             rxTime=int(time.time()),
