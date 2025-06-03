@@ -508,8 +508,8 @@ class ListenerDb:
                 set_={
                     'rxTime': rxTime,
                     'tracerouteDetails': traceroute_dict,
-                    'snr_avg': snr_avg,
-                    'direct_connection': direct_connection
+                    'snrAvg': snr_avg,
+                    'directConnection': direct_connection
                 }
             )
             session.execute(stmt)
