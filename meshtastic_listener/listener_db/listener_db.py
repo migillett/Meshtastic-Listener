@@ -159,7 +159,10 @@ class ListenerDb:
     
     def calculate_center_coordinates(self) -> tuple[float, float]:
         with self.session() as session:
-            nodes = session.query(Node).filter(Node.latitude.isnot(None), Node.longitude.isnot(None)).all()
+            nodes = session.query(Node).filter(Node.isHost == True).all()
+            if nodes is None:
+                nodes = session.query(Node).filter(Node.latitude.isnot(None), Node.longitude.isnot(None)).all()
+            
             if not nodes:
                 return 0.0, 0.0
 
