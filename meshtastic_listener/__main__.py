@@ -255,7 +255,7 @@ class MeshtasticListener:
                 logging.exception(error)
                 self.__notify_admins__(error)
 
-            time.sleep(int(self.update_interval.total_seconds()))
+            self.__sleep_with_exit__()
 
     ### PACKET HANDLERS ###
     def __handle_text_message__(self, packet: dict) -> None:
@@ -358,7 +358,7 @@ class MeshtasticListener:
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
         n_forward_hops = len(traceroute_details.get('route', []))
-        
+
         self.db.insert_received_traceroute(
             id=traceroute_details.get('requestId', packet['id']),
             fromId=packet['from'],
