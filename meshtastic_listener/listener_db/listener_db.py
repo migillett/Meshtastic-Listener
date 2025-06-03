@@ -513,7 +513,13 @@ class ListenerDb:
 
     def retrieve_traceroute_results(self) -> list[Traceroute]:
         with self.session() as session:
-            return session.query(Traceroute).order_by(Traceroute.rxTime.desc()).all()
+            return session.query(
+                Traceroute
+            ).filter(
+                Traceroute.tracerouteDetails.isnot(None)
+            ).order_by(
+                Traceroute.rxTime.desc()
+            ).all()
 
     def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
         '''
