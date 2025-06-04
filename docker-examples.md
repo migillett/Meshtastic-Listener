@@ -1,13 +1,13 @@
 # Docker-Compose Examples
 
-I've included a few docker-compose examples for how to run the Meshtastic-Listener BBS alongside other services.
+I've included a few docker-compose examples for how to run the Meshtastic-Listener alongside other services.
 
 > [!TIP]
 > Make sure you rename your `secrets_example.env` either to `.env` or rename the `.env` file below to make sure you're pulling in the correct file. I'd also recommend modify the permissions of this file to something like `chmod 600 ./.env` to prevent any unwanted eyes at your configuration and passwords.
 
 ## Image Tags
 There are 2 main docker image tags for this repo:
-- `main` - The most current "stable" branch of the BBS.
+- `main` - The most current "stable" branch of the Meshtastic Listener.
 - `developing` - Where I do my development work. Unstable, but the cutting edge of what's currently being worked on. I wouldn't use `latest` as that might be a little unreliable.
 
 ## Full-Stack with Meshtasticd Firmware

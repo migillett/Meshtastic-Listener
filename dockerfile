@@ -33,5 +33,5 @@ RUN pip3 install --user poetry && poetry install --only main
 HEALTHCHECK --interval=30s --timeout=3s \
     CMD [ "$(id -u)" -ne 0 ] || exit 1
 
-# run the listener
-CMD [ "./meshtastic_listener/entrypoint.sh" ]
+CMD poetry run alembic upgrade head && \
+    poetry run python -m meshtastic_listener

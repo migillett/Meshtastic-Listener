@@ -30,6 +30,21 @@ services:
       start_period: 80s
     restart: unless-stopped
 
+  # This is optional. just lets you have an API for viewing a map
+  listener_api:
+    depends_on:
+      listener_db:
+        condition: service_healthy
+    container_name: listener_api
+    user: "1000:1000"
+    image: michaelgillett/meshtastic-listener:main
+    command: [ "poetry", "run", "python", "-m", "meshtastic_listener.api" ]
+    ports:
+      - 8000:8000
+    env_file:
+      - .env
+    restart: unless-stopped
+
   adminer:
     image: adminer
     container_name: adminer

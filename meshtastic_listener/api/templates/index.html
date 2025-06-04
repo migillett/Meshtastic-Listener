@@ -1,0 +1,224 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meshtastic Listener</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style type="text/css">
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script src="{{ url_for('static', path='/OpenLayers/OpenLayers.js') }}"></script>
+
+    <script src="{{ url_for('static', path='/leaflet-color-marker/js/leaflet-color-markers.js') }}"></script>
+
+    <script>
+        let map
+        let layer
+
+        // https://github.com/pointhi/leaflet-color-markers
+        var blueIcon = new L.Icon({
+            iconUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-icon-2x-blue.png') }}",
+            shadowUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-shadow.png') }}",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        var redIcon = new L.Icon({
+            iconUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-icon-2x-red.png') }}",
+            shadowUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-shadow.png') }}",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        var yellowIcon = new L.Icon({
+            iconUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-icon-2x-yellow.png') }}",
+            shadowUrl: "{{ url_for('static', path='/leaflet-color-marker/img/marker-shadow.png') }}",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        let markersById = new Map();
+
+        // TODO - get current node ID from init position to mark it yellow on the map
+        function getInitPosition() {
+            return fetch('/utils/map_center')
+                .then(response => response.json())
+                .then(data => {
+                    return data;
+                })
+                .catch(error => {
+                    console.error('Error fetching initial position:', error);
+                    return {
+                        longitude: 0.0,
+                        latitude: 0.0
+                    };
+                });
+        }
+
+        async function retrieveAllNodes(limit = 50) {
+            let allNodes = [];
+            let page = 0;
+            let hasMoreData = true;
+
+            while (hasMoreData) {
+                try {
+                    const dateLimit = Math.floor((Date.now() / 1000) - (1 * 24 * 60 * 60)); // n days ago
+                    const data = await fetch(`/nodes/?page=${page}&limit=${limit}&lastHeard=${dateLimit}`)
+                        .then(response => response.json());
+                    allNodes = allNodes.concat(data.nodes || []);
+                    hasMoreData = data.total > allNodes.length;
+                    page++;
+                } catch (error) {
+                    console.error('Error fetching node positions:', error);
+                    hasMoreData = false;
+                }
+            }
+            console.log(`Retrieved ${allNodes.length} nodes`);
+            return allNodes;
+        }
+
+        async function getTraceroutes() {
+            try {
+                const tracerouteData = await fetch("/traceroutes/")
+                    .then(response => response.json());
+                console.log(`Retrieved ${tracerouteData.length} traceroute entries`)
+                return tracerouteData;
+            } catch (error) {
+                console.error('Error fetching traceroute data:', error);
+            }
+        }
+
+        function retrieveCoordsFromMarker(markerId) {
+            let marker = markersById.get(markerId)
+            if (marker != null) {
+                return marker.getLatLng();
+            } else {
+                retu
+            }
+        }
+
+        function drawTraceroutes(tracerouteData) {
+            var polylineCoords = []
+            tracerouteData.forEach(tracerouteData => {
+                try {
+                    var x1 = markersById.get(tracerouteData.fromId).nodeData;
+                    tracerouteData.routeTowards.forEach(nodeNum => {
+                        var x2 = markersById.get(nodeNum).nodeData;
+                        polylineCoords.push([x1.latitude, x1.longitude], [x2.latitude, x2.longitude])
+                        x1 = x2;
+                    })
+                } catch (TypeError) {
+                    console.error(`Node id does not have coordinates: ${tracerouteData.fromId}`)
+                }
+            })
+            var polyLine = L.polyline(polylineCoords, { color: 'blue' }).addTo(map);
+        }
+
+        function addMarkersToMap(nodes) {
+            const now = new Date();
+            var added = 0;
+            nodes.forEach(node => {
+                if (node.latitude && node.longitude) {
+
+                    let markerOptions = {
+                        title: node.longName,
+                        draggable: false,
+                        icon: blueIcon
+                    };
+
+                    if (node.nodeRole == 'ROUTER' || node.nodeRole == 'ROUTER_LATE') {
+                        markerOptions.icon = redIcon
+                    } else if (node.isHost) {
+                        markerOptions.icon = yellowIcon
+                    }
+
+                    var marker = L.marker([node.latitude, node.longitude], markerOptions).addTo(map);
+                    var diff = Math.floor((now.getTime() - (node.lastHeard * 1000)) / 360000);
+                    var units = 'Minutes';
+
+                    if (diff >= 60) {
+                        diff = Math.floor(diff / 60);
+                        units = 'Hours';
+                    }
+
+                    marker.bindPopup(
+                        `<h3>${node.longName}</h3>
+                        <table>
+                            <tr><th>Short Name</th><td>${node.shortName}</td></tr>
+                            <tr><th>Node Number</th><td>${node.nodeNum}</td></tr>
+                            <tr><th>Hardware</th><td>${node.hwModel}</td></tr>
+                            <tr><th>Role</th><td>${node.nodeRole}</td></tr>
+                            <tr><th>Hops</th><td>${node.hopsAway}</td></tr>
+                            <tr><th>Last Heard</th><td>${diff} ${units}</td></tr>
+                            ${node.isHost ? `<tr><th>Monitor Version</th><td>${node.hostSoftwareVersion}</td></tr>` : ""}
+                        </table>`
+                    );
+
+                    marker.on('mouseover', function (ev) { ev.target.openPopup(); })
+                    marker.addTo(map)
+
+                    markersById.set(node.nodeNum, { marker: marker, nodeData: node })
+                    added++
+                }
+            });
+            console.log(`Successfully added ${added} nodes with positions to the map`);
+        }
+
+        function init() {
+            getInitPosition().then(initPosition => {
+                console.log('Initializing map with position:', initPosition);
+                map = L.map('map').setView([initPosition.latitude, initPosition.longitude], 10);
+                layer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                });
+                map.addLayer(layer);
+            }).catch(error => {
+                console.error('Error initializing map:', error);
+            });
+
+            retrieveAllNodes().then(nodes => {
+                addMarkersToMap(nodes);
+                getTraceroutes().then(tracerouteData => {
+                    drawTraceroutes(tracerouteData);
+                }).catch(error => {
+                    console.error(error)
+                })
+            }).catch(error => {
+                console.error(error);
+            });
+        }
+
+        window.onload = init;
+
+        // reload every 5 minutes
+        setTimeout(() => {
+            console.log("Refreshing page...")
+            window.location.reload();
+        }, 5 * 60 * 1000);
+    </script>
+</head>
+
+<body>
+    <div id="map"></div>
+</body>
+
+</html>

@@ -1,11 +1,12 @@
-from os import path, listdir
+from os import path, listdir, environ
 import json
 from time import time
 from dataclasses import dataclass
 
 from meshtastic_listener.__main__ import MeshtasticListener
-from meshtastic_listener.cmd_handler import CommandHandler
-from meshtastic_listener.listener_db.listener_db import ListenerDb, Base
+from meshtastic_listener.commands.cmd_handler import CommandHandler
+from meshtastic_listener.listener_db.db_tables import Base
+from meshtastic_listener.listener_db.listener_db import ListenerDb
 from meshtastic.mesh_interface import MeshInterface
 
 import pytest
@@ -43,7 +44,7 @@ class TestInterface(MeshInterface):
     def close(self) -> None:
         pass
 
-    def sendText(self, text=str, destinationId=int, channelIndex=int, wantAck: bool = False) -> dict:
+    def sendText(self, text=str, destinationId=int, channelIndex=int, wantAck: bool = False) -> FakeMeshPacket:
         print(f'Sending text:\n\n{text}\n\nto {destinationId} on channel {channelIndex}')
         if self.expected_response is not None:
             assert text.startswith(self.expected_response), f'Expected: {self.expected_response} | Received: {text}'
@@ -56,11 +57,11 @@ class TestInterface(MeshInterface):
 test_interface = TestInterface()
 
 db = ListenerDb(
-    hostname='127.0.0.1',
-    username='postgres',
-    password='listener_db',
-    db_name='listener_db'
-)
+        hostname=environ.get("POSTGRES_HOSTNAME", "listener_db"),
+        username=environ.get("POSTGRES_USER", 'postgres'),
+        password=environ.get("POSTGRES_PASSWORD", 'password'),
+        db_name=environ.get("POSTGRES_DATABASE", 'listener_db'),
+    )
 
 cmd_handler = CommandHandler(
     prefix='!',
@@ -83,9 +84,6 @@ def test_listener():
                 print(f'testing file: {file}')
                 message_received = json.load(json_file)
                 listener.__on_receive__(packet=message_received)
-
-    # clear out all messages sent to the bbs
-    db.soft_delete_bbs_messages()
     
     # a list of commands and the expected response from the BBS
     # we'll do a check of response.startswith(expected_response) for each command
@@ -94,32 +92,21 @@ def test_listener():
         ('!h', ''), # this message will be long, so just check for a basic response
         ('!t', 'RX HOPS:'),
         ('!w', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above
-        ('!c', 'Categories:'),
-        ('!c 1', 'No active BBS messages posted in General'),
-        ('!p posting to general', 'Message posted to'),
-        ('!p posting to category 1', 'Message posted to'),
-        ('!r', 'General:'),
-        ('!c 2', 'No active BBS messages posted in Annoucements'),
-        ('!r', 'No active BBS messages posted in Annoucements'),
-        ('!p posting to category 2', 'Message posted to'),
-        ('!p', 'Message is empty'),
-        ('!r', 'Annoucements:'),
-        ('!c 0', 'Category 0 does not exist'),
-        ('!i', 'Meshtastic Listener BBS'),
+        ('!i', 'Meshtastic Listener'),
 
         # SUBSCRIPTIONS
-        ('!s', 'Subscription Commands:'),
-        ('!s ls', 'You are not subscribed to any categories'),
-        ('!s add a', 'Invalid topic: a. Please specify a valid category number or * to subscribe to all categories.'),
-        ('!s add 0', 'Category 0 does not exist.'),
-        ('!s add 1', 'Successfully subscribed to category 1'),
-        ('!s ls', 'Active Subscriptions'),
-        ('!s add 2', 'Successfully subscribed to category 2'),
-        ('!p posting to category 2', 'Message posted to'),
-        ('!s ls', 'Active Subscriptions'),
-        ('!s rm 1', 'Unsubscribed from category 1'),
-        ('!s rm *', 'Unsubscribed from all topics'),
-        ('!s add *', 'Successfully subscribed to all topics'),
+        # ('!s', 'Subscription Commands:'),
+        # ('!s ls', 'You are not subscribed to any categories'),
+        # ('!s add a', 'Invalid topic: a. Please specify a valid category number or * to subscribe to all categories.'),
+        # ('!s add 0', 'Category 0 does not exist.'),
+        # ('!s add 1', 'Successfully subscribed to category 1'),
+        # ('!s ls', 'Active Subscriptions'),
+        # ('!s add 2', 'Successfully subscribed to category 2'),
+        # ('!p posting to category 2', 'Message posted to'),
+        # ('!s ls', 'Active Subscriptions'),
+        # ('!s rm 1', 'Unsubscribed from category 1'),
+        # ('!s rm *', 'Unsubscribed from all topics'),
+        # ('!s add *', 'Successfully subscribed to all topics'),
     ]
 
     message_received = {
@@ -164,5 +151,6 @@ def run_after_tests():
     yield # wait for tests to finish
     print('Testing complete. Cleaning up db.')
     with db.session() as session:
-        Base.metadata.drop_all(db.engine)
+        for table in reversed(Base.metadata.sorted_tables):
+            session.execute(table.delete())
         session.commit()

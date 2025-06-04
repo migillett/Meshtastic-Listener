@@ -1,5 +1,22 @@
 from typing import Optional
-from pydantic import BaseModel
+from enum import StrEnum
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+class NodeRoles(StrEnum):
+    CLIENT = "CLIENT"
+    CLIENT_MUTE = "CLIENT_MUTE"
+    CLIENT_HIDDEN = "CLIENT_HIDDEN"
+    TRACKER = "TRACKER"
+    LOST_AND_FOUND = "LOST_AND_FOUND"
+    SENSOR = "SENSOR"
+    TAK = "TAK"
+    TAK_TRACKER = "TAK_TRACKER"
+    REPEATER = "REPEATER"
+    ROUTER = "ROUTER"
+    ROUTER_LATE = "ROUTER_LATE"
+    ROUTER_CLIENT = "ROUTER_CLIENT" # RIP router client
 
 class Decoded(BaseModel):
     portnum: str
@@ -15,10 +32,10 @@ class MessageReceived(BaseModel):
     rxRssi: int = 0 # Received Signal Strength Indicator. The higher the better
     hopLimit: Optional[int] = None # Maximum number of hops
     hopStart: Optional[int] = None
-    rxTime: Optional[int] = None
     wantAck: Optional[bool] = None
     publicKey: Optional[str] = None
     pkiEncrypted: Optional[bool] = None
+    rxTime: int = Field(default=int(datetime.now().timestamp()))
 
     def __init__(self, **data):
         data['fromId'] = data.pop('from')
@@ -32,7 +49,7 @@ class User(BaseModel):
     macaddr: Optional[str] = None
     hwModel: Optional[str] = None
     publicKey: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[NodeRoles] = None
 
 class Position(BaseModel):
     latitudeI: Optional[int] = None
@@ -80,13 +97,30 @@ class EnvironmentPayload(BaseModel):
 class NodeBase(BaseModel):
     num: int
     user: User
-    position: Optional[Position] = None
     snr: Optional[float] = None
     lastHeard: Optional[int] = None
-    deviceMetrics: Optional[DevicePayload] = None
-    isFavorite: Optional[bool] = None
+    isFavorite: bool = False
     hopsAway: Optional[int] = None
+    position: Position = Field(default=Position())
+    deviceMetrics: DevicePayload = Field(default=DevicePayload())
+    isFavorite: bool = False
+    isHost: bool = False
+    hostSoftwareVersion: Optional[str] = None
 
-class NeighborSnr(BaseModel):
-    shortName: str
-    snr: float
+class TracerouteStatistics(BaseModel):
+    total: int = 0
+    successes: int = 0
+    avgTraceDuration: float = 0
+
+    def average(self) -> float:
+        return round((self.successes / self.total) * 100, 2)
+
+class NodeHealthCheck(BaseModel):
+    nodeNum: int
+    startTs: int = 0
+    endTs: int = Field(default=int(datetime.now().timestamp()))
+    channelUsage: float = Field(ge=0.0, le=100.0) # percentage
+    TracerouteStatistics: TracerouteStatistics
+
+    def status(self) -> str:
+        return f'NODE HEALTH | Avg Channel Usage: {self.channelUsage}% | Avg Trace Successes: {self.TracerouteStatistics.average()}% | Avg Trace Duration: {self.TracerouteStatistics.avgTraceDuration}'

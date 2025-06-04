@@ -2,27 +2,9 @@ from time import time
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, BigInteger, JSON
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.sql.schema import ForeignKey
 
 Base = declarative_base()
 
-class DbHashTable(Base):
-    __tablename__ = 'db_hash_table'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    hash_value = Column(String(length=64), nullable=False)
-    timestamp = Column(BigInteger, default=int(time()))
-
-
-class BulletinBoardCategory(Base):
-    '''
-    A way to categorize messages on the bulletin board.
-    '''
-    __tablename__ = 'bbs_categories'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(length=100), nullable=False)
-    description = Column(String(length=200), default=None)
 
 class AdminNodes(Base):
     '''
@@ -34,24 +16,6 @@ class AdminNodes(Base):
     description = Column(String(length=200), default=None)
     enabled = Column(Boolean, default=True)
     timestamp = Column(BigInteger, default=int(time()))
-
-class BulletinBoardMessage(Base):
-    __tablename__ = 'bbs_messages'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    fromId = Column(BigInteger, nullable=False)
-    toId = Column(BigInteger, nullable=False)
-    # categoryId always defaults to general unless otherwise specified
-    categoryId = Column(Integer, ForeignKey('bbs_categories.id'), nullable=False, default=1)
-    message = Column(String(length=200), nullable=False)
-    rxSnr = Column(Float, nullable=False)
-    rxRssi = Column(Integer, nullable=False)
-    hopStart = Column(Integer, nullable=False)
-    hopLimit = Column(Integer, nullable=False)
-    readCount = Column(Integer, default=0)
-    isDeleted = Column(Boolean, default=0)
-    messageHash = Column(String(length=100), default=None)
 
 
 class Node(Base):
@@ -67,13 +31,13 @@ class Node(Base):
     lastHeard = Column(BigInteger, default=None)
     latitude = Column(Float, default=None)
     longitude = Column(Float, default=None)
-    distance = Column(Float, default=None)
     altitude = Column(Float, default=None)
     precisionBits = Column(Integer, default=None)
     hopsAway = Column(Integer, default=None)
-    # this allows the user to navigate to a specific category for reading / posting
-    selectedCategory = Column(Integer, ForeignKey('bbs_categories.id'), default=1)
-
+    isFavorite = Column(Boolean, default=False)
+    # tells us if 1. the node here is self or 2. if the node is also running this software (TODO)
+    isHost = Column(Boolean, default=False)
+    hostSoftwareVersion = Column(String(length=15), default=None)
 
     @staticmethod
     def cascade_delete(session, node_num: int) -> None:
@@ -134,8 +98,9 @@ class EnvironmentMetrics(Base):
 
 class Traceroute(Base):
     __tablename__ = 'traceroutes'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
+    id = Column(BigInteger, primary_key=True, unique=True)
+    txTime = Column(BigInteger, nullable=True)
+    rxTime = Column(BigInteger, nullable=True)
     fromId = Column(BigInteger, nullable=False)
     toId = Column(BigInteger, nullable=False)
     tracerouteDetails = Column(JSON, default=None)
@@ -164,16 +129,24 @@ class Neighbor(Base):
     snr = Column(Float, nullable=False)
 
 
+# class NodeAlarmStatus(Base):
+#     __tablename__ = "node_alarm_status"
+#     nodeNum = Column(BigInteger, nullable=False, primary_key=True)
+#     temperatureAlarm = Column(Boolean, default=False)
+#     humidityAlarm = Column(Boolean, default=False)
+#     channelUsageAlarm = Column(Boolean, default=False)
+#     batteryLevelAlarm = Column(Boolean, default=False)
+#     networkPathAlarm = Column(Boolean, default=False)
+#     errorRateAlarm = Column(Boolean, default=False)
+
+
 class Subscriptions(Base):
     __tablename__ = 'subscriptions'
     id = Column(Integer, primary_key=True, autoincrement=True)
     # no foreign key here because the nodeNum is not guaranteed to be in the nodes table
     nodeNum = Column(BigInteger, nullable=False)
-    # if categoryId is None, then the user is subscribed to all notifications
-    categoryId = Column(Integer, ForeignKey('bbs_categories.id'), nullable=True)
     isSubscribed = Column(Boolean, default=True)
     timestamp = Column(Integer, default=int(time()))
-
 
 class OutgoingNotifications(Base):
     __tablename__ = 'outgoing_notifications'
