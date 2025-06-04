@@ -263,13 +263,13 @@ class MeshtasticListener:
                 alert_context = ''
 
                 if health_check_stats.channelUsage >= self.max_channel_utilization:
-                    alert_context += f'High Channel Usage: {health_check_stats.channelUsage}\n'
+                    alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
                 if health_check_stats.TracerouteStatistics.average() <= 40.0:
-                    alert_context += f'High Tracereoute Failures: {health_check_stats.TracerouteStatistics.average()}'
+                    alert_context += f'Low TR Success Rate: {health_check_stats.TracerouteStatistics.average()}%\n'
 
                 if alert_context != '':
-                    self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}\nLookback Period: {lookback_hours} hours')
+                    self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
 
             except Exception as e:
                 error = f"Exception in __check_node_health__ thread: {e}"
