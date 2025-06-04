@@ -265,7 +265,7 @@ class MeshtasticListener:
                 if health_check_stats.channelUsage >= self.max_channel_utilization:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}\n'
 
-                if health_check_stats.TracerouteStatistics.average() <= 40.0:
+                if health_check_stats.TracerouteStatistics.average() <= 25.0:
                     alert_context += f'High Tracereoute Failures: {health_check_stats.TracerouteStatistics.average()}'
 
                 if alert_context != '':
@@ -380,8 +380,6 @@ class MeshtasticListener:
         direct_connection = 'route' not in traceroute_details
         snr_values = traceroute_details.get('snrTowards', []) + traceroute_details.get('snrBack', [])
         snr_avg = sum(snr_values) / len(snr_values) if snr_values else 0
-        n_forward_hops = len(traceroute_details.get('route', []))
-
         self.db.insert_received_traceroute(
             id=id,
             fromId=packet['from'],
@@ -390,12 +388,6 @@ class MeshtasticListener:
             traceroute_dict=traceroute_details,
             snr_avg=snr_avg,
             direct_connection=direct_connection,
-        )
-
-        longname_sanitized = self.__sanitize_string__(str(self.db.get_node(packet['from']).longName))
-
-        self.__notify_admins__(
-            message=f"rxTime: {self.__human_readable_ts__(packet.get('rxTime', 0))}\nTraceroute from {longname_sanitized}\nSNR: {round(snr_avg, 2)} dB\nHOPS: {n_forward_hops}\nDIRECT CONNECT: {direct_connection}"
         )
 
     def __handle_position__(self, packet: dict) -> None:
