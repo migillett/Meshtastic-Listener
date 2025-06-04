@@ -23,16 +23,6 @@ class Decoded(BaseModel):
     bitfield: Optional[int] = None
     text: Optional[str] = ''
 
-
-class NodeAlerts(BaseModel):
-    nodeNum: int
-    temperatureAlarm: bool = False
-    humidityAlarm: bool = False
-    channelUsageAlarm: bool = False
-    batteryLevelAlarm: bool = False
-    networkPathAlarm: bool = False
-    errorRateAlarm: bool = False
-
 class MessageReceived(BaseModel):
     fromId: int
     toId: int
@@ -116,3 +106,21 @@ class NodeBase(BaseModel):
     isFavorite: bool = False
     isHost: bool = False
     hostSoftwareVersion: Optional[str] = None
+
+class TracerouteStatistics(BaseModel):
+    total: int = 0
+    successes: int = 0
+    avgTraceDuration: float = 0
+
+    def average(self) -> float:
+        return round((self.successes / self.total) * 100, 2)
+
+class NodeHealthCheck(BaseModel):
+    nodeNum: int
+    startTs: int = 0
+    endTs: int = Field(default=int(datetime.now().timestamp()))
+    channelUsage: float = Field(ge=0.0, le=100.0) # percentage
+    TracerouteStatistics: TracerouteStatistics
+
+    def status(self) -> str:
+        return f'NODE HEALTH | Avg Channel Usage: {self.channelUsage}% | Avg Trace Successes: {self.TracerouteStatistics.average()}% | Avg Trace Duration: {self.TracerouteStatistics.avgTraceDuration}'

@@ -13,7 +13,8 @@ from meshtastic_listener.listener_db.listener_db import ListenerDb, ItemNotFound
 from meshtastic_listener.commands.cmd_handler import CommandHandler, UnknownCommandError
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
-    DevicePayload, TransmissionPayload, EnvironmentPayload
+    DevicePayload, TransmissionPayload, EnvironmentPayload,
+    NodeHealthCheck
 )
 from meshtastic_listener.utils import coords_int_to_float, load_node_env_var
 
@@ -240,15 +241,35 @@ class MeshtasticListener:
         '''
         while not self.shutdown_flag.is_set():
             try:
-                node_alarms = self.db.get_node_alert_status(node_num=self.local_node_id)
-                logging.info(f'Current alert status: {node_alarms.model_dump()}')
+                now = time.time()
+                lookback_ts = int(now - timedelta(hours=lookback_hours).total_seconds())
 
-                air_usage = self.db.get_average_air_util(node_num=self.local_node_id, lookback_hours=lookback_hours)
-                node_alarms.channelUsageAlarm = air_usage >= self.max_channel_utilization
-                if node_alarms.channelUsageAlarm:
-                    self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\nHigh Channel Usage: {air_usage}\nLookback Period: {lookback_hours} hours')
+                health_check_stats = NodeHealthCheck(
+                    nodeNum=self.local_node_id,
+                    startTs=lookback_ts,
+                    endTs=int(now),
+                    channelUsage=self.db.get_average_air_util(
+                        node_num=self.local_node_id,
+                        lookback_ts=lookback_ts
+                    ),
+                    TracerouteStatistics=self.db.return_traceroute_success_rate(
+                        from_id=self.local_node_id,
+                        lookback_ts=lookback_ts
+                    )
+                )
 
-                self.db.update_node_alert_status(node_alarms)
+                logging.info(health_check_stats.status())
+
+                alert_context = ''
+
+                if health_check_stats.channelUsage >= self.max_channel_utilization:
+                    alert_context += f'High Channel Usage: {health_check_stats.channelUsage}\n'
+
+                if health_check_stats.TracerouteStatistics.average() >= 40.0:
+                    alert_context += f'High Tracereoute Failures: {health_check_stats.TracerouteStatistics.average()}'
+
+                if alert_context != '':
+                    self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{insert}\nLookback Period: {lookback_hours} hours')
 
             except Exception as e:
                 error = f"Exception in __check_node_health__ thread: {e}"
@@ -553,7 +574,7 @@ class MeshtasticListener:
 
         self.threads = [
             threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
-            threading.Thread(target=self.__check_node_health__, name='node_healthcheck_task', daemon=True),
+            threading.Thread(target=self.__check_node_health__, name='health_check_task', daemon=True),
         ]
 
         try:

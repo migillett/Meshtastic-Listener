@@ -7,12 +7,12 @@ from typing import Optional
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
     EnvironmentPayload, WaypointPayload, NodeRoles,
-    NodeAlerts
+    TracerouteStatistics
 )
 from meshtastic_listener.listener_db.db_tables import (
     Node, DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
     Traceroute, MessageHistory, OutgoingNotifications, Subscriptions,
-    Neighbor, Waypoints, AdminNodes, NodeAlarmStatus
+    Neighbor, Waypoints, AdminNodes
 )
 
 from sqlalchemy import create_engine
@@ -239,16 +239,15 @@ class ListenerDb:
             ))
             session.commit()
 
-    def get_average_air_util(self, node_num: int, lookback_hours: int = 6) -> float:
-        cutoff_time = int(time() - lookback_hours * 3600)
+    def get_average_air_util(self, node_num: int, lookback_ts: int) -> float:
         with self.session() as session:
             avg_air_util = session.query(
                 func.avg(TransmissionMetrics.airUtilTx)
             ).filter(
-                TransmissionMetrics.rxTime >= cutoff_time,
+                TransmissionMetrics.rxTime >= lookback_ts,
                 TransmissionMetrics.nodeNum == node_num
             ).scalar()
-            return avg_air_util if avg_air_util is not None else 0.0
+            return round(avg_air_util, 2) if avg_air_util is not None else 0.0
 
     def insert_environment_metrics(self, node_num: int, rxTime: int, metrics: EnvironmentPayload) -> None:
         with self.session() as session:
@@ -362,43 +361,6 @@ class ListenerDb:
                 notification.received = True
                 session.add(notification)
                 session.commit()
-
-    ### ALERTS ###
-    def get_node_alert_status(self, node_num: int) -> NodeAlerts:
-        with self.session() as session:
-            status = session.query(
-                NodeAlarmStatus
-            ).filter(
-                NodeAlarmStatus.nodeNum == node_num
-            ).first()
-
-            if not status:
-                return NodeAlerts(nodeNum=node_num)
-            return NodeAlerts(**status.__dict__)
-        
-    def update_node_alert_status(self, update_payload: NodeAlerts) -> None:
-        with self.session() as session:
-            stmt = Insert(NodeAlarmStatus).values(
-                nodeNum=update_payload.nodeNum,
-                temperatureAlarm=update_payload.temperatureAlarm,
-                humidityAlarm=update_payload.humidityAlarm,
-                channelUsageAlarm=update_payload.channelUsageAlarm,
-                batteryLevelAlarm=update_payload.batteryLevelAlarm,
-                networkPathAlarm=update_payload.networkPathAlarm,
-                errorRateAlarm=update_payload.networkPathAlarm
-            ).on_conflict_do_update(
-                index_elements=['nodeNum'],
-                set_={
-                    'temperatureAlarm': update_payload.temperatureAlarm,
-                    'humidityAlarm': update_payload.humidityAlarm,
-                    'channelUsageAlarm': update_payload.channelUsageAlarm,
-                    'batteryLevelAlarm': update_payload.batteryLevelAlarm,
-                    'networkPathAlarm': update_payload.networkPathAlarm,
-                    'errorRateAlarm': update_payload.networkPathAlarm
-                }
-            )
-            session.execute(stmt)
-            session.commit()
 
     ### SUBSCRIPTIONS ###
     # def subscribe_to_category(self, node_num: int, category_id: int | None = None) -> None:
@@ -536,6 +498,33 @@ class ListenerDb:
             ).order_by(
                 Traceroute.rxTime.desc()
             ).all()
+        
+    def return_traceroute_success_rate(self, from_id: int, lookback_ts: int = 0) -> TracerouteStatistics:
+        '''
+        Given all traceroutes sent by this node, return the percentage of responses
+        '''
+        with self.session() as session:
+            items = session.query(
+                Traceroute
+            ).filter(
+                Traceroute.fromId == from_id,
+                Traceroute.txTime >= lookback_ts
+            ).all()
+
+            if not items:
+                return TracerouteStatistics()
+            
+            durations = [
+                item.rxTime - item.txTime
+                for item in items
+                if item.txTime is not None and item.rxTime is not None
+            ]
+
+            return TracerouteStatistics(
+                total=len(items),
+                successes=sum(1 for item in items if item.tracerouteDetails is not None),
+                avgTraceDuration=round(mean(durations), 2) if durations else 0.0
+            )
 
     def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
         '''

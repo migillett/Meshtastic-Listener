@@ -129,15 +129,15 @@ class Neighbor(Base):
     snr = Column(Float, nullable=False)
 
 
-class NodeAlarmStatus(Base):
-    __tablename__ = "node_alarm_status"
-    nodeNum = Column(BigInteger, nullable=False, primary_key=True)
-    temperatureAlarm = Column(Boolean, default=False)
-    humidityAlarm = Column(Boolean, default=False)
-    channelUsageAlarm = Column(Boolean, default=False)
-    batteryLevelAlarm = Column(Boolean, default=False)
-    networkPathAlarm = Column(Boolean, default=False)
-    errorRateAlarm = Column(Boolean, default=False)
+# class NodeAlarmStatus(Base):
+#     __tablename__ = "node_alarm_status"
+#     nodeNum = Column(BigInteger, nullable=False, primary_key=True)
+#     temperatureAlarm = Column(Boolean, default=False)
+#     humidityAlarm = Column(Boolean, default=False)
+#     channelUsageAlarm = Column(Boolean, default=False)
+#     batteryLevelAlarm = Column(Boolean, default=False)
+#     networkPathAlarm = Column(Boolean, default=False)
+#     errorRateAlarm = Column(Boolean, default=False)
 
 
 class Subscriptions(Base):
