@@ -270,7 +270,7 @@ class MeshtasticListener:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
                 trace_avg = health_check_stats.TracerouteStatistics.average()
-                if trace_avg <= 25.0:
+                if trace_avg <= 10.0:
                     alert_context += f'Low TR Success Rate: {trace_avg}%\n'
 
                 if alert_context != '':
