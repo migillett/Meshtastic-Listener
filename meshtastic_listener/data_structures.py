@@ -129,8 +129,5 @@ class NodeHealthCheck(BaseModel):
     TracerouteStatistics: TracerouteStatistics
 
     def status(self) -> str:
-        try:
-            trace_status = f'Avg Trace Successes: {self.TracerouteStatistics.average()}% | '
-        except InsufficientDataError:
-            trace_status = ''
-        return f'NODE HEALTH | Avg Channel Usage: {self.channelUsage}% | {trace_status}Avg Trace Duration: {self.TracerouteStatistics.avgTraceDuration}'
+        return f'NODE HEALTH | Avg Channel Usage: {self.channelUsage}% | Avg Trace Successes: {self.TracerouteStatistics.average()}% | Avg Trace Duration: {self.TracerouteStatistics.avgTraceDuration}'
+        
