@@ -329,6 +329,8 @@ class ListenerDb:
                 OutgoingNotifications.received == False,
                 OutgoingNotifications.attempts < max_attempts,
                 OutgoingNotifications.timestamp >= timestamp_cutoff
+            ).order_by(
+                OutgoingNotifications.timestamp.asc()
             ).all()
 
     def increment_notification_attempts(self, notification_id: int, notif_tx_id: int) -> None:
