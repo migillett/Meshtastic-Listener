@@ -462,7 +462,7 @@ class MeshtasticListener:
                     to_id=admin_node.nodeNum,
                     message=message
                 )
-            logging.info(f"Queued notification to {len(admin_nodes)} admin nodes: {message}")
+            logging.info(f"Queued notification to {len(admin_nodes)} admin nodes")
 
     def __trigger_notifications__(self, node_num: int, lookback_days: int = 3) -> None:
         pending_notifications = self.db.get_pending_notifications(
