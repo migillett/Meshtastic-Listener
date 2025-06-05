@@ -14,7 +14,7 @@ from meshtastic_listener.commands.cmd_handler import CommandHandler, UnknownComm
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload,
-    NodeHealthCheck
+    NodeHealthCheck, InsufficientDataError
 )
 from meshtastic_listener.utils import coords_int_to_float, load_node_env_var
 
@@ -233,12 +233,16 @@ class MeshtasticListener:
 
             self.__sleep_with_exit__()
 
-    def __check_node_health__(self, lookback_hours: int = 6) -> None:
+    def __check_node_health__(self) -> None:
         '''
         Using the software host node ID, pull the last n hours of metrics and see what general trends are.
 
         This function is designed to run in a thread in a loop.
         '''
+
+        # for every n minutes of updater interval, look back 1 hour
+        lookback_hours = int(self.update_interval.total_seconds() / 60)
+
         while not self.shutdown_flag.is_set():
             try:
                 now = time.time()
@@ -265,11 +269,15 @@ class MeshtasticListener:
                 if health_check_stats.channelUsage >= self.max_channel_utilization:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
-                if health_check_stats.TracerouteStatistics.average() <= 25.0:
-                    alert_context += f'Low TR Success Rate: {health_check_stats.TracerouteStatistics.average()}%\n'
+                trace_avg = health_check_stats.TracerouteStatistics.average()
+                if trace_avg <= 10.0:
+                    alert_context += f'Low TR Success Rate: {trace_avg}%\n'
 
                 if alert_context != '':
                     self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
+
+            except InsufficientDataError:
+                logging.warning('Insufficient data to determine alert trends')
 
             except Exception as e:
                 error = f"Exception in __check_node_health__ thread: {e}"
@@ -454,14 +462,18 @@ class MeshtasticListener:
                     to_id=admin_node.nodeNum,
                     message=message
                 )
-            logging.info(f"Queued notification to {len(admin_nodes)} admin nodes: {message}")
+            logging.info(f"Queued notification to {len(admin_nodes)} admin nodes")
 
     def __trigger_notifications__(self, node_num: int, lookback_days: int = 3) -> None:
         pending_notifications = self.db.get_pending_notifications(
             to_id=node_num,
             timestamp_cutoff=int(time.time() - timedelta(days=lookback_days).total_seconds())
         )
-        if len(pending_notifications) > 0 and self.notification_ts < time.time():     
+        if len(pending_notifications) > 0 and self.notification_ts < time.time():
+            # TODO - only queue HIGHEST priority messages.
+            # Only send 2-3 notifications at a time from oldest to newest
+            if len(pending_notifications) > 3:
+                pending_notifications = pending_notifications[:-3]
             logging.info(f"Sending {len(pending_notifications)} notifications to node: {node_num}")
             for notif in pending_notifications:
                 message_metadata = self.interface.sendText(

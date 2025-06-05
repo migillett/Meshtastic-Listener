@@ -4,6 +4,10 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+
+class InsufficientDataError(Exception):
+    pass
+
 class NodeRoles(StrEnum):
     CLIENT = "CLIENT"
     CLIENT_MUTE = "CLIENT_MUTE"
@@ -113,6 +117,8 @@ class TracerouteStatistics(BaseModel):
     avgTraceDuration: float = 0
 
     def average(self) -> float:
+        if self.total <= 10:
+            raise InsufficientDataError(f'Not enough traceroute data to determine average. Total traces: {self.total}')
         return round((self.successes / self.total) * 100, 2)
 
 class NodeHealthCheck(BaseModel):
@@ -124,3 +130,4 @@ class NodeHealthCheck(BaseModel):
 
     def status(self) -> str:
         return f'NODE HEALTH | Avg Channel Usage: {self.channelUsage}% | Avg Trace Successes: {self.TracerouteStatistics.average()}% | Avg Trace Duration: {self.TracerouteStatistics.avgTraceDuration}'
+        
