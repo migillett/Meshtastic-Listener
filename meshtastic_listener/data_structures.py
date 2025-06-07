@@ -130,5 +130,12 @@ class NodeHealthCheck(BaseModel):
     environmentMetrics: EnvironmentPayload = Field(default=EnvironmentPayload())
 
     def status(self) -> str:
-        return f'NODE HEALTH | Avg Channel Usage: {self.channelUsage}% | Avg Trace Successes: {self.TracerouteStatistics.average()}% | Avg Trace Duration: {self.TracerouteStatistics.avgTraceDuration}'
-        
+        return f'''NODE {self.nodeNum} HEALTH CHECK
+=========================================
+    START: {self.startTs} | END: {self.endTs}
+    CHANNEL USAGE: {self.channelUsage}%
+    TRACEROUTE SUCCESS: {self.TracerouteStatistics.average()}%
+    TRACEROUTE AVG DURATION: {self.TracerouteStatistics.avgTraceDuration}s
+    TEMPERATURE: {self.environmentMetrics.temperature}°C
+    HUMIDITY: {self.environmentMetrics.relativeHumidity}%
+'''
