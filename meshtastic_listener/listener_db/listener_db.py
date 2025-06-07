@@ -262,6 +262,30 @@ class ListenerDb:
             ))
             session.commit()
 
+    def get_average_environment_metrics(self, node_num: int, lookback_ts: int = 0) -> EnvironmentPayload:
+        with self.session() as session:
+            avg_metrics = session.query(
+                func.avg(EnvironmentMetrics.temperature),
+                func.avg(EnvironmentMetrics.relativeHumidity),
+                func.avg(EnvironmentMetrics.barometricPressure),
+                func.avg(EnvironmentMetrics.gasResistance),
+                func.avg(EnvironmentMetrics.iaq),
+            ).filter(
+                EnvironmentMetrics.nodeNum == node_num,
+                EnvironmentMetrics.rxTime >= lookback_ts
+            ).first()
+
+            if not avg_metrics:
+                return EnvironmentPayload()
+
+            return EnvironmentPayload(
+                temperature=round(avg_metrics[0], 2) if avg_metrics[0] is not None else None,
+                relativeHumidity=round(avg_metrics[1], 2) if avg_metrics[1] is not None else None,
+                barometricPressure=round(avg_metrics[2], 2) if avg_metrics[2] is not None else None,
+                gasResistance=round(avg_metrics[3], 2) if avg_metrics[3] is not None else None,
+                iaq=int(round(avg_metrics[4])) if avg_metrics[4] is not None else None,
+            )
+
     def upsert_position(
             self,
             node_num: int,

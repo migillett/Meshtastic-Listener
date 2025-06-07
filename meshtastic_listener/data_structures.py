@@ -127,6 +127,7 @@ class NodeHealthCheck(BaseModel):
     endTs: int = Field(default=int(datetime.now().timestamp()))
     channelUsage: float = Field(ge=0.0, le=100.0) # percentage
     TracerouteStatistics: TracerouteStatistics
+    environmentMetrics: EnvironmentPayload = Field(default=EnvironmentPayload())
 
     def status(self) -> str:
         return f'NODE HEALTH | Avg Channel Usage: {self.channelUsage}% | Avg Trace Successes: {self.TracerouteStatistics.average()}% | Avg Trace Duration: {self.TracerouteStatistics.avgTraceDuration}'

@@ -259,6 +259,10 @@ class MeshtasticListener:
                     TracerouteStatistics=self.db.return_traceroute_success_rate(
                         from_id=self.local_node_id,
                         lookback_ts=lookback_ts
+                    ),
+                    environmentMetrics=self.db.get_average_environment_metrics(
+                        node_num=self.local_node_id,
+                        lookback_ts=lookback_ts
                     )
                 )
 
@@ -272,6 +276,18 @@ class MeshtasticListener:
                 trace_avg = health_check_stats.TracerouteStatistics.average()
                 if trace_avg <= 10.0:
                     alert_context += f'Low TR Success Rate: {trace_avg}%\n'
+
+                if health_check_stats.environmentMetrics.temperature is not None:
+                    # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
+                    # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
+                    if health_check_stats.environmentMetrics.temperature >= 60.0:
+                        alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
+                    elif health_check_stats.environmentMetrics.temperature <= -20.0:
+                        alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
+                
+                if health_check_stats.environmentMetrics.relativeHumidity is not None:
+                    if health_check_stats.environmentMetrics.relativeHumidity >= 90.0:
+                        alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
 
                 if alert_context != '':
                     self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
