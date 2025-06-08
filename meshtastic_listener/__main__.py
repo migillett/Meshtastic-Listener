@@ -94,6 +94,8 @@ class MeshtasticListener:
 
         self.notification_ts = time.time()
 
+        self.previous_health_check: Optional[NodeHealthCheck] = None
+
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
@@ -189,6 +191,32 @@ class MeshtasticListener:
                     node.hostSoftwareVersion = self.version
                 self.db.insert_node(node=node)
 
+    def __health_check_diff__(self, new_health_check: NodeHealthCheck) -> str:
+        '''
+        Compares the new health check with the previous one and returns a string of differences.
+        '''
+        if self.previous_health_check is None:
+            self.previous_health_check = new_health_check
+            return "Initial health check recorded."
+
+        diff = []
+        if new_health_check.channelUsage != self.previous_health_check.channelUsage:
+            diff.append(f"Channel Usage: {self.previous_health_check.channelUsage}% -> {new_health_check.channelUsage}%")
+        
+        trace_avg = new_health_check.TracerouteStatistics.average()
+        prev_trace_avg = self.previous_health_check.TracerouteStatistics.average()
+        if trace_avg != prev_trace_avg:
+            diff.append(f"Traceroute Success Rate: {prev_trace_avg}% -> {trace_avg}%")
+        
+        if new_health_check.environmentMetrics.temperature != self.previous_health_check.environmentMetrics.temperature:
+            diff.append(f"Temperature: {self.previous_health_check.environmentMetrics.temperature}°C -> {new_health_check.environmentMetrics.temperature}°C")
+        
+        if new_health_check.environmentMetrics.relativeHumidity != self.previous_health_check.environmentMetrics.relativeHumidity:
+            diff.append(f"Humidity: {self.previous_health_check.environmentMetrics.relativeHumidity}% -> {new_health_check.environmentMetrics.relativeHumidity}%")
+
+        self.previous_health_check = new_health_check
+        return "\n".join(diff) if diff else "No significant changes in health check."
+
     ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self, max_hops: int = 5) -> None:
         '''
@@ -267,6 +295,7 @@ class MeshtasticListener:
                 )
 
                 logging.info(health_check_stats.status())
+                logging.info(f'Node Health Check: {self.__health_check_diff__(health_check_stats)}')
 
                 alert_context = ''
 
@@ -291,6 +320,8 @@ class MeshtasticListener:
 
                 if alert_context != '':
                     self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
+
+                self.previous_health_check = health_check_stats
 
             except InsufficientDataError as e:
                 logging.warning(f'Insufficent data present to calculate node health: {str(e)}')
