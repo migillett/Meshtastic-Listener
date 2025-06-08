@@ -292,8 +292,8 @@ class MeshtasticListener:
                 if alert_context != '':
                     self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
 
-            except InsufficientDataError:
-                logging.warning('Insufficient data to determine alert trends')
+            except InsufficientDataError as e:
+                logging.warning(f'Insufficent data present to calculate node health: {str(e)}')
 
             except Exception as e:
                 error = f"Exception in __check_node_health__ thread: {e}"

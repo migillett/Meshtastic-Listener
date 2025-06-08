@@ -118,7 +118,7 @@ class TracerouteStatistics(BaseModel):
 
     def average(self) -> float:
         if self.total == 0:
-            raise InsufficientDataError(f'Not enough traceroute data to determine average. Total traces: {self.total}')
+            raise InsufficientDataError('No traceroute data available to calculate average success rate.')
         return round((self.successes / self.total) * 100, 2)
 
 class NodeHealthCheck(BaseModel):
