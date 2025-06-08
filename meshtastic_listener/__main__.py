@@ -295,7 +295,7 @@ class MeshtasticListener:
                 )
 
                 logging.info(health_check_stats.status())
-                logging.info(f'Node Health Check: {self.__health_check_diff__(health_check_stats)}')
+                logging.info(f'Statistics Delta Since Last Poll:\n{self.__health_check_diff__(health_check_stats)}')
 
                 alert_context = ''
 
@@ -634,8 +634,20 @@ class MeshtasticListener:
                 logging.info(f'Started thread: {thread.name}')
 
             while True:
+                # this checks for if we are connected to the radio
+                # The radio can only have 1 connection at a time, so if you connect from the app
+                # it will disconnect the listener and would fail silently
+                # this stops that from happening
+                # Throws MeshInterface.MeshInterfaceError if the connection is lost
+                self.interface._waitConnected(1)
                 sys.stdout.flush()
                 time.sleep(1)
+        
+        except MeshInterface.MeshInterfaceError as e:
+            # reboot the docker container if we can't connect to the device
+            logging.exception(f"MeshInterface error: {e}")
+            self.__notify_admins__(f'MeshInterface Error: {str(e)}')
+            exit(1)
 
         except Exception as e:
             logging.exception(f"Encountered fatal error in main loop: {e}")
