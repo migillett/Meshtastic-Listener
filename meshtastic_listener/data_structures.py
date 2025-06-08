@@ -117,7 +117,7 @@ class TracerouteStatistics(BaseModel):
     avgTraceDuration: float = 0
 
     def average(self) -> float:
-        if self.total <= 10:
+        if self.total == 0:
             raise InsufficientDataError(f'Not enough traceroute data to determine average. Total traces: {self.total}')
         return round((self.successes / self.total) * 100, 2)
 
