@@ -132,11 +132,11 @@ class NodeHealthCheck(BaseModel):
     def status(self) -> str:
         status = f'''NODE {self.nodeNum} HEALTH CHECK
 =========================================
-START: {self.startTs} | END: {self.endTs}
-CHANNEL USAGE: {self.channelUsage}%
-TRACEROUTE SUCCESS: {self.TracerouteStatistics.average()}%
-TRACEROUTE AVG DURATION: {self.TracerouteStatistics.avgTraceDuration}s
-TEMPERATURE: {self.environmentMetrics.temperature}°C
-HUMIDITY: {self.environmentMetrics.relativeHumidity}%
-'''
+  START: {self.startTs} | END: {self.endTs}
+  CHANNEL USAGE: {self.channelUsage}%
+  TRACEROUTE SUCCESS: {self.TracerouteStatistics.average()}%
+  TRACEROUTE AVG DURATION: {self.TracerouteStatistics.avgTraceDuration}s
+  TEMPERATURE: {self.environmentMetrics.temperature}°C
+  HUMIDITY: {self.environmentMetrics.relativeHumidity}%
+========================================='''
         return status.strip()

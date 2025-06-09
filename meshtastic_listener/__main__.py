@@ -295,7 +295,7 @@ class MeshtasticListener:
                 )
 
                 logging.info(health_check_stats.status())
-                logging.info(f'Statistics Delta Since Last Poll:\n{self.__health_check_diff__(health_check_stats)}')
+                logging.info(f'Statistics delta since last poll:\n{self.__health_check_diff__(health_check_stats)}')
 
                 alert_context = ''
 
