@@ -294,7 +294,6 @@ class MeshtasticListener:
                     )
                 )
 
-                logging.info(health_check_stats.status())
                 logging.info(f'Statistics delta since last poll:\n{self.__health_check_diff__(health_check_stats)}')
 
                 alert_context = ''
@@ -345,7 +344,10 @@ class MeshtasticListener:
                 return None
             
             try:
-                response = self.cmd_handler.handle_command(context=payload)
+                response = self.cmd_handler.handle_command(
+                    context=payload,
+                    node_health=self.previous_health_check
+                )
             
             except UnknownCommandError as e:
                 self.__send_messages__(text=str(e), destinationId=payload.fromId)

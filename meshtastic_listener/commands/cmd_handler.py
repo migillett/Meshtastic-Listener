@@ -1,10 +1,9 @@
 import logging
 import inspect
-from datetime import datetime
 
-from meshtastic_listener.data_structures import MessageReceived
+from meshtastic_listener.data_structures import MessageReceived, NodeHealthCheck
 from meshtastic_listener.commands.subscriptions import handle_subscription_command
-from meshtastic_listener.listener_db.listener_db import ListenerDb, Waypoints, InvalidCategory
+from meshtastic_listener.listener_db.listener_db import ListenerDb, Waypoints
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,16 @@ class CommandHandler:
             return 'No waypoints found'
 
         return waypoints
-    
+
+    def cmd_healthcheck(self, health_status: NodeHealthCheck | None) -> str:
+        '''
+        3: !c - Get node health
+        '''
+        if isinstance(health_status, NodeHealthCheck):
+            return health_status.status()
+        else:
+            return 'No health check data available.'
+
     # def cmd_subscriptions(self, context: MessageReceived) -> str:
     #     '''
     #     3: !s - List subscription commands
@@ -75,13 +83,21 @@ class CommandHandler:
         cmds.sort()
         return '\n'.join([c.split(': ')[-1].replace('!', self.prefix) for c in cmds]).strip()
 
-    def handle_command(self, context: MessageReceived) -> str | None | list[Waypoints]:
+    def handle_command(
+            self,
+            context: MessageReceived,
+            node_health: NodeHealthCheck | None
+        ) -> str | None | list[Waypoints]:
+        
         if context.decoded.text is not None and context.decoded.text.startswith(self.prefix):
             command = context.decoded.text[1:].lower().split(' ')[0]
             logging.info(f'Command received: {command} From: {context.fromId}')
             match command:
                 case 't':
                     return self.cmd_reply(context)
+                
+                case 'c':
+                    return self.cmd_healthcheck(node_health)
 
                 # case 's':
                 #     return self.cmd_subscriptions(context)
