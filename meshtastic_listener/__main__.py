@@ -215,7 +215,11 @@ class MeshtasticListener:
             diff.append(f"Humidity: {self.previous_health_check.environmentMetrics.relativeHumidity}% -> {new_health_check.environmentMetrics.relativeHumidity}%")
 
         self.previous_health_check = new_health_check
-        return "\n".join(diff) if diff else "No significant changes in health check."
+
+        if diff:
+            return f'Statistics delta since last poll:\n' + "\n".join(diff)
+        else:
+            return "No significant changes in health check."
 
     ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self, max_hops: int = 5) -> None:
@@ -294,7 +298,7 @@ class MeshtasticListener:
                     )
                 )
 
-                logging.info(f'Statistics delta since last poll:\n{self.__health_check_diff__(health_check_stats)}')
+                logging.info(f'{self.__health_check_diff__(health_check_stats)}')
 
                 alert_context = ''
 
@@ -310,7 +314,7 @@ class MeshtasticListener:
                     # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
                     if health_check_stats.environmentMetrics.temperature >= 60.0:
                         alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
-                    elif health_check_stats.environmentMetrics.temperature <= -20.0:
+                    elif health_check_stats.environmentMetrics.temperature <= 0.0:
                         alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
                 
                 if health_check_stats.environmentMetrics.relativeHumidity is not None:
