@@ -24,6 +24,7 @@ The listener does accept some basic commands for interfacing with the notificati
     - Temperatures and Humidity (if applicable)
     - Battery level trend over time? ie: downward trend of battery level over n days.
     - Monitor CPU core temperatures
+      
 ~~- Remove distance() functions. it's not even used anymore.~~
 ~~- When the user runs `!waypoints`, reply with a text message to what waypoints were sent to them.~~
 
