@@ -568,10 +568,10 @@ class MeshtasticListener:
             
             self.__handle_new_node__(packet['from'])
 
-            self.db.update_node_last_heard(
-                node_num=packet['from'],
-                last_heard=packet.get('rxTime', int(time.time()))
-            )
+            # self.db.update_node_last_heard(
+            #     node_num=packet['from'],
+            #     last_heard=packet.get('rxTime', int(time.time()))
+            # )
 
             portnum = packet.get('decoded', {}).get('portnum', None)
 
