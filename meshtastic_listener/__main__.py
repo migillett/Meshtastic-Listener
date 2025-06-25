@@ -181,15 +181,17 @@ class MeshtasticListener:
 
         Takes the node's local DB and writes it to postgres.
         '''
-        if self.interface.nodes is None:
+        if self.interface.nodesByNum is None:
             raise MeshInterface.MeshInterfaceError(
                 f'Interface reports no Nodes. Unable to load local nodes to DB.')
-        else:
-            for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
-                if self.local_node_id == node.num:
-                    node.isHost = True
-                    node.hostSoftwareVersion = self.version
-                self.db.insert_node(node=node)
+        
+        for node in [NodeBase(**node) for node in self.interface.nodesByNum.values()]:
+            if self.local_node_id == node.num:
+                node.isHost = True
+                node.hostSoftwareVersion = self.version
+            self.db.insert_node(node=node)
+
+        logging.debug(f'Pushed {len(self.interface.nodesByNum)} node details to DB')
 
     def __health_check_diff__(self, new_health_check: NodeHealthCheck) -> str:
         '''
@@ -565,7 +567,7 @@ class MeshtasticListener:
             packet = self.__sanitize_packet__(packet)
             
             self.__handle_new_node__(packet['from'])
-            
+
             self.db.update_node_last_heard(
                 node_num=packet['from'],
                 last_heard=packet.get('rxTime', int(time.time()))

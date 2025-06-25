@@ -21,7 +21,7 @@ The listener does accept some basic commands for interfacing with the notificati
     - Give admins the ability to add / remove admin accounts
     - Paths through the network with their forward and back SNR, and RX/TX times.
     - Gather and analyze error rates for messages (what we see on the notification card on phones)
-    - Temperatures and Humidity (if applicable)
+    ~~- Temperatures and Humidity (if applicable)~~
     - Battery level trend over time? ie: downward trend of battery level over n days.
     - Monitor CPU core temperatures
       
