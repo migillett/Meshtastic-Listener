@@ -127,6 +127,17 @@ class ListenerDb:
             session.commit()
             logger.debug(f'Successfully upserted {len(nodes)} nodes into db')
 
+    def update_node_last_heard(self, node_num: int, last_heard: int = int(time())) -> None:
+        with self.session() as session:
+            node = session.query(Node).filter(Node.nodeNum == node_num).first()
+            if not node:
+                logger.error(f'Node {node_num} not found in db. Unable to update last heard.')
+            else:
+                node.lastHeard = last_heard
+                session.add(node)
+                session.commit()
+                logger.debug(f'Updated last heard for node {node_num} to {last_heard}')
+
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
             return session.query(Node).filter(Node.nodeNum == node_num).first()
