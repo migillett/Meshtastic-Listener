@@ -308,7 +308,7 @@ class MeshtasticListener:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
                 trace_avg = health_check_stats.TracerouteStatistics.average()
-                if trace_avg <= 10.0:
+                if trace_avg <= 10.0 and health_check_stats.TracerouteStatistics.total >= 5:
                     alert_context += f'Low TR Success Rate: {trace_avg}%\n'
 
                 if health_check_stats.environmentMetrics.temperature is not None:
