@@ -131,7 +131,7 @@ class ListenerDb:
         with self.session() as session:
             node = session.query(Node).filter(Node.nodeNum == node_num).first()
             if not node:
-                logger.error(f'Node {node_num} not found in db. Unable to update last heard.')
+                logger.error(f'Node {node_num} not found in db. Unable to update last heard timestamp.')
             else:
                 node.lastHeard = last_heard
                 session.add(node)
