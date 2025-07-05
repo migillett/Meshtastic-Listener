@@ -668,10 +668,6 @@ class MeshtasticListener:
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
         logging.info("Subscribed to meshtastic.receive")
 
-        # Use multiprocessing for CPU-bound tasks, threading for IO-bound
-        # Here, we use multiprocessing.Pool for scheduled tasks
-        # Each task runs in its own process
-
         self.threads = [
             threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
             threading.Thread(target=self.__check_node_health__, name='health_check_task', daemon=True),
