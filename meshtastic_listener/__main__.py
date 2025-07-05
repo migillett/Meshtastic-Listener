@@ -284,10 +284,8 @@ class MeshtasticListener:
                 version=self.version
             )
             self.interface.sendData(
-                data=Data(
-                    portnum=self.__advertise_portnum__,
-                    payload=advertise_payload.model_dump_json().encode("utf-8")
-                )
+                data=advertise_payload.model_dump_json().encode("utf-8"),
+                portNum=self.__advertise_portnum__
             )
             logging.info(
                 f'Sent Meshtastic Listener heartbeat: {advertise_payload.model_dump()}'
