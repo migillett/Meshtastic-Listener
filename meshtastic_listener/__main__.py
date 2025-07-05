@@ -94,6 +94,8 @@ class MeshtasticListener:
 
         self.notification_ts = time.time()
 
+        self.previous_health_check: Optional[NodeHealthCheck] = None
+
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
@@ -179,15 +181,47 @@ class MeshtasticListener:
 
         Takes the node's local DB and writes it to postgres.
         '''
-        if self.interface.nodes is None:
+        if self.interface.nodesByNum is None:
             raise MeshInterface.MeshInterfaceError(
                 f'Interface reports no Nodes. Unable to load local nodes to DB.')
+        
+        for node in [NodeBase(**node) for node in self.interface.nodesByNum.values()]:
+            if self.local_node_id == node.num:
+                node.isHost = True
+                node.hostSoftwareVersion = self.version
+            self.db.insert_node(node=node)
+
+        logging.debug(f'Pushed {len(self.interface.nodesByNum)} node details to DB')
+
+    def __health_check_diff__(self, new_health_check: NodeHealthCheck) -> str:
+        '''
+        Compares the new health check with the previous one and returns a string of differences.
+        '''
+        if self.previous_health_check is None:
+            self.previous_health_check = new_health_check
+            return "Initial health check recorded."
+
+        diff = []
+        if new_health_check.channelUsage != self.previous_health_check.channelUsage:
+            diff.append(f"Channel Usage: {self.previous_health_check.channelUsage}% -> {new_health_check.channelUsage}%")
+        
+        trace_avg = new_health_check.TracerouteStatistics.average()
+        prev_trace_avg = self.previous_health_check.TracerouteStatistics.average()
+        if trace_avg != prev_trace_avg:
+            diff.append(f"Traceroute Success Rate: {prev_trace_avg}% -> {trace_avg}%")
+        
+        if new_health_check.environmentMetrics.temperature != self.previous_health_check.environmentMetrics.temperature:
+            diff.append(f"Temperature: {self.previous_health_check.environmentMetrics.temperature}°C -> {new_health_check.environmentMetrics.temperature}°C")
+        
+        if new_health_check.environmentMetrics.relativeHumidity != self.previous_health_check.environmentMetrics.relativeHumidity:
+            diff.append(f"Humidity: {self.previous_health_check.environmentMetrics.relativeHumidity}% -> {new_health_check.environmentMetrics.relativeHumidity}%")
+
+        self.previous_health_check = new_health_check
+
+        if diff:
+            return f'Statistics delta since last poll:\n' + "\n".join(diff)
         else:
-            for node in [NodeBase(**node) for node in self.interface.nodes.values()]:
-                if self.local_node_id == node.num:
-                    node.isHost = True
-                    node.hostSoftwareVersion = self.version
-                self.db.insert_node(node=node)
+            return "No significant changes in health check."
 
     ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self, max_hops: int = 5) -> None:
@@ -259,10 +293,14 @@ class MeshtasticListener:
                     TracerouteStatistics=self.db.return_traceroute_success_rate(
                         from_id=self.local_node_id,
                         lookback_ts=lookback_ts
+                    ),
+                    environmentMetrics=self.db.get_average_environment_metrics(
+                        node_num=self.local_node_id,
+                        lookback_ts=lookback_ts
                     )
                 )
 
-                logging.info(health_check_stats.status())
+                logging.info(f'{self.__health_check_diff__(health_check_stats)}')
 
                 alert_context = ''
 
@@ -270,14 +308,28 @@ class MeshtasticListener:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
                 trace_avg = health_check_stats.TracerouteStatistics.average()
-                if trace_avg <= 10.0:
+                if trace_avg <= 10.0 and health_check_stats.TracerouteStatistics.total >= 5:
                     alert_context += f'Low TR Success Rate: {trace_avg}%\n'
+
+                if health_check_stats.environmentMetrics.temperature is not None:
+                    # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
+                    # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
+                    if health_check_stats.environmentMetrics.temperature >= 60.0:
+                        alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
+                    elif health_check_stats.environmentMetrics.temperature <= 0.0:
+                        alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
+                
+                if health_check_stats.environmentMetrics.relativeHumidity is not None:
+                    if health_check_stats.environmentMetrics.relativeHumidity >= 90.0:
+                        alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
 
                 if alert_context != '':
                     self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
 
-            except InsufficientDataError:
-                logging.warning('Insufficient data to determine alert trends')
+                self.previous_health_check = health_check_stats
+
+            except InsufficientDataError as e:
+                logging.warning(f'Insufficent data present to calculate node health: {str(e)}')
 
             except Exception as e:
                 error = f"Exception in __check_node_health__ thread: {e}"
@@ -298,7 +350,10 @@ class MeshtasticListener:
                 return None
             
             try:
-                response = self.cmd_handler.handle_command(context=payload)
+                response = self.cmd_handler.handle_command(
+                    context=payload,
+                    node_health=self.previous_health_check
+                )
             
             except UnknownCommandError as e:
                 self.__send_messages__(text=str(e), destinationId=payload.fromId)
@@ -512,6 +567,12 @@ class MeshtasticListener:
             packet = self.__sanitize_packet__(packet)
             
             self.__handle_new_node__(packet['from'])
+
+            # self.db.update_node_last_heard(
+            #     node_num=packet['from'],
+            #     last_heard=packet.get('rxTime', int(time.time()))
+            # )
+
             portnum = packet.get('decoded', {}).get('portnum', None)
 
             # checks if the sender has a pending notification
@@ -587,8 +648,20 @@ class MeshtasticListener:
                 logging.info(f'Started thread: {thread.name}')
 
             while True:
+                # this checks for if we are connected to the radio
+                # The radio can only have 1 connection at a time, so if you connect from the app
+                # it will disconnect the listener and would fail silently
+                # this stops that from happening
+                # Throws MeshInterface.MeshInterfaceError if the connection is lost
+                self.interface._waitConnected(1)
                 sys.stdout.flush()
                 time.sleep(1)
+        
+        except MeshInterface.MeshInterfaceError as e:
+            # reboot the docker container if we can't connect to the device
+            logging.exception(f"MeshInterface error: {e}")
+            self.__notify_admins__(f'MeshInterface Error: {str(e)}')
+            exit(1)
 
         except Exception as e:
             logging.exception(f"Encountered fatal error in main loop: {e}")

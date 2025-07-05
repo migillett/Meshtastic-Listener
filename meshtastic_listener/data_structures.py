@@ -117,8 +117,8 @@ class TracerouteStatistics(BaseModel):
     avgTraceDuration: float = 0
 
     def average(self) -> float:
-        if self.total <= 10:
-            raise InsufficientDataError(f'Not enough traceroute data to determine average. Total traces: {self.total}')
+        if self.total == 0:
+            raise InsufficientDataError('No traceroute data available to calculate average success rate.')
         return round((self.successes / self.total) * 100, 2)
 
 class NodeHealthCheck(BaseModel):
@@ -127,7 +127,16 @@ class NodeHealthCheck(BaseModel):
     endTs: int = Field(default=int(datetime.now().timestamp()))
     channelUsage: float = Field(ge=0.0, le=100.0) # percentage
     TracerouteStatistics: TracerouteStatistics
+    environmentMetrics: EnvironmentPayload = Field(default=EnvironmentPayload())
 
     def status(self) -> str:
-        return f'NODE HEALTH | Avg Channel Usage: {self.channelUsage}% | Avg Trace Successes: {self.TracerouteStatistics.average()}% | Avg Trace Duration: {self.TracerouteStatistics.avgTraceDuration}'
-        
+        status = f'''{datetime.fromtimestamp(self.startTs).strftime('%Y-%m-%d %H:%M')}
+CH USAGE: {round(self.channelUsage, 2)}%
+TR SENT: {self.TracerouteStatistics.total}
+TR ACK: {self.TracerouteStatistics.successes}'''
+        # Force to integer to save on character counts
+        if self.environmentMetrics.temperature is not None:
+            status += f'\nTEMP: {int(self.environmentMetrics.temperature)}°C'
+        if self.environmentMetrics.relativeHumidity is not None:
+            status += f'\nHUMIDITY: {int(self.environmentMetrics.relativeHumidity)}%'
+        return status.strip()
