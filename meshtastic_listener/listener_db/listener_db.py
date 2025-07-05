@@ -87,6 +87,16 @@ class ListenerDb:
             session.commit()
         logger.debug(f'Inserted node into DB: {node.model_dump_json()}')
 
+    def mark_node_as_listener(self, node_id: int, version: str) -> None:
+        with self.session() as session:
+            node = session.query(Node).filter(Node.nodeNum == node_id).first()
+            if node is None:
+                raise ItemNotFound(f'Node with ID {node_id} not found')
+            node.isHost = True
+            node.hostSoftwareVersion = version
+            session.add(node)
+            session.commit()
+
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         with self.session() as session:
             for node in nodes:

@@ -23,8 +23,9 @@ from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
 from meshtastic.protobuf.portnums_pb2 import PortNum
-from meshtastic.protobuf.mesh_pb2 import RouteDiscovery, Data
+from meshtastic.protobuf.mesh_pb2 import RouteDiscovery
 from meshtastic.mesh_interface import MeshInterface
+from pydantic_core._pydantic_core import ValidationError
 import toml
 
 
@@ -150,6 +151,18 @@ class MeshtasticListener:
         else:
             logging.error('Unable to get device metrics from node')
             return 0.0
+        
+    def __decode_raw_advertise_data__(self, packet: dict) -> None:
+        # the meshtastic library doesn't know how to decode our private packets by default
+        # so we need to decode that manually here
+        # we'll be updating the payload in-place
+        try:
+            payload_raw: bytes = packet['decoded'].get('payload')
+            # payload_raw = b'{"nodeNum":1111111,"version":"test"}'
+            logging.info(f'Decoding payload from packet: {payload_raw}')
+            packet['decoded']['payload'] = json.loads(payload_raw.decode('utf-8'))
+        except Exception as e:
+            logging.error(f"Failed to decode raw bytes as JSON: {e}")
 
     def __sanitize_packet__(self, packet: dict) -> dict:
         response = {}
@@ -484,14 +497,7 @@ class MeshtasticListener:
         position = packet.get('decoded', {}).get('position', {})
         self.__print_packet_received__(logging.debug, packet)
 
-        node_details = self.interface.getMyNodeInfo()
-        if node_details is None:
-            logging.error('Mesh interface reports no local node. Unable to calculate position')
-            return None
-
-        node = NodeBase(**node_details)
         incoming_lat, incoming_lon = position.get('latitude'), position.get('longitude')
-
         try:
             self.db.upsert_position(
                 node_num=packet['from'],
@@ -537,6 +543,17 @@ class MeshtasticListener:
 
     def __handle_instance_advertisement__(self, packet: dict) -> None:
         self.__print_packet_received__(logging.info, packet)
+        try:
+            adverstise_payload = AdvertiseInstancePayload(**packet.get('decoded', {}).get('payload', {}))
+            self.db.mark_node_as_listener(
+                node_id=adverstise_payload.nodeNum,
+                version=adverstise_payload.version
+            )
+            logging.info(f'Marked node {adverstise_payload.nodeNum} as software host with version: {adverstise_payload.version}')
+        except ItemNotFound as e:
+            logging.error(f'Unable to update software host Node: {e}')
+        except ValidationError as e:
+            logging.error(f'Payload validation failure for packet ({e}): {packet}')
 
     ### NOTIFICATIONS ###
     def __notify_admins__(self, message: str) -> None:
@@ -594,16 +611,14 @@ class MeshtasticListener:
                 logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
                 return
             
-            packet = self.__sanitize_packet__(packet)
-            
-            self.__handle_new_node__(packet['from'])
-
-            # self.db.update_node_last_heard(
-            #     node_num=packet['from'],
-            #     last_heard=packet.get('rxTime', int(time.time()))
-            # )
-
             portnum = packet.get('decoded', {}).get('portnum', None)
+            portnum_type = getattr(PortNum, portnum, None)
+            
+            if portnum_type == self.__advertise_portnum__:
+                self.__decode_raw_advertise_data__(packet)
+            packet = self.__sanitize_packet__(packet=packet)
+
+            self.__handle_new_node__(packet['from'])
 
             # checks if the sender has a pending notification
             self.__trigger_notifications__(packet['from'])
@@ -619,7 +634,7 @@ class MeshtasticListener:
             except KeyError as e:
                 logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
-            match getattr(PortNum, portnum, None):
+            match portnum_type:
                 case PortNum.TEXT_MESSAGE_APP:
                     self.__handle_text_message__(packet)
                 case PortNum.TELEMETRY_APP:
