@@ -673,8 +673,8 @@ class MeshtasticListener:
         # Each task runs in its own process
 
         self.threads = [
-            # threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
-            # threading.Thread(target=self.__check_node_health__, name='health_check_task', daemon=True),
+            threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
+            threading.Thread(target=self.__check_node_health__, name='health_check_task', daemon=True),
             threading.Thread(target=self.__advertise_instance__, name='advertise_instance_task', daemon=True),
         ]
 
