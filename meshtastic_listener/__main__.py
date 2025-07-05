@@ -536,10 +536,7 @@ class MeshtasticListener:
             logging.info(f'Waypoint packet received from non-admin node: {self.db.get_shortname(sender)}. Ignoring.')
 
     def __handle_instance_advertisement__(self, packet: dict) -> None:
-        sender = int(packet.get('from', 0))
-        decoded = packet.get('decoded', {})
-        logging.info(f'Received instance advertisement from {sender}: {decoded}')
-        heartbeat = AdvertiseInstancePayload(**decoded)
+        self.__print_packet_received__(logging.info, packet)
 
     ### NOTIFICATIONS ###
     def __notify_admins__(self, message: str) -> None:
