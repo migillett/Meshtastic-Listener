@@ -23,7 +23,7 @@ from pubsub import pub
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
 from meshtastic.protobuf.portnums_pb2 import PortNum
-from meshtastic.protobuf.mesh_pb2 import RouteDiscovery
+from meshtastic.protobuf.mesh_pb2 import RouteDiscovery, Data
 from meshtastic.mesh_interface import MeshInterface
 import toml
 
@@ -284,8 +284,10 @@ class MeshtasticListener:
                 version=self.version
             )
             self.interface.sendData(
-                data=advertise_payload.model_dump_json().encode("utf-8"),
-                portNum=self.__advertise_portnum__,
+                data=Data(
+                    portnum=self.__advertise_portnum__,
+                    payload=advertise_payload.model_dump_json().encode("utf-8")
+                )
             )
             logging.info(
                 f'Sent Meshtastic Listener heartbeat: {advertise_payload.model_dump()}'
