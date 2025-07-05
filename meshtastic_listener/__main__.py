@@ -73,6 +73,7 @@ class MeshtasticListener:
         self.char_limit = 200
         self.shutdown_flag = threading.Event()
         self.threads: list[threading.Thread] = []
+        self.max_hops: int = 5
 
         self.__advertise_portnum__ = PortNum.PRIVATE_APP
 
@@ -240,7 +241,7 @@ class MeshtasticListener:
             return "No significant changes in health check."
 
     ### SCHEDULED THREADED TASKS ###
-    def __traceroute_upstream__(self, max_hops: int = 5) -> None:
+    def __traceroute_upstream__(self) -> None:
         '''
         runs a traceroute to nearby infrastructure nodes on a cron job
 
@@ -256,7 +257,7 @@ class MeshtasticListener:
             else:
                 target = self.db.select_traceroute_target(
                     fromId=self.local_node_id,
-                    maxHops=max_hops
+                    maxHops=self.max_hops
                 )
                 if not target:
                     logging.warning("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
@@ -273,7 +274,7 @@ class MeshtasticListener:
                         wantResponse=True,
                         onResponse=self.interface.onResponseTraceRoute,
                         channelIndex=0,
-                        hopLimit=max_hops,
+                        hopLimit=self.max_hops,
                     )
                     self.db.insert_traceroute_attempt(
                         source_node=self.local_node_id,
@@ -298,7 +299,8 @@ class MeshtasticListener:
             )
             self.interface.sendData(
                 data=advertise_payload.model_dump_json().encode("utf-8"),
-                portNum=self.__advertise_portnum__
+                portNum=self.__advertise_portnum__,
+                hopLimit=self.max_hops
             )
             logging.info(
                 f'Sent Meshtastic Listener heartbeat: {advertise_payload.model_dump()}'
