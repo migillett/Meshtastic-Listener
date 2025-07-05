@@ -140,3 +140,7 @@ TR ACK: {self.TracerouteStatistics.successes}'''
         if self.environmentMetrics.relativeHumidity is not None:
             status += f'\nHUMIDITY: {int(self.environmentMetrics.relativeHumidity)}%'
         return status.strip()
+
+class AdvertiseInstancePayload(BaseModel):
+    nodeNum: int
+    version: str

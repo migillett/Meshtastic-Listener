@@ -14,7 +14,8 @@ from meshtastic_listener.commands.cmd_handler import CommandHandler, UnknownComm
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload,
-    NodeHealthCheck, InsufficientDataError
+    NodeHealthCheck, InsufficientDataError,
+    AdvertiseInstancePayload
 )
 from meshtastic_listener.utils import coords_int_to_float, load_node_env_var
 
@@ -71,6 +72,8 @@ class MeshtasticListener:
         self.char_limit = 200
         self.shutdown_flag = threading.Event()
         self.threads: list[threading.Thread] = []
+
+        self.__advertise_portnum__ = PortNum.PRIVATE_APP
 
         self.local_node_id = self.interface.localNode.nodeNum
 
@@ -266,6 +269,30 @@ class MeshtasticListener:
                     )
 
             self.__sleep_with_exit__()
+
+    def __advertise_instance__(self) -> None:
+        '''
+        Function that utilizes a custom portnum to advertise the Meshtastic Listener instance.
+
+        It advertises the software instance once every 2 hours to channel 0.
+
+        This function tells other instances of Meshtastic Listener that we exist for their maps.
+        '''
+        while not self.shutdown_flag.is_set():
+            advertise_payload = AdvertiseInstancePayload(
+                nodeNum=self.local_node_id,
+                version=self.version
+            )
+            self.interface.sendData(
+                data=advertise_payload.model_dump_json().encode("utf-8"),
+                portNum=self.__advertise_portnum__,
+            )
+            logging.info(
+                f'Sent Meshtastic Listener heartbeat: {advertise_payload.model_dump()}'
+            )
+            self.__sleep_with_exit__(
+                sleep_interval_minutes=60
+            )
 
     def __check_node_health__(self) -> None:
         '''
@@ -508,6 +535,12 @@ class MeshtasticListener:
         else:
             logging.info(f'Waypoint packet received from non-admin node: {self.db.get_shortname(sender)}. Ignoring.')
 
+    def __handle_instance_advertisement__(self, packet: dict) -> None:
+        sender = int(packet.get('from', 0))
+        decoded = packet.get('decoded', {})
+        logging.info(f'Received instance advertisement from {sender}: {decoded}')
+        heartbeat = AdvertiseInstancePayload(**decoded)
+
     ### NOTIFICATIONS ###
     def __notify_admins__(self, message: str) -> None:
         admin_nodes = self.db.get_active_admin_nodes()
@@ -605,6 +638,8 @@ class MeshtasticListener:
                 case PortNum.ROUTING_APP:
                     # this is how we confirm that a message was received by the notify_node
                     self.__check_notification_received__(packet)
+                case PortNum.PRIVATE_APP:
+                    self.__handle_instance_advertisement__(packet)
                 case PortNum.STORE_FORWARD_APP | PortNum.ADMIN_APP | PortNum.ATAK_PLUGIN | PortNum.NODEINFO_APP:
                     # Note: we used to handle NODEINFO_APP packets, but it caused too many pulls of the node DB
                     # now we're just running it on a n minute cron refresh to local
@@ -638,8 +673,9 @@ class MeshtasticListener:
         # Each task runs in its own process
 
         self.threads = [
-            threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
-            threading.Thread(target=self.__check_node_health__, name='health_check_task', daemon=True),
+            # threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
+            # threading.Thread(target=self.__check_node_health__, name='health_check_task', daemon=True),
+            threading.Thread(target=self.__advertise_instance__, name='advertise_instance_task', daemon=True),
         ]
 
         try:
