@@ -27,11 +27,11 @@ COPY --chown=meshtastic:meshtastic ./meshtastic_listener ./meshtastic_listener
 RUN mkdir ./logs && chown -R meshtastic:meshtastic /home/meshtastic/logs
 
 # install depdendencies
-RUN pip3 install --user poetry && poetry install --only main
+RUN pip3 install --user uv && uv sync
 
 # make sure we're not running as root
 HEALTHCHECK --interval=30s --timeout=3s \
     CMD [ "$(id -u)" -ne 0 ] || exit 1
 
-CMD poetry run alembic upgrade head && \
-    poetry run python -m meshtastic_listener
+CMD uv run alembic upgrade head && \
+    uv run python -m meshtastic_listener

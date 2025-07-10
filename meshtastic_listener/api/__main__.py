@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(
     title="Meshtastic Listener API",
-    version=toml.load('pyproject.toml')['tool']['poetry']['version']
+    version=toml.load('pyproject.toml')['project']['version']
 )
 
 templates = Jinja2Templates(directory=path.join(BASE_DIR, "templates"))
