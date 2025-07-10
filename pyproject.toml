@@ -1,35 +1,37 @@
-[tool.poetry]
+[project]
 name = "meshtatic_listener"
-version = "2.0.5"
+version = "2.0.6"
 description = "A server for connecting to a Meshtastic device and responding to commands."
-authors = ["Michael Gillett <51103663+migillett@users.noreply.github.com>"]
+authors = [{ name = "Michael Gillett", email = "51103663+migillett@users.noreply.github.com" }]
+requires-python = ">=3.10,<3.14"
 readme = "README.md"
-package-mode = false
+dependencies = [
+    "pubsub>=0.1.2,<0.2",
+    "requests>=2.32.4,<3",
+    "pydantic>=2.10.5,<3",
+    "toml>=0.10.2,<0.11",
+    "pytest>=8.3.4,<9",
+    "sqlalchemy>=2.0.37,<3",
+    "meshtastic>=2.5.11,<3",
+    "psycopg2>=2.9.10,<3",
+    "jinja2>=3.1.6,<4",
+    "fastapi>=0.115.12,<0.116",
+    "uvicorn>=0.34.2,<0.35",
+    "alembic>=1.16.1,<2",
+]
 
-[tool.poetry.scripts]
+[project.scripts]
 meshtastic_listener = "meshtastic_listener.__main__:main"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.14"
-pubsub = "^0.1.2"
-requests = "^2.32.4"
-pydantic = "^2.10.5"
-toml = "^0.10.2"
-pytest = "^8.3.4"
-sqlalchemy = "^2.0.37"
-meshtastic = "^2.5.11"
-psycopg2 = "^2.9.10"
-jinja2 = "^3.1.6"
-fastapi = "^0.115.12"
-uvicorn = "^0.34.2"
-alembic = "^1.16.1"
+[dependency-groups]
+dev = ["pytest>=8.3.4,<9"]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
+[tool.uv]
+package = false
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 pythonpath = [
