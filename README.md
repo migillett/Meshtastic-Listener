@@ -38,8 +38,8 @@ One of the main reasons for switching to Postgres was to allow for a full API fr
 ```bash
 git clone https://github.com/migillett/Meshtastic-Listener.git
 cd ./Meshtastic-Listener
-python3 pip3 install poetry
-poetry install
+python3 pip3 install uv
+uv sync
 ```
 
 ## Environment Variables
@@ -70,7 +70,7 @@ alembic upgrade head
 
 Then run the test scripts using:
 ```bash
-poetry run pytest -s ./tests
+uv run pytest -s ./tests
 ```
 
 ## Alembic Cheatsheet
