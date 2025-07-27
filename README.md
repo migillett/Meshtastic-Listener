@@ -70,7 +70,7 @@ alembic upgrade head
 
 Then run the test scripts using:
 ```bash
-poetry run pytest -s ./tests
+uv run pytest -s ./tests
 ```
 
 ## Alembic Cheatsheet
