@@ -38,8 +38,8 @@ One of the main reasons for switching to Postgres was to allow for a full API fr
 ```bash
 git clone https://github.com/migillett/Meshtastic-Listener.git
 cd ./Meshtastic-Listener
-python3 pip3 install poetry
-poetry install
+python3 pip3 install uv
+uv sync
 ```
 
 ## Environment Variables
