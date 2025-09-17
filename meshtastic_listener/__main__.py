@@ -185,7 +185,7 @@ class MeshtasticListener:
             raise MeshInterface.MeshInterfaceError(
                 f'Interface reports no Nodes. Unable to load local nodes to DB.')
         
-        for node in [NodeBase.model_validate(node, strict=True) for node in self.interface.nodesByNum.values()]:
+        for node in [NodeBase.model_validate(node) for node in self.interface.nodesByNum.values()]:
             if self.local_node_id == node.num:
                 node.isHost = True
                 node.hostSoftwareVersion = self.version
@@ -344,7 +344,7 @@ class MeshtasticListener:
 
         response = None
         if self.cmd_handler is not None:
-            payload = MessageReceived(**packet)
+            payload = MessageReceived.model_validate(packet)
             if payload.decoded.text is None:
                 logging.warning(f'Message received has no text payload: {payload.model_dump()}')
                 return None
@@ -405,21 +405,21 @@ class MeshtasticListener:
         self.__print_packet_received__(logging.debug, packet)
 
         if 'deviceMetrics' in telemetry:
-            metrics = DevicePayload(**telemetry['deviceMetrics'])
+            metrics = DevicePayload.model_validate(telemetry['deviceMetrics'])
             self.db.insert_device_metrics(
                 packet['from'],
                 packet.get('rxTime', int(time.time())),
                 metrics
             )
         elif 'localStats' in telemetry:
-            metrics = TransmissionPayload(**telemetry['localStats'])
+            metrics = TransmissionPayload.model_validate(telemetry['localStats'])
             self.db.insert_transmission_metrics(
                 packet['from'],
                 packet.get('rxTime', int(time.time())),
                 metrics
             )
         elif 'environmentMetrics' in telemetry:
-            metrics = EnvironmentPayload(**telemetry['environmentMetrics'])
+            metrics = EnvironmentPayload.model_validate(telemetry['environmentMetrics'])
             self.db.insert_environment_metrics(
                 packet['from'],
                 packet.get('rxTime', int(time.time())),
@@ -462,7 +462,6 @@ class MeshtasticListener:
             logging.error('Mesh interface reports no local node. Unable to calculate position')
             return None
 
-        node = NodeBase(**node_details)
         incoming_lat, incoming_lon = position.get('latitude'), position.get('longitude')
 
         try:
@@ -502,7 +501,7 @@ class MeshtasticListener:
         if self.db.is_admin_node(sender):
             self.__print_packet_received__(logging.info, packet)
             waypoint_data = packet.get('decoded', {}).get('waypoint', {})
-            waypoint = WaypointPayload(**waypoint_data)
+            waypoint = WaypointPayload.model_validate(waypoint_data)
             self.db.insert_waypoint(waypoint)
             logging.info(f"Received waypoint from admin node {sender}: {waypoint}")
         else:
