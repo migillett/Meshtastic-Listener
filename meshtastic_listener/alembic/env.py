@@ -4,7 +4,7 @@ from os import environ
 from meshtastic_listener.listener_db.db_tables import Base
 
 from sqlalchemy import create_engine
-
+from dotenv import load_dotenv
 from alembic import context
 
 # this is the Alembic Config object, which provides
@@ -29,6 +29,7 @@ target_metadata = Base.metadata
 
 
 def get_server_url() -> str:
+    load_dotenv(".env")
     username = environ.get("POSTGRES_USER", 'postgres')
     password = environ.get("POSTGRES_PASSWORD")
     hostname = environ.get("POSTGRES_HOSTNAME", "listener_db")
