@@ -62,7 +62,7 @@ class MeshtasticListener:
             admin_nodes: list[int] | None = None,
         ) -> None:
 
-        self.version = toml.load('pyproject.toml')['tool']['poetry']['version']
+        self.version = toml.load('pyproject.toml')['project']['version']
         logging.info(f"====== Initializing Meshtastic Listener v{self.version} ======")
         
         self.interface = interface
