@@ -25,7 +25,7 @@ class Node(Base):
     longName = Column(String(length=100), default=None)
     shortName = Column(String(length=4), default=None)
     macAddr = Column(String(length=100), default=None)
-    hwModel = Column(Integer, default=None)
+    hwModel = Column(String(length=100), default=None)
     publicKey = Column(String(length=100), default=None)
     nodeRole = Column(String(length=100), default=None)
     lastHeard = Column(BigInteger, default=None)
