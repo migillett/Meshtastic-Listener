@@ -185,7 +185,7 @@ class MeshtasticListener:
             raise MeshInterface.MeshInterfaceError(
                 f'Interface reports no Nodes. Unable to load local nodes to DB.')
         
-        for node in [NodeBase(**node) for node in self.interface.nodesByNum.values()]:
+        for node in [NodeBase.model_validate(node, strict=True) for node in self.interface.nodesByNum.values()]:
             if self.local_node_id == node.num:
                 node.isHost = True
                 node.hostSoftwareVersion = self.version
