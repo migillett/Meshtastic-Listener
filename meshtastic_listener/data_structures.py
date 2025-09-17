@@ -2,7 +2,7 @@ from typing import Optional
 from enum import StrEnum
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class InsufficientDataError(Exception):
@@ -54,6 +54,10 @@ class User(BaseModel):
     hwModel: Optional[str] = None
     publicKey: Optional[str] = None
     role: Optional[NodeRoles] = None
+
+    @field_validator("hwModel", mode='before')
+    def transform_id_to_str(cls, value) -> str:
+        return str(value)
 
 class Position(BaseModel):
     latitudeI: Optional[int] = None
