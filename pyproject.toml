@@ -28,7 +28,11 @@ meshtastic_listener = "meshtastic_listener.__main__:main"
 dev = ["pytest>=8.3.4,<9"]
 
 [tool.uv]
-package = true
+package = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 pythonpath = [
