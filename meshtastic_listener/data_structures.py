@@ -21,6 +21,7 @@ class NodeRoles(StrEnum):
     ROUTER = "ROUTER"
     ROUTER_LATE = "ROUTER_LATE"
     ROUTER_CLIENT = "ROUTER_CLIENT" # RIP router client
+    CLIENT_BASE = "CLIENT_BASE"
 
 class Decoded(BaseModel):
     portnum: str
