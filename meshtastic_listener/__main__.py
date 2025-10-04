@@ -314,6 +314,7 @@ class MeshtasticListener:
                 if health_check_stats.environmentMetrics.temperature is not None:
                     # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
                     # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
+                    # give a buffer of +-20C for high and low temp warnings
                     if health_check_stats.environmentMetrics.temperature >= 60.0:
                         alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
                     elif health_check_stats.environmentMetrics.temperature <= 0.0:
@@ -329,7 +330,7 @@ class MeshtasticListener:
                 self.previous_health_check = health_check_stats
 
             except InsufficientDataError as e:
-                logging.warning(f'Insufficent data present to calculate node health: {str(e)}')
+                logging.info(f'Insufficent data present to calculate node health: {str(e)}')
 
             except Exception as e:
                 error = f"Exception in __check_node_health__ thread: {e}"

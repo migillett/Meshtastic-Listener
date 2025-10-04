@@ -427,8 +427,8 @@ wheels = [
 
 [[package]]
 name = "meshtatic-listener"
-version = "2.0.7"
-source = { editable = "." }
+version = "2.0.8"
+source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
     { name = "dotenv" },
