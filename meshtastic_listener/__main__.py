@@ -104,6 +104,7 @@ class MeshtasticListener:
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
+        self.__load_local_nodes__()
 
     ### UTILITY FUNCTIONS
     def __send_messages__(self, text: str, destinationId: int) -> None:
@@ -194,7 +195,7 @@ class MeshtasticListener:
 
     def __load_local_nodes__(self) -> None:
         '''
-        Runs before __traceroute_upstream__ function.
+        Runs before __traceroute_upstream__ function and upon software __init__.
 
         Takes the node's local DB and writes it to postgres.
         '''
@@ -250,7 +251,9 @@ class MeshtasticListener:
 
         favorites = self.db.select_favorite_nodes()
         if len(favorites) > 0:
-            logging.info(f'Favorite nodes set to: {[f.shortName for f in favorites]}')
+            logging.info(f'Favorite nodes set to: {[self.__sanitize_string__(str(f.longName)) for f in favorites]}')
+        else:
+            logging.warning('No favorite nodes set. Traceroutes will only be sent to other Meshtastic Listener nodes.')
 
         while not self.shutdown_flag.is_set():
             self.__load_local_nodes__()
