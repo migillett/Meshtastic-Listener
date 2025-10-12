@@ -35,8 +35,6 @@ app.include_router(nodes.router)
 app.include_router(traceroutes.router)
 app.include_router(utils.router)
 
-app.mount("/static", StaticFiles(directory=path.join(BASE_DIR, "static")), name="static")
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host='0.0.0.0', port=8000)
