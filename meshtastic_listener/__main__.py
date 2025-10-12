@@ -243,10 +243,15 @@ class MeshtasticListener:
     ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self) -> None:
         '''
-        runs a traceroute to nearby infrastructure nodes on a cron job
+        runs a traceroute to user-defined favorite nodes on a cron job
 
         This function is designed to run in a thread in a loop.
         '''
+
+        favorites = self.db.select_favorite_nodes()
+        if len(favorites) > 0:
+            logging.info(f'Favorite nodes set to: {[f.shortName for f in favorites]}')
+
         while not self.shutdown_flag.is_set():
             self.__load_local_nodes__()
 
@@ -260,10 +265,9 @@ class MeshtasticListener:
                     maxHops=self.max_hops
                 )
                 if not target:
-                    logging.warning("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
+                    logging.warning("No valid traceroute nodes found in DB. Delaying next traceroute request for 1 hour.")
                     self.__sleep_with_exit__(sleep_interval_minutes=60)
                 else:
-
                     logging.info(f"Sending traceroute to node: {target.nodeNum} ({self.__sanitize_string__(str(target.longName))})")
                     # going custom on this packet since the default traceroute function has a sleep built-in.
                     r = RouteDiscovery()
