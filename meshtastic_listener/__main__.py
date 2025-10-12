@@ -202,7 +202,7 @@ class MeshtasticListener:
             raise MeshInterface.MeshInterfaceError(
                 f'Interface reports no Nodes. Unable to load local nodes to DB.')
         
-        for node in [NodeBase(**node) for node in self.interface.nodesByNum.values()]:
+        for node in [NodeBase.model_validate(node) for node in self.interface.nodesByNum.values()]:
             if self.local_node_id == node.num:
                 node.isHost = True
                 node.hostSoftwareVersion = self.version
@@ -357,6 +357,7 @@ class MeshtasticListener:
                 if health_check_stats.environmentMetrics.temperature is not None:
                     # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
                     # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
+                    # give a buffer of +-20C for high and low temp warnings
                     if health_check_stats.environmentMetrics.temperature >= 60.0:
                         alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
                     elif health_check_stats.environmentMetrics.temperature <= 0.0:
@@ -372,7 +373,7 @@ class MeshtasticListener:
                 self.previous_health_check = health_check_stats
 
             except InsufficientDataError as e:
-                logging.warning(f'Insufficent data present to calculate node health: {str(e)}')
+                logging.info(f'Insufficent data present to calculate node health: {str(e)}')
 
             except Exception as e:
                 error = f"Exception in __check_node_health__ thread: {e}"
@@ -387,7 +388,7 @@ class MeshtasticListener:
 
         response = None
         if self.cmd_handler is not None:
-            payload = MessageReceived(**packet)
+            payload = MessageReceived.model_validate(packet)
             if payload.decoded.text is None:
                 logging.warning(f'Message received has no text payload: {payload.model_dump()}')
                 return None
@@ -448,21 +449,21 @@ class MeshtasticListener:
         self.__print_packet_received__(logging.debug, packet)
 
         if 'deviceMetrics' in telemetry:
-            metrics = DevicePayload(**telemetry['deviceMetrics'])
+            metrics = DevicePayload.model_validate(telemetry['deviceMetrics'])
             self.db.insert_device_metrics(
                 packet['from'],
                 packet.get('rxTime', int(time.time())),
                 metrics
             )
         elif 'localStats' in telemetry:
-            metrics = TransmissionPayload(**telemetry['localStats'])
+            metrics = TransmissionPayload.model_validate(telemetry['localStats'])
             self.db.insert_transmission_metrics(
                 packet['from'],
                 packet.get('rxTime', int(time.time())),
                 metrics
             )
         elif 'environmentMetrics' in telemetry:
-            metrics = EnvironmentPayload(**telemetry['environmentMetrics'])
+            metrics = EnvironmentPayload.model_validate(telemetry['environmentMetrics'])
             self.db.insert_environment_metrics(
                 packet['from'],
                 packet.get('rxTime', int(time.time())),
@@ -499,6 +500,11 @@ class MeshtasticListener:
     def __handle_position__(self, packet: dict) -> None:
         position = packet.get('decoded', {}).get('position', {})
         self.__print_packet_received__(logging.debug, packet)
+
+        node_details = self.interface.getMyNodeInfo()
+        if node_details is None:
+            logging.error('Mesh interface reports no local node. Unable to calculate position')
+            return None
 
         incoming_lat, incoming_lon = position.get('latitude'), position.get('longitude')
         try:
@@ -538,7 +544,7 @@ class MeshtasticListener:
         if self.db.is_admin_node(sender):
             self.__print_packet_received__(logging.info, packet)
             waypoint_data = packet.get('decoded', {}).get('waypoint', {})
-            waypoint = WaypointPayload(**waypoint_data)
+            waypoint = WaypointPayload.model_validate(waypoint_data)
             self.db.insert_waypoint(waypoint)
             logging.info(f"Received waypoint from admin node {sender}: {waypoint}")
         else:

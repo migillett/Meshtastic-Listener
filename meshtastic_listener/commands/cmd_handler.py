@@ -83,38 +83,44 @@ class CommandHandler:
         cmds.sort()
         return '\n'.join([c.split(': ')[-1].replace('!', self.prefix) for c in cmds]).strip()
 
+    def handle_bell_alert(self, context: MessageReceived) -> None:
+        logging.warning(f'Received Alert from {context.fromId}: {context.model_dump_json()}')
+
     def handle_command(
             self,
             context: MessageReceived,
             node_health: NodeHealthCheck | None
         ) -> str | None | list[Waypoints]:
         
-        if context.decoded.text is not None and context.decoded.text.startswith(self.prefix):
-            command = context.decoded.text[1:].lower().split(' ')[0]
-            logging.info(f'Command received: {command} From: {context.fromId}')
-            match command:
-                case 't':
-                    return self.cmd_reply(context)
-                
-                case 'c':
-                    return self.cmd_healthcheck(node_health)
+        if context.decoded.text is not None:
+            if "🔔" in context.decoded.text:
+                self.handle_bell_alert(context)
 
-                # case 's':
-                #     return self.cmd_subscriptions(context)
+            elif context.decoded.text.startswith(self.prefix):
+                command = context.decoded.text[1:].lower().split(' ')[0]
+                logging.info(f'Command received: {command} From: {context.fromId}')
+                match command:
+                    case 't':
+                        return self.cmd_reply(context)
+                    
+                    case 'c':
+                        return self.cmd_healthcheck(node_health)
 
-                case 'w':
-                    # either returns an message "no waypoints found" or a list of Waypoints data
-                    # we'll need to send that data using the interface in the __main__.py file
-                    return self.cmd_waypoints()
-                
-                case 'i':
-                    return self.cmd_info()
-                
-                case 'h':
-                    return self.cmd_help()
+                    # case 's':
+                    #     return self.cmd_subscriptions(context)
 
-                case _:
-                    logger.warning(f'Unknown command: {command}')
-                    raise UnknownCommandError(f'Unknown command: {command}')
-        else:
-            return None
+                    case 'w':
+                        # either returns an message "no waypoints found" or a list of Waypoints data
+                        # we'll need to send that data using the interface in the __main__.py file
+                        return self.cmd_waypoints()
+                    
+                    case 'i':
+                        return self.cmd_info()
+                    
+                    case 'h':
+                        return self.cmd_help()
+
+                    case _:
+                        logger.warning(f'Unknown command: {command}')
+                        raise UnknownCommandError(f'Unknown command: {command}')
+        return None

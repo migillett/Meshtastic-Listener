@@ -2,7 +2,7 @@ from typing import Optional
 from enum import StrEnum
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class InsufficientDataError(Exception):
@@ -21,6 +21,7 @@ class NodeRoles(StrEnum):
     ROUTER = "ROUTER"
     ROUTER_LATE = "ROUTER_LATE"
     ROUTER_CLIENT = "ROUTER_CLIENT" # RIP router client
+    CLIENT_BASE = "CLIENT_BASE"
 
 class Decoded(BaseModel):
     portnum: str
@@ -54,6 +55,10 @@ class User(BaseModel):
     hwModel: Optional[str] = None
     publicKey: Optional[str] = None
     role: Optional[NodeRoles] = None
+
+    @field_validator("hwModel", mode='before')
+    def transform_id_to_str(cls, value) -> str:
+        return str(value)
 
 class Position(BaseModel):
     latitudeI: Optional[int] = None
@@ -133,7 +138,7 @@ class NodeHealthCheck(BaseModel):
         status = f'''{datetime.fromtimestamp(self.startTs).strftime('%Y-%m-%d %H:%M')}
 CH USAGE: {round(self.channelUsage, 2)}%
 TR SENT: {self.TracerouteStatistics.total}
-TR ACK: {self.TracerouteStatistics.successes}'''
+TR SUCCESS: {round(self.TracerouteStatistics.average(), 0)}%'''
         # Force to integer to save on character counts
         if self.environmentMetrics.temperature is not None:
             status += f'\nTEMP: {int(self.environmentMetrics.temperature)}°C'

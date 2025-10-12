@@ -55,7 +55,7 @@ services:
       - 5432:5432
     shm_size: 256mb
     volumes:
-      - ./db:/var/lib/postgresql/data
+      - ./db:/var/lib/postgresql
     env_file:
       - .env
     restart: unless-stopped
@@ -100,7 +100,7 @@ services:
       - 5432:5432
     shm_size: 256mb
     volumes:
-      - ./db:/var/lib/postgresql/data
+      - ./db:/var/lib/postgresql
     env_file:
       - .env
     restart: unless-stopped
@@ -140,7 +140,7 @@ services:
       - 5432:5432
     shm_size: 256mb
     volumes:
-      - ./db:/var/lib/postgresql/data
+      - ./db:/var/lib/postgresql
     env_file:
       - .env
     restart: unless-stopped
