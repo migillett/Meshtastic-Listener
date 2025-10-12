@@ -138,7 +138,7 @@ class NodeHealthCheck(BaseModel):
         status = f'''{datetime.fromtimestamp(self.startTs).strftime('%Y-%m-%d %H:%M')}
 CH USAGE: {round(self.channelUsage, 2)}%
 TR SENT: {self.TracerouteStatistics.total}
-TR ACK: {self.TracerouteStatistics.successes}'''
+TR SUCCESS: {round(self.TracerouteStatistics.average(), 0)}%'''
         # Force to integer to save on character counts
         if self.environmentMetrics.temperature is not None:
             status += f'\nTEMP: {int(self.environmentMetrics.temperature)}°C'
