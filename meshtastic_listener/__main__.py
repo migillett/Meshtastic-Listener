@@ -162,7 +162,6 @@ class MeshtasticListener:
         try:
             payload_raw: bytes = packet['decoded'].get('payload')
             # payload_raw = b'{"nodeNum":1111111,"version":"test"}'
-            logging.info(f'Decoding payload from packet: {payload_raw}')
             packet['decoded']['payload'] = json.loads(payload_raw.decode('utf-8'))
         except Exception as e:
             logging.error(f"Failed to decode raw bytes as JSON: {e}")
