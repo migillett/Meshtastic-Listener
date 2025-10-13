@@ -8,7 +8,6 @@ from meshtastic_listener.api.routes import (
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
 
@@ -34,8 +33,6 @@ async def render_home_page(request: Request) -> HTMLResponse:
 app.include_router(nodes.router)
 app.include_router(traceroutes.router)
 app.include_router(utils.router)
-
-app.mount("/static", StaticFiles(directory=path.join(BASE_DIR, "static")), name="static")
 
 
 if __name__ == "__main__":

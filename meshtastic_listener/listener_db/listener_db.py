@@ -572,25 +572,35 @@ class ListenerDb:
                 successes=sum(1 for item in items if item.tracerouteDetails is not None),
                 avgTraceDuration=round(mean(durations), 2) if durations else 0.0
             )
+        
+    def select_favorite_nodes(self) -> list[Node]:
+        '''
+        Returns all nodes marked as favorite nodes
+        '''
+        with self.session() as session:
+            return session.query(
+                Node
+            ).filter(
+                Node.isFavorite == True
+            ).order_by(
+                Node.lastHeard.desc()
+            ).all()
 
     def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
         '''
-        Returns 1 node (if any) nodes where role == router | router_late,
-        is less than 6 hops away,
+        Returns 1 node (if any) if it is a favorite node or is another listener node,
+        is less than maxHops hops away,
         is NOT the current node,
-        was last heard less than 1 week ago
         and has not had a traceroute attempt (txTime) sent to it in the past 3 hours.
         '''
         with self.session() as session:
             three_hours_ago = int(time() - timedelta(hours=3).total_seconds())
-            one_week_ago = int(time() - timedelta(days=7).total_seconds())
             return session.query(
                 Node
             ).filter(
-                (Node.nodeRole == NodeRoles.ROUTER.value) | (Node.nodeRole == NodeRoles.ROUTER_LATE.value) | (Node.isFavorite == True),
+                (Node.isFavorite == True) | (Node.isHost == True),
                 Node.hopsAway <= maxHops,
                 Node.nodeNum != fromId,
-                Node.lastHeard >= one_week_ago,
                 ~Node.nodeNum.in_(
                     session.query(Traceroute.toId).filter(
                         Traceroute.txTime > three_hours_ago
