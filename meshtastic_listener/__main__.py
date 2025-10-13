@@ -567,7 +567,7 @@ class MeshtasticListener:
     def __handle_instance_advertisement__(self, packet: dict) -> None:
         self.__print_packet_received__(logging.info, packet)
         try:
-            adverstise_payload = AdvertiseInstancePayload.model_validate(**packet.get('decoded', {}).get('payload', {}))
+            adverstise_payload = AdvertiseInstancePayload.model_validate(packet.get('decoded', {}).get('payload', {}))
             self.db.mark_node_as_listener(
                 node_id=adverstise_payload.nodeNum,
                 version=adverstise_payload.version
