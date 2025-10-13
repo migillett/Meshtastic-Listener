@@ -17,12 +17,14 @@ class CommandHandler:
             self,
             cmd_db: ListenerDb,
             server_node_id: int,
+            version: str,
             prefix: str = '!'
         ) -> None:
 
         self.prefix = prefix
         self.db = cmd_db
         self.server_node_id = server_node_id
+        self.version = version
         self.char_limit = 200
 
     def cmd_reply(self, context: MessageReceived) -> str:
@@ -74,7 +76,7 @@ class CommandHandler:
         '''
         98: !i - Display info
         '''
-        return 'Meshtastic Listener\nhttps://github.com/migillett/meshtastic-listener'
+        return f'Meshtastic Listener {self.version}\nhttps://github.com/migillett/meshtastic-listener'
 
     def cmd_help(self) -> str:
         '''

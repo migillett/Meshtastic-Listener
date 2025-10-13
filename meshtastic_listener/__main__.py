@@ -60,12 +60,13 @@ class MeshtasticListener:
             self,
             interface: TCPInterface | SerialInterface,
             db_object: ListenerDb,
+            version: str,
             cmd_handler: CommandHandler,
             update_interval_minutes: int = 15,
             admin_nodes: list[int] | None = None,
         ) -> None:
 
-        self.version = toml.load('pyproject.toml')['project']['version']
+        self.version = version
         logging.info(f"====== Initializing Meshtastic Listener v{self.version} ======")
         
         self.interface = interface
@@ -751,6 +752,8 @@ if __name__ == "__main__":
         logging.warning(f"Connection to {device_ip} refused. Exiting...")
         exit(1)
 
+    version = toml.load('pyproject.toml')['project']['version']
+
     db_object = ListenerDb(
         hostname=environ.get("POSTGRES_HOSTNAME", "listener_db"),
         username=environ.get("POSTGRES_USER", 'postgres'),
@@ -761,12 +764,14 @@ if __name__ == "__main__":
     cmd_handler = CommandHandler(
         cmd_db=db_object,
         server_node_id=int(interface.localNode.nodeNum),
+        version=version,
         prefix=environ.get("CMD_PREFIX", '!')
     )
 
     listener = MeshtasticListener(
         interface=interface,
         db_object=db_object,
+        version=version,
         cmd_handler=cmd_handler,
         update_interval_minutes=int(environ.get("UPDATE_INTERVAL", 10)),
         admin_nodes=load_node_env_var("ADMIN_NODE_IDS")

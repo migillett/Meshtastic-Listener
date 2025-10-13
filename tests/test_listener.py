@@ -20,8 +20,8 @@ class TestInterface(MeshInterface):
     def __init__(self) -> None:
         super().__init__()
         self.localNode.nodeNum = 1234567890
-        self.nodes = {
-            '1234567890': {
+        self.nodesByNum = {
+            1234567890: {
                 'num': 1234567890,
                 'user': {
                     'id': '1234567890',
@@ -39,7 +39,7 @@ class TestInterface(MeshInterface):
         self.expected_response: str | None = None
 
     def getMyNodeInfo(self):
-        return self.nodes['1234567890']
+        return self.nodesByNum[1234567890]
 
     def close(self) -> None:
         pass
@@ -66,12 +66,14 @@ db = ListenerDb(
 cmd_handler = CommandHandler(
     prefix='!',
     server_node_id=1234567890,
+    version='testing',
     cmd_db=db
 )
 
 listener = MeshtasticListener(
     interface=test_interface,
     cmd_handler=cmd_handler,
+    version='testing',
     db_object=db,
     admin_nodes=[1234567890]
 )
@@ -92,7 +94,8 @@ def test_listener():
         ('!h', ''), # this message will be long, so just check for a basic response
         ('!t', 'RX HOPS:'),
         ('!w', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above
-        ('!i', 'Meshtastic Listener'),
+        ('!i', 'Meshtastic Listener testing'),
+        ('!l', 'No links found'),
         ('!c', 'No health check data available.'),  # no health check data in the test messages
 
         # SUBSCRIPTIONS
