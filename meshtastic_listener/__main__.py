@@ -204,10 +204,11 @@ class MeshtasticListener:
                 f'Interface reports no Nodes. Unable to load local nodes to DB.')
         
         for node in [NodeBase.model_validate(node) for node in self.interface.nodesByNum.values()]:
-            if self.local_node_id == node.num:
-                node.isHost = True
-                node.hostSoftwareVersion = self.version
             self.db.insert_node(node=node)
+
+        self.db.mark_node_as_listener(
+            node_id=self.local_node_id,
+            version=self.version)
 
         logging.debug(f'Pushed {len(self.interface.nodesByNum)} node details to DB')
 

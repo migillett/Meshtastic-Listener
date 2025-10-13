@@ -61,9 +61,7 @@ class ListenerDb:
                     altitude=node.position.altitude,
                     lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
-                    isHost=node.isHost,
                     isFavorite=node.isFavorite,
-                    hostSoftwareVersion=node.hostSoftwareVersion,
                 ).on_conflict_do_update(
                     index_elements=['nodeNum'],
                     set_={
@@ -78,9 +76,7 @@ class ListenerDb:
                         'altitude': node.position.altitude,
                         'lastHeard': node.lastHeard,
                         'hopsAway': node.hopsAway,
-                        'isHost': node.isHost,
-                        'isFavorite': node.isFavorite,
-                        'hostSoftwareVersion': node.hostSoftwareVersion,
+                        'isFavorite': node.isFavorite
                     }
                 )
             session.execute(stmt)
@@ -97,9 +93,13 @@ class ListenerDb:
             session.add(node)
             session.commit()
 
-    def get_listener_nodes(self) -> list[Node]:
+    def get_listener_nodes(self, lookback_hours: int = 24) -> list[Node]:
+        lookback_ts = int(time()) - timedelta(hours=lookback_hours).total_seconds()
         with self.session() as session:
-            return session.query(Node).filter(Node.isHost == True).all()
+            return session.query(Node).filter(
+                Node.isHost == True,
+                Node.lastHeard >= lookback_ts
+            ).all()
 
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         with self.session() as session:

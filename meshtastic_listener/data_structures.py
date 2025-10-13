@@ -113,8 +113,6 @@ class NodeBase(BaseModel):
     position: Position = Field(default=Position())
     deviceMetrics: DevicePayload = Field(default=DevicePayload())
     isFavorite: bool = False
-    isHost: bool = False
-    hostSoftwareVersion: Optional[str] = None
 
 class TracerouteStatistics(BaseModel):
     total: int = 0
