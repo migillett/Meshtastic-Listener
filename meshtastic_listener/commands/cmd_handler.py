@@ -49,6 +49,16 @@ class CommandHandler:
             return health_status.status()
         else:
             return 'No health check data available.'
+        
+    def cmd_links(self) -> str:
+        '''
+        4: !l - Get current node links
+        '''
+        links = self.db.get_listener_nodes()
+        if len(links) == 0:
+            return 'No links found'
+
+        return '\n'.join([f'Node {link.nodeId} ({link.longName}): {link.hostSoftwareVersion}' for link in links])
 
     # def cmd_subscriptions(self, context: MessageReceived) -> str:
     #     '''
@@ -113,6 +123,9 @@ class CommandHandler:
                         # either returns an message "no waypoints found" or a list of Waypoints data
                         # we'll need to send that data using the interface in the __main__.py file
                         return self.cmd_waypoints()
+
+                    case 'l':
+                        return self.cmd_links()
                     
                     case 'i':
                         return self.cmd_info()

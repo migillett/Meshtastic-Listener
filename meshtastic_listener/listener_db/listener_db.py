@@ -97,6 +97,10 @@ class ListenerDb:
             session.add(node)
             session.commit()
 
+    def get_listener_nodes(self) -> list[Node]:
+        with self.session() as session:
+            return session.query(Node).filter(Node.isHost == True).all()
+
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         with self.session() as session:
             for node in nodes:
