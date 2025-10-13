@@ -383,7 +383,7 @@ class MeshtasticListener:
                         alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
 
                 if alert_context != '':
-                    self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
+                    self.__notify_admins__(f'🔔ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
 
                 self.previous_health_check = health_check_stats
 
