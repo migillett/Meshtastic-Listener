@@ -241,13 +241,14 @@ class MeshtasticListener:
         else:
             return "No significant changes in health check."
 
-    def __send_advertise_payload__(self, destinationId: str | int = BROADCAST_ADDR) -> None:
+    def __send_advertise_payload__(self, destinationId: str | int = BROADCAST_ADDR, ack: bool = False) -> None:
         '''
         Sends an instance advertisement packet to the mesh. Default is to broadcast to channel 0.
         '''
         advertise_payload = AdvertiseInstancePayload(
             nodeNum=self.local_node_id,
-            version=self.version
+            version=self.version,
+            ack=ack
         )
         self.interface.sendData(
             data=advertise_payload.model_dump_json().encode("utf-8"),
@@ -575,7 +576,7 @@ class MeshtasticListener:
             logging.info(f'Marked node {adverstise_payload.nodeNum} as software host with version: {adverstise_payload.version}')
             if not adverstise_payload.ack:
                 # send an ack back to the advertising node to establish a link
-                self.__send_advertise_payload__(destinationId=adverstise_payload.nodeNum)
+                self.__send_advertise_payload__(destinationId=adverstise_payload.nodeNum, ack=True)
         except ItemNotFound as e:
             logging.error(f'Unable to update software host Node: {e}')
         except ValidationError as e:
