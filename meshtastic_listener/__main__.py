@@ -20,6 +20,7 @@ from meshtastic_listener.data_structures import (
 from meshtastic_listener.utils import coords_int_to_float, load_node_env_var
 
 from pubsub import pub
+from meshtastic import BROADCAST_ADDR
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
 from meshtastic.protobuf.portnums_pb2 import PortNum
@@ -241,6 +242,24 @@ class MeshtasticListener:
         else:
             return "No significant changes in health check."
 
+    def __send_advertise_payload__(self, destinationId: str | int = BROADCAST_ADDR) -> None:
+        '''
+        Sends an instance advertisement packet to the mesh. Default is to broadcast to channel 0.
+        '''
+        advertise_payload = AdvertiseInstancePayload(
+            nodeNum=self.local_node_id,
+            version=self.version
+        )
+        self.interface.sendData(
+            data=advertise_payload.model_dump_json().encode("utf-8"),
+            destinationId=destinationId,
+            portNum=self.__advertise_portnum__,
+            hopLimit=self.max_hops
+        )
+        logging.info(
+            f'Sent Meshtastic Listener heartbeat to {destinationId}: {advertise_payload.model_dump()}'
+        )
+
     ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self) -> None:
         '''
@@ -300,18 +319,7 @@ class MeshtasticListener:
         This function tells other instances of Meshtastic Listener that we exist for their maps.
         '''
         while not self.shutdown_flag.is_set():
-            advertise_payload = AdvertiseInstancePayload(
-                nodeNum=self.local_node_id,
-                version=self.version
-            )
-            self.interface.sendData(
-                data=advertise_payload.model_dump_json().encode("utf-8"),
-                portNum=self.__advertise_portnum__,
-                hopLimit=self.max_hops
-            )
-            logging.info(
-                f'Sent Meshtastic Listener heartbeat: {advertise_payload.model_dump()}'
-            )
+            self.__send_advertise_payload__()
             self.__sleep_with_exit__(
                 sleep_interval_minutes=60
             )
@@ -566,6 +574,9 @@ class MeshtasticListener:
                 version=adverstise_payload.version
             )
             logging.info(f'Marked node {adverstise_payload.nodeNum} as software host with version: {adverstise_payload.version}')
+            if not adverstise_payload.ack:
+                # send an ack back to the advertising node to establish a link
+                self.__send_advertise_payload__(destinationId=adverstise_payload.nodeNum)
         except ItemNotFound as e:
             logging.error(f'Unable to update software host Node: {e}')
         except ValidationError as e:

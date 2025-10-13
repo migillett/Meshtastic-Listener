@@ -149,3 +149,4 @@ TR SUCCESS: {round(self.TracerouteStatistics.average(), 0)}%'''
 class AdvertiseInstancePayload(BaseModel):
     nodeNum: int
     version: str
+    ack: bool = False # deleniates if the packet we just sent is an ack to another instance's advertise packet
