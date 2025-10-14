@@ -38,6 +38,8 @@ class Node(Base):
     # tells us if 1. the node here is self or 2. if the node is also running this software (TODO)
     isHost = Column(Boolean, default=False)
     hostSoftwareVersion = Column(String(length=15), default=None)
+    # the last time we heard from the node running this software
+    hostLastHeard = Column(BigInteger, default=None)
 
     @staticmethod
     def cascade_delete(session, node_num: int) -> None:
@@ -138,6 +140,15 @@ class Neighbor(Base):
 #     batteryLevelAlarm = Column(Boolean, default=False)
 #     networkPathAlarm = Column(Boolean, default=False)
 #     errorRateAlarm = Column(Boolean, default=False)
+
+
+class AlertThresholdSettings(Base):
+    __tablename__ = 'alert_settings'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    channelUsageThreshold = Column(Float, default=25.0, nullable=False) # percentage
+    highTempThreshold = Column(Float, default=60.0, nullable=False) # Celsius
+    lowTempThreshold = Column(Float, default=0.0, nullable=False) # Celsius
+    highHumidityThreshold = Column(Float, default=60.0, nullable=False) # percentage
 
 
 class Subscriptions(Base):

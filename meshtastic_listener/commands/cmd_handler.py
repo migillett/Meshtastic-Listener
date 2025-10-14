@@ -56,7 +56,7 @@ class CommandHandler:
         '''
         4: !l - Get current node links
         '''
-        links = self.db.get_listener_nodes()
+        links = self.db.get_listener_nodes(lookback_hours=24)
         if len(links) == 0:
             return 'No links found'
 

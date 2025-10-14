@@ -1,6 +1,6 @@
 [project]
 name = "meshtatic_listener"
-version = "2.1.4"
+version = "2.1.5"
 description = "A server for connecting to a Meshtastic device and responding to commands."
 authors = [{ name = "Michael Gillett", email = "51103663+migillett@users.noreply.github.com" }]
 requires-python = ">=3.10,<3.14"

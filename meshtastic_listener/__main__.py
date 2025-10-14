@@ -182,7 +182,7 @@ class MeshtasticListener:
         '''
         some node names utilize emojis that don't map to UTF-8 very well.
         '''
-        return re.sub(r'[^\w\s,]', '', long_name)
+        return re.sub(r'[^\w\s,]', '', long_name).strip()
 
     def __sleep_with_exit__(self, sleep_interval_minutes: Optional[int] = None) -> None:
         '''
@@ -261,6 +261,21 @@ class MeshtasticListener:
         logging.info(
             f'Sent Meshtastic Listener heartbeat to {destinationId}: {advertise_payload.model_dump()}'
         )
+
+    def __check_listener_instances__(self) -> None:
+        '''
+        Quick spot-check of other Meshtastic Listener instances on the mesh.
+
+        If we haven't seen another instance in the last 24 hours, send an instance advertisement packet.
+        '''
+        all_listener_nodes = self.db.get_listener_nodes()
+        inactive_ts = int(time.time() - timedelta(hours=24).total_seconds())
+        for node in all_listener_nodes:
+            if node.lastHeard < inactive_ts:
+                error_msg = f'WARNING:\nNo activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in the past 24 hours. Attempting to re-advertise.'
+                logging.warning(error_msg)
+                self.__notify_admins__(error_msg)
+                self.__send_advertise_payload__(destinationId=node.nodeNum)
 
     ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self) -> None:
@@ -385,7 +400,7 @@ class MeshtasticListener:
                         alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
 
                 if alert_context != '':
-                    self.__notify_admins__(f'🔔ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
+                    self.__notify_admins__(f'{self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours', priority=True)
 
                 self.previous_health_check = health_check_stats
 
@@ -585,7 +600,9 @@ class MeshtasticListener:
             logging.error(f'Payload validation failure for packet ({e}): {packet}')
 
     ### NOTIFICATIONS ###
-    def __notify_admins__(self, message: str) -> None:
+    def __notify_admins__(self, message: str, priority: bool = False) -> None:
+        if priority:
+            message = f'🔔URGENT🔔\n{message}'
         admin_nodes = self.db.get_active_admin_nodes()
         if admin_nodes is not None and len(admin_nodes) > 0:
             for admin_node in admin_nodes:
@@ -593,18 +610,21 @@ class MeshtasticListener:
                     to_id=admin_node.nodeNum,
                     message=message
                 )
+                if priority:
+                    # trigger notifications immediately for high-priority messages
+                    self.__trigger_notifications__(admin_node.nodeNum, lookback_days=3)
+
             logging.info(f"Queued notification to {len(admin_nodes)} admin nodes")
 
-    def __trigger_notifications__(self, node_num: int, lookback_days: int = 3) -> None:
+    def __trigger_notifications__(self, node_num: int, lookback_days: int = 3, batch_size: int = 3) -> None:
         pending_notifications = self.db.get_pending_notifications(
             to_id=node_num,
             timestamp_cutoff=int(time.time() - timedelta(days=lookback_days).total_seconds())
         )
         if len(pending_notifications) > 0 and self.notification_ts < time.time():
-            # TODO - only queue HIGHEST priority messages.
-            # Only send 2-3 notifications at a time from oldest to newest
-            if len(pending_notifications) > 3:
-                pending_notifications = pending_notifications[:-3]
+            # TODO - get high priority messages first, then everything else.
+            if len(pending_notifications) > batch_size:
+                pending_notifications = pending_notifications[:-batch_size]
             logging.info(f"Sending {len(pending_notifications)} notifications to node: {node_num}")
             for notif in pending_notifications:
                 message_metadata = self.interface.sendText(
@@ -691,7 +711,7 @@ class MeshtasticListener:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
         except Exception as e:
             logging.exception(f"Encountered fatal error in main loop: {e}")
-            self.__notify_admins__(f'Encountered a Fatal Error: {str(e)}')
+            self.__notify_admins__(f'Encountered a Fatal Error: {str(e)}', priority=True)
 
     def __exit__(self, signum, frame) -> None:
         logging.info("Received shutdown signal. Exiting gracefully...")

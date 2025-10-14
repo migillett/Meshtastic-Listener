@@ -95,7 +95,7 @@ def test_listener():
         ('!t', 'RX HOPS:'),
         ('!w', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above
         ('!i', 'Meshtastic Listener testing'),
-        ('!l', 'No links found'),
+        ('!l', '1234567890 (TEST): testing'),
         ('!c', 'No health check data available.'),  # no health check data in the test messages
 
         # SUBSCRIPTIONS

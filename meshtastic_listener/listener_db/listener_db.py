@@ -90,15 +90,16 @@ class ListenerDb:
                 raise ItemNotFound(f'Node with ID {node_id} not found')
             node.isHost = True
             node.hostSoftwareVersion = version
+            node.hostLastHeard = int(time())
             session.add(node)
             session.commit()
 
-    def get_listener_nodes(self, lookback_hours: int = 24) -> list[Node]:
-        lookback_ts = int(time()) - timedelta(hours=lookback_hours).total_seconds()
+    def get_listener_nodes(self, lookback_hours: int | None = None) -> list[Node]:
+        lookback_ts = int(time()) - timedelta(hours=lookback_hours).total_seconds() if lookback_hours else 0
         with self.session() as session:
             return session.query(Node).filter(
                 Node.isHost == True,
-                Node.lastHeard >= lookback_ts
+                Node.hostLastHeard >= lookback_ts
             ).all()
 
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
@@ -135,22 +136,10 @@ class ListenerDb:
                         'isFavorite': node.isFavorite,
                     }
                 )
-
                 session.execute(stmt)
 
             session.commit()
             logger.debug(f'Successfully upserted {len(nodes)} nodes into db')
-
-    def update_node_last_heard(self, node_num: int, last_heard: int = int(time())) -> None:
-        with self.session() as session:
-            node = session.query(Node).filter(Node.nodeNum == node_num).first()
-            if not node:
-                logger.error(f'Node {node_num} not found in db. Unable to update last heard timestamp.')
-            else:
-                node.lastHeard = last_heard
-                session.add(node)
-                session.commit()
-                logger.debug(f'Updated last heard for node {node_num} to {last_heard}')
 
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
@@ -370,6 +359,9 @@ class ListenerDb:
             session.commit()
 
     def get_pending_notifications(self, to_id: int, max_attempts: int = 5, timestamp_cutoff: int = 0) -> list[OutgoingNotifications]:
+        '''
+        notifications return in ascending order with oldest first
+        '''
         with self.session() as session:
             return session.query(
                 OutgoingNotifications
