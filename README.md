@@ -6,10 +6,17 @@ The goal of this repo is to solve that problem. This code will listen to your Me
 ## Commands
 The listener does accept some basic commands for interfacing with the notification configuration.
 
-- `!h` - Prints the list of commands
 - `!t` - Replies to the sender with transmission details
-- `!s` - Returns a list of subscription commands to handle user notifications.
+
 - `!w` - Adds a list of waypoints from the server to your local map with a ttl of 7 days.
+
+- `!c` - Get the node's healthcheck
+
+- `!l` - Lists all connected listener nodes
+
+- `!i` - Get service information (GitHub link and version)
+
+- `!h` - Prints the list of commands
 
 ## To Do:
 ~~- Update test scripts to work with Postgres DB instead of SqLite3~~
