@@ -40,6 +40,7 @@ class Node(Base):
     hostSoftwareVersion = Column(String(length=15), default=None)
     # the last time we heard from the node running this software
     hostLastHeard = Column(BigInteger, default=None)
+    reconnectAttempts = Column(Integer, default=0)
 
     @staticmethod
     def cascade_delete(session, node_num: int) -> None:

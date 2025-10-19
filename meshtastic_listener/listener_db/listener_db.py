@@ -91,15 +91,32 @@ class ListenerDb:
             node.isHost = True
             node.hostSoftwareVersion = version
             node.hostLastHeard = int(time())
+            node.reconnectAttempts = 0
             session.add(node)
             session.commit()
 
-    def get_listener_nodes(self, lookback_hours: int | None = None) -> list[Node]:
-        lookback_ts = int(time()) - timedelta(hours=lookback_hours).total_seconds() if lookback_hours else 0
+    def remove_node_as_listener(self, node_id: int) -> None:
+        with self.session() as session:
+            node = session.query(Node).filter(Node.nodeNum == node_id).first()
+            if node is None:
+                raise ItemNotFound(f'Node with ID {node_id} not found')
+            node.isHost = False
+            session.add(node)
+            session.commit()
+
+    def increment_node_reconnect_attempts(self, node_id: int) -> None:
+        with self.session() as session:
+            node = session.query(Node).filter(Node.nodeNum == node_id).first()
+            if node is None:
+                raise ItemNotFound(f'Node with ID {node_id} not found')
+            node.reconnectAttempts = node.reconnectAttempts + 1
+            session.add(node)
+            session.commit()
+
+    def get_listener_nodes(self) -> list[Node]:
         with self.session() as session:
             return session.query(Node).filter(
-                Node.isHost == True,
-                Node.hostLastHeard >= lookback_ts
+                Node.isHost == True
             ).all()
 
     def insert_nodes(self, nodes: list[NodeBase]) -> None:

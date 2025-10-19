@@ -262,20 +262,24 @@ class MeshtasticListener:
             f'Sent Meshtastic Listener heartbeat to {destinationId}: {advertise_payload.model_dump()}'
         )
 
-    def __check_listener_instances__(self) -> None:
+    def __check_listener_instances__(self, max_reconnects: int = 3, lookback_hours: int = 6) -> None:
         '''
         Quick spot-check of other Meshtastic Listener instances on the mesh.
 
         If we haven't seen another instance in the last 24 hours, send an instance advertisement packet.
         '''
         all_listener_nodes = self.db.get_listener_nodes()
-        inactive_ts = int(time.time() - timedelta(hours=24).total_seconds())
+        inactive_ts = int(time.time() - timedelta(hours=lookback_hours).total_seconds())
         for node in all_listener_nodes:
             if node.lastHeard < inactive_ts:
-                error_msg = f'WARNING:\nNo activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in the past 24 hours. Attempting to re-advertise.'
-                logging.warning(error_msg)
-                self.__notify_admins__(error_msg)
-                self.__send_advertise_payload__(destinationId=node.nodeNum)
+                if node.reconnectAttempts < max_reconnects:
+                    error_msg = f'No activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in {lookback_hours} hours. Attempting to re-advertise. Attempt: {node.reconnectAttempts + 1}/{max_reconnects}'
+                    logging.warning(error_msg)
+                    self.__notify_admins__(message=error_msg, priority=True)
+                    self.__send_advertise_payload__(destinationId=node.nodeNum)
+                else:
+                    logging.error(f'No activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in the past {lookback_hours} hours after {max_reconnects} reconnect attempts.')
+                    self.db.remove_node_as_listener(node_id=node.nodeNum)
 
     ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self) -> None:
