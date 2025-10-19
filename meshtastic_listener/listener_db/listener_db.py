@@ -638,7 +638,7 @@ class ListenerDb:
         with self.session() as session:
             settings = session.query(AlertThresholdSettings).first()
             if not settings:
-                logger.warning('Alert settings not found in database. Creating default settings.')
+                logger.info('Alert settings not found in database. Creating default settings.')
                 settings = AlertThresholdSettings(
                     channelUsageThreshold=25.0,
                     highTempThreshold=60.0,
