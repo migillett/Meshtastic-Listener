@@ -124,6 +124,13 @@ class TracerouteStatistics(BaseModel):
             raise InsufficientDataError('No traceroute data available to calculate average success rate.')
         return round((self.successes / self.total) * 100, 2)
 
+class AlertSettings(BaseModel):
+    channelUsageThreshold: float
+    highTemperatureThreshold: float
+    lowTemperatureThreshold: float
+    highHumidityThreshold: float
+    tracerouteFailureThreshold: float
+
 class NodeHealthCheck(BaseModel):
     nodeNum: int
     startTs: int = 0

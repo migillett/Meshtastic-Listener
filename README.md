@@ -14,7 +14,7 @@ The listener does accept some basic commands for interfacing with the notificati
 ## To Do:
 ~~- Update test scripts to work with Postgres DB instead of SqLite3~~
 - Add support for syncing databases between 2 nodes both running the software.
-    - Consider making a "Client" version of the software that doesn't have any major functions, just the db and a web UI
+- Notify Admins if version of local node is out of sync with another (like behind verison)
 - If node not found in DB for position updates, request node info.
 - Metrics Alerting Features:
     - Define new subscription tables and allow users to sub / unsub from them

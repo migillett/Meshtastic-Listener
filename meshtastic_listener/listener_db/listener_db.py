@@ -7,12 +7,12 @@ from typing import Optional
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
     EnvironmentPayload, WaypointPayload, NodeRoles,
-    TracerouteStatistics
+    TracerouteStatistics, AlertSettings
 )
 from meshtastic_listener.listener_db.db_tables import (
     Node, DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
     Traceroute, MessageHistory, OutgoingNotifications, Subscriptions,
-    Neighbor, Waypoints, AdminNodes
+    Neighbor, Waypoints, AdminNodes, AlertThresholdSettings
 )
 
 from sqlalchemy import create_engine
@@ -632,3 +632,39 @@ class ListenerDb:
     def get_waypoints(self) -> list[Waypoints]:
         with self.session() as session:
             return session.query(Waypoints).all()
+
+    ### SETTINGS ###
+    def get_alert_settings(self) -> AlertSettings:
+        with self.session() as session:
+            settings = session.query(AlertThresholdSettings).first()
+            if not settings:
+                logger.warning('Alert settings not found in database. Creating default settings.')
+                settings = AlertThresholdSettings(
+                    channelUsageThreshold=80.0,
+                    highTempThreshold=60.0,
+                    lowTempThreshold=0.0,
+                    highHumidityThreshold=75.0,
+                    tracerouteFailureThreshold=15.0
+                )
+                session.add(settings)
+                session.commit()
+            return AlertSettings(
+                channelUsageThreshold=settings.channelUsageThreshold,
+                highTemperatureThreshold=settings.highTempThreshold,
+                lowTemperatureThreshold=settings.lowTempThreshold,
+                highHumidityThreshold=settings.highHumidityThreshold,
+                tracerouteFailureThreshold=settings.tracerouteFailureThreshold
+            )
+    
+    def update_alert_settings(self, new_settings: AlertSettings) -> None:
+        with self.session() as session:
+            settings = session.query(AlertThresholdSettings).first()
+            if not settings:
+                raise ItemNotFound('Alert settings not found in database. Run the initial setup to create default settings.')
+            settings.channelUsageThreshold = new_settings.channelUsageThreshold
+            settings.highTempThreshold = new_settings.highTemperatureThreshold
+            settings.lowTempThreshold = new_settings.lowTemperatureThreshold
+            settings.highHumidityThreshold = new_settings.highHumidityThreshold
+            settings.tracerouteFailureThreshold = new_settings.tracerouteFailureThreshold
+            session.add(settings)
+            session.commit()

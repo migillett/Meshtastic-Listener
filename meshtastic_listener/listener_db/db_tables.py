@@ -131,17 +131,6 @@ class Neighbor(Base):
     snr = Column(Float, nullable=False)
 
 
-# class NodeAlarmStatus(Base):
-#     __tablename__ = "node_alarm_status"
-#     nodeNum = Column(BigInteger, nullable=False, primary_key=True)
-#     temperatureAlarm = Column(Boolean, default=False)
-#     humidityAlarm = Column(Boolean, default=False)
-#     channelUsageAlarm = Column(Boolean, default=False)
-#     batteryLevelAlarm = Column(Boolean, default=False)
-#     networkPathAlarm = Column(Boolean, default=False)
-#     errorRateAlarm = Column(Boolean, default=False)
-
-
 class AlertThresholdSettings(Base):
     __tablename__ = 'alert_settings'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -149,6 +138,7 @@ class AlertThresholdSettings(Base):
     highTempThreshold = Column(Float, default=60.0, nullable=False) # Celsius
     lowTempThreshold = Column(Float, default=0.0, nullable=False) # Celsius
     highHumidityThreshold = Column(Float, default=60.0, nullable=False) # percentage
+    tracerouteFailureThreshold = Column(Float, default=50.0, nullable=False) # percentage
 
 
 class Subscriptions(Base):
@@ -158,6 +148,7 @@ class Subscriptions(Base):
     nodeNum = Column(BigInteger, nullable=False)
     isSubscribed = Column(Boolean, default=True)
     timestamp = Column(Integer, default=int(time()))
+
 
 class OutgoingNotifications(Base):
     __tablename__ = 'outgoing_notifications'

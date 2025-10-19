@@ -353,6 +353,9 @@ class MeshtasticListener:
 
         while not self.shutdown_flag.is_set():
             try:
+                settings = self.db.get_alert_settings()
+                logging.debug(f'Fetched alert settings from DB: {settings.model_dump()}')
+                
                 now = time.time()
                 lookback_ts = int(now - timedelta(hours=lookback_hours).total_seconds())
 
@@ -382,7 +385,7 @@ class MeshtasticListener:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
                 trace_avg = health_check_stats.TracerouteStatistics.average()
-                if trace_avg <= 10.0 and health_check_stats.TracerouteStatistics.total >= 30:
+                if trace_avg <= settings.tracerouteFailureThreshold and health_check_stats.TracerouteStatistics.total >= 30:
                     # 30 for minimum statistical significance
                     alert_context += f'Low TR Success Rate: {trace_avg}%\n'
 
@@ -390,13 +393,13 @@ class MeshtasticListener:
                     # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
                     # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
                     # give a buffer of +-20C for high and low temp warnings
-                    if health_check_stats.environmentMetrics.temperature >= 60.0:
+                    if health_check_stats.environmentMetrics.temperature >= settings.highTemperatureThreshold:
                         alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
-                    elif health_check_stats.environmentMetrics.temperature <= 0.0:
+                    elif health_check_stats.environmentMetrics.temperature <= settings.lowTemperatureThreshold:
                         alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
                 
                 if health_check_stats.environmentMetrics.relativeHumidity is not None:
-                    if health_check_stats.environmentMetrics.relativeHumidity >= 90.0:
+                    if health_check_stats.environmentMetrics.relativeHumidity >= settings.highHumidityThreshold:
                         alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
 
                 if alert_context != '':
