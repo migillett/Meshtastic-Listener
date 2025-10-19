@@ -400,7 +400,7 @@ class MeshtasticListener:
                         alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
 
                 if alert_context != '':
-                    self.__notify_admins__(f'{self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours', priority=True)
+                    self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours', priority=True)
 
                 self.previous_health_check = health_check_stats
 
@@ -472,7 +472,7 @@ class MeshtasticListener:
             not self.db.is_admin_node(payload.fromId)
         ):
             self.__notify_admins__(
-                message=f"rxTime: {self.__human_readable_ts__(payload.rxTime)}\nFWD from {self.db.get_shortname(payload.fromId)}:\n{payload.decoded.text}",
+                message=f"FWD from {self.db.get_shortname(payload.fromId)}:\n{payload.decoded.text}",
             )
            
     def __handle_telemetry__(self, packet: dict) -> None:
@@ -601,6 +601,7 @@ class MeshtasticListener:
 
     ### NOTIFICATIONS ###
     def __notify_admins__(self, message: str, priority: bool = False) -> None:
+        message = f"{self.__human_readable_ts__()} - {message}"
         if priority:
             message = f'🔔URGENT🔔\n{message}'
         admin_nodes = self.db.get_active_admin_nodes()
@@ -711,7 +712,7 @@ class MeshtasticListener:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
         except Exception as e:
             logging.exception(f"Encountered fatal error in main loop: {e}")
-            self.__notify_admins__(f'Encountered a Fatal Error: {str(e)}', priority=True)
+            self.__notify_admins__(str(e), priority=True)
 
     def __exit__(self, signum, frame) -> None:
         logging.info("Received shutdown signal. Exiting gracefully...")
