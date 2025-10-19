@@ -266,7 +266,7 @@ class MeshtasticListener:
         '''
         Quick spot-check of other Meshtastic Listener instances on the mesh.
 
-        If we haven't seen another instance in the last 24 hours, send an instance advertisement packet.
+        If we haven't seen another instance in the last n hours, send an instance advertisement packet.
         '''
         all_listener_nodes = self.db.get_listener_nodes()
         inactive_ts = int(time.time() - timedelta(hours=lookback_hours).total_seconds())
