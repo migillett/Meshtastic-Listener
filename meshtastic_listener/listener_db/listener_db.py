@@ -661,6 +661,7 @@ class ListenerDb:
             settings = session.query(AlertThresholdSettings).first()
             if not settings:
                 raise ItemNotFound('Alert settings not found in database. Run the initial setup to create default settings.')
+            logging.info(f'Updating alert settings in database: {new_settings.model_dump()}')
             settings.channelUsageThreshold = new_settings.channelUsageThreshold
             settings.highTempThreshold = new_settings.highTemperatureThreshold
             settings.lowTempThreshold = new_settings.lowTemperatureThreshold
