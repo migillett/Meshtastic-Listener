@@ -271,7 +271,7 @@ class MeshtasticListener:
         all_listener_nodes = self.db.get_listener_nodes()
         inactive_ts = int(time.time() - timedelta(hours=lookback_hours).total_seconds())
         for node in all_listener_nodes:
-            if node.lastHeard < inactive_ts:
+            if node.lastHeard <= inactive_ts:
                 if node.reconnectAttempts < max_reconnects:
                     error_msg = f'No activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in {lookback_hours} hours. Attempting to re-advertise. Attempt: {node.reconnectAttempts + 1}/{max_reconnects}'
                     logging.warning(error_msg)
@@ -341,6 +341,7 @@ class MeshtasticListener:
         '''
         while not self.shutdown_flag.is_set():
             self.__send_advertise_payload__()
+            self.__check_listener_instances__()
             self.__sleep_with_exit__(
                 sleep_interval_minutes=60
             )
