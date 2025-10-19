@@ -15,8 +15,6 @@ dependencies = [
     "meshtastic>=2.5.11,<3",
     "psycopg2>=2.9.10,<3",
     "jinja2>=3.1.6,<4",
-    "fastapi>=0.115.12,<0.116",
-    "uvicorn>=0.34.2,<0.35",
     "alembic>=1.16.1,<2",
     "dotenv>=0.9.9",
 ]
