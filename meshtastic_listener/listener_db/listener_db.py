@@ -640,7 +640,7 @@ class ListenerDb:
             if not settings:
                 logger.warning('Alert settings not found in database. Creating default settings.')
                 settings = AlertThresholdSettings(
-                    channelUsageThreshold=80.0,
+                    channelUsageThreshold=25.0,
                     highTempThreshold=60.0,
                     lowTempThreshold=0.0,
                     highHumidityThreshold=75.0,
