@@ -381,7 +381,7 @@ class MeshtasticListener:
 
                 alert_context = ''
 
-                if health_check_stats.channelUsage >= self.max_channel_utilization:
+                if health_check_stats.channelUsage >= settings.channelUsageThreshold:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
                 trace_avg = health_check_stats.TracerouteStatistics.average()
