@@ -682,17 +682,6 @@ class MeshtasticListener:
 
             # checks if the sender has a pending notification
             self.__trigger_notifications__(packet['from'])
-            
-            try:
-                self.db.insert_message_history(
-                    rx_time=int(time.time()),
-                    from_id=packet['from'],
-                    to_id=packet['to'],
-                    portnum=portnum,
-                    packet_raw=packet
-                )
-            except KeyError as e:
-                logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
 
             match portnum_type:
                 case PortNum.TEXT_MESSAGE_APP:

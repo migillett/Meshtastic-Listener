@@ -11,8 +11,8 @@ from meshtastic_listener.data_structures import (
 )
 from meshtastic_listener.listener_db.db_tables import (
     Node, DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
-    Traceroute, MessageHistory, OutgoingNotifications, Subscriptions,
-    Neighbor, Waypoints, AdminNodes, AlertThresholdSettings
+    Traceroute, OutgoingNotifications, Neighbor, Waypoints,
+    AdminNodes, AlertThresholdSettings
 )
 
 from sqlalchemy import create_engine
@@ -335,21 +335,6 @@ class ListenerDb:
             node.altitude = altitude
             node.precisionBits = precision_bits
             session.add(node)
-            session.commit()
-
-    def insert_message_history(self, rx_time: int, from_id: int, to_id: int, portnum: str, packet_raw: dict) -> None:
-        with self.session() as session:
-            session.add(
-                MessageHistory(
-                    rxTime=rx_time,
-                    fromId=from_id,
-                    toId=to_id,
-                    portnum=portnum,
-                    rxSnr=packet_raw.get('rxSnr', None),
-                    rxRssi=packet_raw.get('rxRssi', None),
-                    packetRaw=packet_raw
-                )
-            )
             session.commit()
 
     def insert_neighbor(self, source_node_id: int, neighbor_id: int, snr: float, rx_time: int) -> None:

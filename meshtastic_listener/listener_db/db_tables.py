@@ -53,8 +53,6 @@ class Node(Base):
         session.query(Subscriptions).filter(Subscriptions.nodeNum == node_num).delete()
         session.query(Neighbor).filter(Neighbor.sourceNodeId == node_num).delete()
         session.query(Neighbor).filter(Neighbor.neighborNodeId == node_num).delete()
-        session.query(MessageHistory).filter(MessageHistory.fromId == node_num).delete()
-        session.query(MessageHistory).filter(MessageHistory.toId == node_num).delete()
         session.query(OutgoingNotifications).filter(OutgoingNotifications.toId == node_num).delete()
         session.query(Node).filter(Node.nodeNum == node_num).delete()
         session.commit()
@@ -109,18 +107,6 @@ class Traceroute(Base):
     tracerouteDetails = Column(JSON, default=None)
     snrAvg = Column(Float, default=None)
     directConnection = Column(Boolean, default=False)
-
-
-class MessageHistory(Base):
-    __tablename__ = 'message_history'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    fromId = Column(BigInteger, nullable=False)
-    toId = Column(BigInteger, nullable=False)
-    portnum = Column(String(length=75), nullable=False)
-    packetRaw = Column(JSON, nullable=False)
-    rxSnr = Column(Float, default=None)
-    rxRssi = Column(Integer, default=None)
 
 
 class Neighbor(Base):
