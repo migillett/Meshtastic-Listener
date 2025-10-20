@@ -59,13 +59,12 @@ class CommandHandler:
         links = self.db.get_listener_nodes()
         if len(links) == 0:
             return 'No links found'
-
-        return '\n'.join(
-            [
-                f'{link.nodeNum} ({link.longName}): {link.hostSoftwareVersion} {"⚠️" if link.reconnectAttempts > 0 else "☑️"}'
-                for link in links
-            ]
-        )
+        
+        response = ''
+        for link in links:
+            connection_status = '⚠️' if link.reconnectAttempts > 0 else '☑️'
+            response += f'{link.nodeNum} ({link.longName}): {link.hostSoftwareVersion} {connection_status}\n'
+        return response.strip()
 
     # def cmd_subscriptions(self, context: MessageReceived) -> str:
     #     '''
