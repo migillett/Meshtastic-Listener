@@ -60,7 +60,12 @@ class CommandHandler:
         if len(links) == 0:
             return 'No links found'
 
-        return '\n'.join([f'{link.nodeNum} ({link.longName}): {link.hostSoftwareVersion}' for link in links])
+        return '\n'.join(
+            [
+                f'{link.nodeNum} ({link.longName}): {link.hostSoftwareVersion} {"⚠️" if link.reconnectAttempts > 0 else "☑️"}'
+                for link in links
+            ]
+        )
 
     # def cmd_subscriptions(self, context: MessageReceived) -> str:
     #     '''
