@@ -596,16 +596,25 @@ class MeshtasticListener:
         self.__print_packet_received__(logging.info, packet)
         try:
             adverstise_payload = AdvertiseInstancePayload.model_validate(packet.get('decoded', {}).get('payload', {}))
+
+            incoming_advertised_node = self.db.get_node(adverstise_payload.nodeNum)
+            if incoming_advertised_node is not None and not incoming_advertised_node.isListener:
+                # handle the case where a non-listener node is now advertising as a listener
+                message = f'Registered new Meshtastic Listener instance: {incoming_advertised_node.nodeNum} ({self.__sanitize_string__(str(incoming_advertised_node.longName))}) v{adverstise_payload.version}'
+                logging.info(message)
+                self.__notify_admins__(message)
+            
             self.db.mark_node_as_listener(
                 node_id=adverstise_payload.nodeNum,
-                version=adverstise_payload.version
-            )
-            logging.info(f'Marked node {adverstise_payload.nodeNum} as software host with version: {adverstise_payload.version}')
+                version=adverstise_payload.version)
+            
             if not adverstise_payload.ack:
                 # send an ack back to the advertising node to establish a link
                 self.__send_advertise_payload__(destinationId=adverstise_payload.nodeNum, ack=True)
+
         except ItemNotFound as e:
             logging.error(f'Unable to update software host Node: {e}')
+            
         except ValidationError as e:
             logging.error(f'Payload validation failure for packet ({e}): {packet}')
 
