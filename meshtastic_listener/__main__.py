@@ -273,14 +273,15 @@ class MeshtasticListener:
         for node in all_listener_nodes:
             if node.hostLastHeard <= inactive_ts and node.nodeNum != self.local_node_id:
                 if node.reconnectAttempts < max_reconnects:
-                    error_msg = f'No activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in {lookback_hours} hours. Attempting to re-advertise. Attempt: {node.reconnectAttempts + 1}/{max_reconnects}'
-                    logging.warning(error_msg)
-                    self.__notify_admins__(message=error_msg, priority=True)
+                    hour_diff = int((int(time.time()) - node.hostLastHeard) / 3600)
+                    error_msg = f'No activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in {hour_diff} hours. Attempting to re-advertise. Attempt: {node.reconnectAttempts + 1}/{max_reconnects}'
                     self.__send_advertise_payload__(destinationId=node.nodeNum)
                     self.db.increment_node_reconnect_attempts(node_id=node.nodeNum)
                 else:
-                    logging.error(f'No activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in the past {lookback_hours} hours after {max_reconnects} reconnect attempts.')
+                    error_msg = f'Exceeded maximum reconnect attempts for listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}). Removing from listener list.'
                     self.db.remove_node_as_listener(node_id=node.nodeNum)
+                logging.warning(error_msg)
+                self.__notify_admins__(message=error_msg, priority=True) 
 
     ### SCHEDULED THREADED TASKS ###
     def __traceroute_upstream__(self) -> None:
