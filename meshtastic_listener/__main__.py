@@ -630,10 +630,7 @@ class MeshtasticListener:
                     to_id=admin_node.nodeNum,
                     message=message
                 )
-                if priority:
-                    # trigger notifications immediately for high-priority messages
-                    self.__trigger_notifications__(admin_node.nodeNum, lookback_days=3)
-
+                self.__trigger_notifications__(admin_node.nodeNum, lookback_days=3)
             logging.info(f"Queued notification to {len(admin_nodes)} admin nodes")
 
     def __trigger_notifications__(self, node_num: int, lookback_days: int = 3, batch_size: int = 3) -> None:
@@ -689,8 +686,12 @@ class MeshtasticListener:
 
             self.__handle_new_node__(packet['from'])
 
-            # checks if the sender has a pending notification
-            self.__trigger_notifications__(packet['from'])
+            # checks if the sender has a pending notification (run async to avoid blocking)
+            threading.Thread(
+                target=self.__trigger_notifications__,
+                args=(packet.get('from'),),
+                daemon=True
+            ).start()
 
             match portnum_type:
                 case PortNum.TEXT_MESSAGE_APP:
@@ -716,8 +717,10 @@ class MeshtasticListener:
                     pass
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
+
         except UnicodeDecodeError:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
+            
         except Exception as e:
             logging.exception(f"Encountered fatal error in main loop: {e}")
             self.__notify_admins__(str(e), priority=True)
