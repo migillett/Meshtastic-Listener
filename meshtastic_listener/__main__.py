@@ -598,7 +598,7 @@ class MeshtasticListener:
             adverstise_payload = AdvertiseInstancePayload.model_validate(packet.get('decoded', {}).get('payload', {}))
 
             incoming_advertised_node = self.db.get_node(adverstise_payload.nodeNum)
-            if incoming_advertised_node is not None and not incoming_advertised_node.isListener:
+            if incoming_advertised_node is not None and not incoming_advertised_node.isHost:
                 # handle the case where a non-listener node is now advertising as a listener
                 message = f'Registered new Meshtastic Listener instance: {incoming_advertised_node.nodeNum} ({self.__sanitize_string__(str(incoming_advertised_node.longName))}) v{adverstise_payload.version}'
                 logging.info(message)
