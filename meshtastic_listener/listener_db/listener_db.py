@@ -7,12 +7,12 @@ from typing import Optional
 from meshtastic_listener.data_structures import (
     NodeBase, DevicePayload, TransmissionPayload,
     EnvironmentPayload, WaypointPayload, NodeRoles,
-    TracerouteStatistics
+    TracerouteStatistics, AlertSettings
 )
 from meshtastic_listener.listener_db.db_tables import (
     Node, DeviceMetrics, TransmissionMetrics, EnvironmentMetrics,
-    Traceroute, MessageHistory, OutgoingNotifications, Subscriptions,
-    Neighbor, Waypoints, AdminNodes
+    Traceroute, OutgoingNotifications, Neighbor, Waypoints,
+    AdminNodes, AlertThresholdSettings
 )
 
 from sqlalchemy import create_engine
@@ -61,9 +61,7 @@ class ListenerDb:
                     altitude=node.position.altitude,
                     lastHeard=node.lastHeard,
                     hopsAway=node.hopsAway,
-                    isHost=node.isHost,
                     isFavorite=node.isFavorite,
-                    hostSoftwareVersion=node.hostSoftwareVersion,
                 ).on_conflict_do_update(
                     index_elements=['nodeNum'],
                     set_={
@@ -78,14 +76,48 @@ class ListenerDb:
                         'altitude': node.position.altitude,
                         'lastHeard': node.lastHeard,
                         'hopsAway': node.hopsAway,
-                        'isHost': node.isHost,
-                        'isFavorite': node.isFavorite,
-                        'hostSoftwareVersion': node.hostSoftwareVersion,
+                        'isFavorite': node.isFavorite
                     }
                 )
             session.execute(stmt)
             session.commit()
         logger.debug(f'Inserted node into DB: {node.model_dump_json()}')
+
+    def mark_node_as_listener(self, node_id: int, version: str) -> None:
+        with self.session() as session:
+            node = session.query(Node).filter(Node.nodeNum == node_id).first()
+            if node is None:
+                raise ItemNotFound(f'Node with ID {node_id} not found')
+            node.isHost = True
+            node.hostSoftwareVersion = version
+            node.hostLastHeard = int(time())
+            node.reconnectAttempts = 0
+            session.add(node)
+            session.commit()
+
+    def remove_node_as_listener(self, node_id: int) -> None:
+        with self.session() as session:
+            node = session.query(Node).filter(Node.nodeNum == node_id).first()
+            if node is None:
+                raise ItemNotFound(f'Node with ID {node_id} not found')
+            node.isHost = False
+            session.add(node)
+            session.commit()
+
+    def increment_node_reconnect_attempts(self, node_id: int) -> None:
+        with self.session() as session:
+            node = session.query(Node).filter(Node.nodeNum == node_id).first()
+            if node is None:
+                raise ItemNotFound(f'Node with ID {node_id} not found')
+            node.reconnectAttempts = node.reconnectAttempts + 1
+            session.add(node)
+            session.commit()
+
+    def get_listener_nodes(self) -> list[Node]:
+        with self.session() as session:
+            return session.query(Node).filter(
+                Node.isHost == True
+            ).all()
 
     def insert_nodes(self, nodes: list[NodeBase]) -> None:
         with self.session() as session:
@@ -121,22 +153,10 @@ class ListenerDb:
                         'isFavorite': node.isFavorite,
                     }
                 )
-
                 session.execute(stmt)
 
             session.commit()
             logger.debug(f'Successfully upserted {len(nodes)} nodes into db')
-
-    def update_node_last_heard(self, node_num: int, last_heard: int = int(time())) -> None:
-        with self.session() as session:
-            node = session.query(Node).filter(Node.nodeNum == node_num).first()
-            if not node:
-                logger.error(f'Node {node_num} not found in db. Unable to update last heard timestamp.')
-            else:
-                node.lastHeard = last_heard
-                session.add(node)
-                session.commit()
-                logger.debug(f'Updated last heard for node {node_num} to {last_heard}')
 
     def get_node(self, node_num: int) -> Node:
         with self.session() as session:
@@ -317,21 +337,6 @@ class ListenerDb:
             session.add(node)
             session.commit()
 
-    def insert_message_history(self, rx_time: int, from_id: int, to_id: int, portnum: str, packet_raw: dict) -> None:
-        with self.session() as session:
-            session.add(
-                MessageHistory(
-                    rxTime=rx_time,
-                    fromId=from_id,
-                    toId=to_id,
-                    portnum=portnum,
-                    rxSnr=packet_raw.get('rxSnr', None),
-                    rxRssi=packet_raw.get('rxRssi', None),
-                    packetRaw=packet_raw
-                )
-            )
-            session.commit()
-
     def insert_neighbor(self, source_node_id: int, neighbor_id: int, snr: float, rx_time: int) -> None:
         with self.session() as session:
             logger.debug(f'Inserting neighbor: {neighbor_id} with SNR: {snr} for source node: {source_node_id} at time: {rx_time}')
@@ -356,6 +361,9 @@ class ListenerDb:
             session.commit()
 
     def get_pending_notifications(self, to_id: int, max_attempts: int = 5, timestamp_cutoff: int = 0) -> list[OutgoingNotifications]:
+        '''
+        notifications return in ascending order with oldest first
+        '''
         with self.session() as session:
             return session.query(
                 OutgoingNotifications
@@ -562,25 +570,35 @@ class ListenerDb:
                 successes=sum(1 for item in items if item.tracerouteDetails is not None),
                 avgTraceDuration=round(mean(durations), 2) if durations else 0.0
             )
+        
+    def select_favorite_nodes(self) -> list[Node]:
+        '''
+        Returns all nodes marked as favorite nodes
+        '''
+        with self.session() as session:
+            return session.query(
+                Node
+            ).filter(
+                Node.isFavorite == True
+            ).order_by(
+                Node.lastHeard.desc()
+            ).all()
 
     def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
         '''
-        Returns 1 node (if any) nodes where role == router | router_late,
-        is less than 6 hops away,
+        Returns 1 node (if any) if it is a favorite node or is another listener node,
+        is less than maxHops hops away,
         is NOT the current node,
-        was last heard less than 1 week ago
         and has not had a traceroute attempt (txTime) sent to it in the past 3 hours.
         '''
         with self.session() as session:
             three_hours_ago = int(time() - timedelta(hours=3).total_seconds())
-            one_week_ago = int(time() - timedelta(days=7).total_seconds())
             return session.query(
                 Node
             ).filter(
-                (Node.nodeRole == NodeRoles.ROUTER.value) | (Node.nodeRole == NodeRoles.ROUTER_LATE.value) | (Node.isFavorite == True),
+                (Node.isFavorite == True) | (Node.isHost == True),
                 Node.hopsAway <= maxHops,
                 Node.nodeNum != fromId,
-                Node.lastHeard >= one_week_ago,
                 ~Node.nodeNum.in_(
                     session.query(Traceroute.toId).filter(
                         Traceroute.txTime > three_hours_ago
@@ -616,3 +634,40 @@ class ListenerDb:
     def get_waypoints(self) -> list[Waypoints]:
         with self.session() as session:
             return session.query(Waypoints).all()
+
+    ### SETTINGS ###
+    def get_alert_settings(self) -> AlertSettings:
+        with self.session() as session:
+            settings = session.query(AlertThresholdSettings).first()
+            if not settings:
+                logger.info('Alert settings not found in database. Creating default settings.')
+                settings = AlertThresholdSettings(
+                    channelUsageThreshold=25.0,
+                    highTempThreshold=60.0,
+                    lowTempThreshold=0.0,
+                    highHumidityThreshold=75.0,
+                    tracerouteFailureThreshold=15.0
+                )
+                session.add(settings)
+                session.commit()
+            return AlertSettings(
+                channelUsageThreshold=settings.channelUsageThreshold,
+                highTemperatureThreshold=settings.highTempThreshold,
+                lowTemperatureThreshold=settings.lowTempThreshold,
+                highHumidityThreshold=settings.highHumidityThreshold,
+                tracerouteFailureThreshold=settings.tracerouteFailureThreshold
+            )
+    
+    def update_alert_settings(self, new_settings: AlertSettings) -> None:
+        with self.session() as session:
+            settings = session.query(AlertThresholdSettings).first()
+            if not settings:
+                raise ItemNotFound('Alert settings not found in database. Run the initial setup to create default settings.')
+            logging.info(f'Updating alert settings in database: {new_settings.model_dump()}')
+            settings.channelUsageThreshold = new_settings.channelUsageThreshold
+            settings.highTempThreshold = new_settings.highTemperatureThreshold
+            settings.lowTempThreshold = new_settings.lowTemperatureThreshold
+            settings.highHumidityThreshold = new_settings.highHumidityThreshold
+            settings.tracerouteFailureThreshold = new_settings.tracerouteFailureThreshold
+            session.add(settings)
+            session.commit()

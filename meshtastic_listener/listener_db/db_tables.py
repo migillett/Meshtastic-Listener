@@ -38,6 +38,9 @@ class Node(Base):
     # tells us if 1. the node here is self or 2. if the node is also running this software (TODO)
     isHost = Column(Boolean, default=False)
     hostSoftwareVersion = Column(String(length=15), default=None)
+    # the last time we heard from the node running this software
+    hostLastHeard = Column(BigInteger, default=None)
+    reconnectAttempts = Column(Integer, default=0)
 
     @staticmethod
     def cascade_delete(session, node_num: int) -> None:
@@ -50,8 +53,6 @@ class Node(Base):
         session.query(Subscriptions).filter(Subscriptions.nodeNum == node_num).delete()
         session.query(Neighbor).filter(Neighbor.sourceNodeId == node_num).delete()
         session.query(Neighbor).filter(Neighbor.neighborNodeId == node_num).delete()
-        session.query(MessageHistory).filter(MessageHistory.fromId == node_num).delete()
-        session.query(MessageHistory).filter(MessageHistory.toId == node_num).delete()
         session.query(OutgoingNotifications).filter(OutgoingNotifications.toId == node_num).delete()
         session.query(Node).filter(Node.nodeNum == node_num).delete()
         session.commit()
@@ -108,18 +109,6 @@ class Traceroute(Base):
     directConnection = Column(Boolean, default=False)
 
 
-class MessageHistory(Base):
-    __tablename__ = 'message_history'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    rxTime = Column(BigInteger, nullable=False)
-    fromId = Column(BigInteger, nullable=False)
-    toId = Column(BigInteger, nullable=False)
-    portnum = Column(String(length=75), nullable=False)
-    packetRaw = Column(JSON, nullable=False)
-    rxSnr = Column(Float, default=None)
-    rxRssi = Column(Integer, default=None)
-
-
 class Neighbor(Base):
     __tablename__ = 'neighbors'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -129,15 +118,14 @@ class Neighbor(Base):
     snr = Column(Float, nullable=False)
 
 
-# class NodeAlarmStatus(Base):
-#     __tablename__ = "node_alarm_status"
-#     nodeNum = Column(BigInteger, nullable=False, primary_key=True)
-#     temperatureAlarm = Column(Boolean, default=False)
-#     humidityAlarm = Column(Boolean, default=False)
-#     channelUsageAlarm = Column(Boolean, default=False)
-#     batteryLevelAlarm = Column(Boolean, default=False)
-#     networkPathAlarm = Column(Boolean, default=False)
-#     errorRateAlarm = Column(Boolean, default=False)
+class AlertThresholdSettings(Base):
+    __tablename__ = 'alert_settings'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    channelUsageThreshold = Column(Float, default=25.0, nullable=False) # percentage
+    highTempThreshold = Column(Float, default=60.0, nullable=False) # Celsius
+    lowTempThreshold = Column(Float, default=0.0, nullable=False) # Celsius
+    highHumidityThreshold = Column(Float, default=60.0, nullable=False) # percentage
+    tracerouteFailureThreshold = Column(Float, default=50.0, nullable=False) # percentage
 
 
 class Subscriptions(Base):
@@ -147,6 +135,7 @@ class Subscriptions(Base):
     nodeNum = Column(BigInteger, nullable=False)
     isSubscribed = Column(Boolean, default=True)
     timestamp = Column(Integer, default=int(time()))
+
 
 class OutgoingNotifications(Base):
     __tablename__ = 'outgoing_notifications'

@@ -113,8 +113,6 @@ class NodeBase(BaseModel):
     position: Position = Field(default=Position())
     deviceMetrics: DevicePayload = Field(default=DevicePayload())
     isFavorite: bool = False
-    isHost: bool = False
-    hostSoftwareVersion: Optional[str] = None
 
 class TracerouteStatistics(BaseModel):
     total: int = 0
@@ -125,6 +123,13 @@ class TracerouteStatistics(BaseModel):
         if self.total == 0:
             raise InsufficientDataError('No traceroute data available to calculate average success rate.')
         return round((self.successes / self.total) * 100, 2)
+
+class AlertSettings(BaseModel):
+    channelUsageThreshold: float
+    highTemperatureThreshold: float
+    lowTemperatureThreshold: float
+    highHumidityThreshold: float
+    tracerouteFailureThreshold: float
 
 class NodeHealthCheck(BaseModel):
     nodeNum: int
@@ -145,3 +150,8 @@ TR SUCCESS: {round(self.TracerouteStatistics.average(), 0)}%'''
         if self.environmentMetrics.relativeHumidity is not None:
             status += f'\nHUMIDITY: {int(self.environmentMetrics.relativeHumidity)}%'
         return status.strip()
+
+class AdvertiseInstancePayload(BaseModel):
+    nodeNum: int
+    version: str
+    ack: bool = False # deleniates if the packet we just sent is an ack to another instance's advertise packet

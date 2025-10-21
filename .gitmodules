@@ -1,3 +1,0 @@
-[submodule "meshtastic_listener/api/static/leaflet-color-marker"]
-	path = meshtastic_listener/api/static/leaflet-color-marker
-	url = https://github.com/pointhi/leaflet-color-markers.git

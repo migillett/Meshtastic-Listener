@@ -17,12 +17,14 @@ class CommandHandler:
             self,
             cmd_db: ListenerDb,
             server_node_id: int,
+            version: str,
             prefix: str = '!'
         ) -> None:
 
         self.prefix = prefix
         self.db = cmd_db
         self.server_node_id = server_node_id
+        self.version = version
         self.char_limit = 200
 
     def cmd_reply(self, context: MessageReceived) -> str:
@@ -49,6 +51,20 @@ class CommandHandler:
             return health_status.status()
         else:
             return 'No health check data available.'
+        
+    def cmd_links(self) -> str:
+        '''
+        4: !l - Get current node links
+        '''
+        links = self.db.get_listener_nodes()
+        if len(links) == 0:
+            return 'No links found'
+        
+        response = ''
+        for link in links:
+            connection_status = '⚠️' if link.reconnectAttempts > 0 else '☑️'
+            response += f'{link.nodeNum} ({link.longName}): {link.hostSoftwareVersion} {connection_status}\n'
+        return response.strip()
 
     # def cmd_subscriptions(self, context: MessageReceived) -> str:
     #     '''
@@ -64,7 +80,7 @@ class CommandHandler:
         '''
         98: !i - Display info
         '''
-        return 'Meshtastic Listener\nhttps://github.com/migillett/meshtastic-listener'
+        return f'Meshtastic Listener {self.version}\nhttps://github.com/migillett/meshtastic-listener'
 
     def cmd_help(self) -> str:
         '''
@@ -113,6 +129,9 @@ class CommandHandler:
                         # either returns an message "no waypoints found" or a list of Waypoints data
                         # we'll need to send that data using the interface in the __main__.py file
                         return self.cmd_waypoints()
+
+                    case 'l':
+                        return self.cmd_links()
                     
                     case 'i':
                         return self.cmd_info()

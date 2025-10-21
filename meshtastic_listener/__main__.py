@@ -14,16 +14,19 @@ from meshtastic_listener.commands.cmd_handler import CommandHandler, UnknownComm
 from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload,
-    NodeHealthCheck, InsufficientDataError
+    NodeHealthCheck, InsufficientDataError,
+    AdvertiseInstancePayload
 )
 from meshtastic_listener.utils import coords_int_to_float, load_node_env_var
 
 from pubsub import pub
+from meshtastic import BROADCAST_ADDR
 from meshtastic.tcp_interface import TCPInterface
 from meshtastic.serial_interface import SerialInterface
 from meshtastic.protobuf.portnums_pb2 import PortNum
 from meshtastic.protobuf.mesh_pb2 import RouteDiscovery
 from meshtastic.mesh_interface import MeshInterface
+from pydantic_core._pydantic_core import ValidationError
 import toml
 
 
@@ -57,12 +60,13 @@ class MeshtasticListener:
             self,
             interface: TCPInterface | SerialInterface,
             db_object: ListenerDb,
+            version: str,
             cmd_handler: CommandHandler,
             update_interval_minutes: int = 15,
             admin_nodes: list[int] | None = None,
         ) -> None:
 
-        self.version = toml.load('pyproject.toml')['project']['version']
+        self.version = version
         logging.info(f"====== Initializing Meshtastic Listener v{self.version} ======")
         
         self.interface = interface
@@ -71,6 +75,9 @@ class MeshtasticListener:
         self.char_limit = 200
         self.shutdown_flag = threading.Event()
         self.threads: list[threading.Thread] = []
+        self.max_hops: int = 5
+
+        self.__advertise_portnum__ = PortNum.PRIVATE_APP
 
         self.local_node_id = self.interface.localNode.nodeNum
 
@@ -99,6 +106,7 @@ class MeshtasticListener:
         # logging device connection and db initialization
         logging.info(f'Connected to {self.interface.__class__.__name__} device: {self.interface.getShortName()}')
         logging.info(f'CommandHandler initialized with prefix: {self.cmd_handler.prefix}')
+        self.__load_local_nodes__()
 
     ### UTILITY FUNCTIONS
     def __send_messages__(self, text: str, destinationId: int) -> None:
@@ -147,6 +155,17 @@ class MeshtasticListener:
         else:
             logging.error('Unable to get device metrics from node')
             return 0.0
+        
+    def __decode_raw_advertise_data__(self, packet: dict) -> None:
+        # the meshtastic library doesn't know how to decode our private packets by default
+        # so we need to decode that manually here
+        # we'll be updating the payload in-place
+        try:
+            payload_raw: bytes = packet['decoded'].get('payload')
+            # payload_raw = b'{"nodeNum":1111111,"version":"test"}'
+            packet['decoded']['payload'] = json.loads(payload_raw.decode('utf-8'))
+        except Exception as e:
+            logging.error(f"Failed to decode raw bytes as JSON: {e}")
 
     def __sanitize_packet__(self, packet: dict) -> dict:
         response = {}
@@ -163,7 +182,7 @@ class MeshtasticListener:
         '''
         some node names utilize emojis that don't map to UTF-8 very well.
         '''
-        return re.sub(r'[^\w\s,]', '', long_name)
+        return re.sub(r'[^\w\s,]', '', long_name).strip()
 
     def __sleep_with_exit__(self, sleep_interval_minutes: Optional[int] = None) -> None:
         '''
@@ -177,7 +196,7 @@ class MeshtasticListener:
 
     def __load_local_nodes__(self) -> None:
         '''
-        Runs before __traceroute_upstream__ function.
+        Runs before __traceroute_upstream__ function and upon software __init__.
 
         Takes the node's local DB and writes it to postgres.
         '''
@@ -186,10 +205,11 @@ class MeshtasticListener:
                 f'Interface reports no Nodes. Unable to load local nodes to DB.')
         
         for node in [NodeBase.model_validate(node) for node in self.interface.nodesByNum.values()]:
-            if self.local_node_id == node.num:
-                node.isHost = True
-                node.hostSoftwareVersion = self.version
             self.db.insert_node(node=node)
+
+        self.db.mark_node_as_listener(
+            node_id=self.local_node_id,
+            version=self.version)
 
         logging.debug(f'Pushed {len(self.interface.nodesByNum)} node details to DB')
 
@@ -223,13 +243,60 @@ class MeshtasticListener:
         else:
             return "No significant changes in health check."
 
-    ### SCHEDULED THREADED TASKS ###
-    def __traceroute_upstream__(self, max_hops: int = 5) -> None:
+    def __send_advertise_payload__(self, destinationId: str | int = BROADCAST_ADDR, ack: bool = False) -> None:
         '''
-        runs a traceroute to nearby infrastructure nodes on a cron job
+        Sends an instance advertisement packet to the mesh. Default is to broadcast to channel 0.
+        '''
+        advertise_payload = AdvertiseInstancePayload(
+            nodeNum=self.local_node_id,
+            version=self.version,
+            ack=ack
+        )
+        self.interface.sendData(
+            data=advertise_payload.model_dump_json().encode("utf-8"),
+            destinationId=destinationId,
+            portNum=self.__advertise_portnum__,
+            hopLimit=self.max_hops
+        )
+        logging.info(
+            f'Sent Meshtastic Listener heartbeat to {destinationId}: {advertise_payload.model_dump()}'
+        )
+
+    def __check_listener_instances__(self, max_reconnects: int = 3, lookback_hours: int = 6) -> None:
+        '''
+        Quick spot-check of other Meshtastic Listener instances on the mesh.
+
+        If we haven't seen another instance in the last n hours, send an instance advertisement packet.
+        '''
+        all_listener_nodes = self.db.get_listener_nodes()
+        inactive_ts = int(time.time() - timedelta(hours=lookback_hours).total_seconds())
+        for node in all_listener_nodes:
+            if node.hostLastHeard <= inactive_ts and node.nodeNum != self.local_node_id:
+                if node.reconnectAttempts < max_reconnects:
+                    hour_diff = int((int(time.time()) - node.hostLastHeard) / 3600)
+                    error_msg = f'No activity from listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}) in {hour_diff} hours. Attempting to re-advertise. Attempt: {node.reconnectAttempts + 1}/{max_reconnects}'
+                    self.__send_advertise_payload__(destinationId=node.nodeNum)
+                    self.db.increment_node_reconnect_attempts(node_id=node.nodeNum)
+                else:
+                    error_msg = f'Exceeded maximum reconnect attempts for listener node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}). Removing from listener list.'
+                    self.db.remove_node_as_listener(node_id=node.nodeNum)
+                logging.warning(error_msg)
+                self.__notify_admins__(message=error_msg, priority=True) 
+
+    ### SCHEDULED THREADED TASKS ###
+    def __traceroute_upstream__(self) -> None:
+        '''
+        runs a traceroute to user-defined favorite nodes on a cron job
 
         This function is designed to run in a thread in a loop.
         '''
+
+        favorites = self.db.select_favorite_nodes()
+        if len(favorites) > 0:
+            logging.info(f'Favorite nodes set to: {[self.__sanitize_string__(str(f.longName)) for f in favorites]}')
+        else:
+            logging.warning('No favorite nodes set. Traceroutes will only be sent to other Meshtastic Listener nodes.')
+
         while not self.shutdown_flag.is_set():
             self.__load_local_nodes__()
 
@@ -240,13 +307,12 @@ class MeshtasticListener:
             else:
                 target = self.db.select_traceroute_target(
                     fromId=self.local_node_id,
-                    maxHops=max_hops
+                    maxHops=self.max_hops
                 )
                 if not target:
-                    logging.warning("No valid infrastructure nodes found in DB. Delaying next infrastructure traceroute request for 1 hour.")
+                    logging.warning("No valid traceroute nodes found in DB. Delaying next traceroute request for 1 hour.")
                     self.__sleep_with_exit__(sleep_interval_minutes=60)
                 else:
-
                     logging.info(f"Sending traceroute to node: {target.nodeNum} ({self.__sanitize_string__(str(target.longName))})")
                     # going custom on this packet since the default traceroute function has a sleep built-in.
                     r = RouteDiscovery()
@@ -257,7 +323,7 @@ class MeshtasticListener:
                         wantResponse=True,
                         onResponse=self.interface.onResponseTraceRoute,
                         channelIndex=0,
-                        hopLimit=max_hops,
+                        hopLimit=self.max_hops,
                     )
                     self.db.insert_traceroute_attempt(
                         source_node=self.local_node_id,
@@ -266,6 +332,21 @@ class MeshtasticListener:
                     )
 
             self.__sleep_with_exit__()
+
+    def __advertise_instance__(self) -> None:
+        '''
+        Function that utilizes a custom portnum to advertise the Meshtastic Listener instance.
+
+        It advertises the software instance once every 2 hours to channel 0.
+
+        This function tells other instances of Meshtastic Listener that we exist for their maps.
+        '''
+        while not self.shutdown_flag.is_set():
+            self.__send_advertise_payload__()
+            self.__check_listener_instances__()
+            self.__sleep_with_exit__(
+                sleep_interval_minutes=60
+            )
 
     def __check_node_health__(self) -> None:
         '''
@@ -279,6 +360,9 @@ class MeshtasticListener:
 
         while not self.shutdown_flag.is_set():
             try:
+                settings = self.db.get_alert_settings()
+                logging.debug(f'Fetched alert settings from DB: {settings.model_dump()}')
+                
                 now = time.time()
                 lookback_ts = int(now - timedelta(hours=lookback_hours).total_seconds())
 
@@ -304,28 +388,29 @@ class MeshtasticListener:
 
                 alert_context = ''
 
-                if health_check_stats.channelUsage >= self.max_channel_utilization:
+                if health_check_stats.channelUsage >= settings.channelUsageThreshold:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
                 trace_avg = health_check_stats.TracerouteStatistics.average()
-                if trace_avg <= 10.0 and health_check_stats.TracerouteStatistics.total >= 5:
+                if trace_avg <= settings.tracerouteFailureThreshold and health_check_stats.TracerouteStatistics.total >= 30:
+                    # 30 for minimum statistical significance
                     alert_context += f'Low TR Success Rate: {trace_avg}%\n'
 
                 if health_check_stats.environmentMetrics.temperature is not None:
                     # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
                     # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
                     # give a buffer of +-20C for high and low temp warnings
-                    if health_check_stats.environmentMetrics.temperature >= 60.0:
+                    if health_check_stats.environmentMetrics.temperature >= settings.highTemperatureThreshold:
                         alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
-                    elif health_check_stats.environmentMetrics.temperature <= 0.0:
+                    elif health_check_stats.environmentMetrics.temperature <= settings.lowTemperatureThreshold:
                         alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
                 
                 if health_check_stats.environmentMetrics.relativeHumidity is not None:
-                    if health_check_stats.environmentMetrics.relativeHumidity >= 90.0:
+                    if health_check_stats.environmentMetrics.relativeHumidity >= settings.highHumidityThreshold:
                         alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
 
                 if alert_context != '':
-                    self.__notify_admins__(f'ALERT: {self.__human_readable_ts__()}\nNode: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours')
+                    self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours', priority=True)
 
                 self.previous_health_check = health_check_stats
 
@@ -397,7 +482,7 @@ class MeshtasticListener:
             not self.db.is_admin_node(payload.fromId)
         ):
             self.__notify_admins__(
-                message=f"rxTime: {self.__human_readable_ts__(payload.rxTime)}\nFWD from {self.db.get_shortname(payload.fromId)}:\n{payload.decoded.text}",
+                message=f"FWD from {self.db.get_shortname(payload.fromId)}:\n{payload.decoded.text}",
             )
            
     def __handle_telemetry__(self, packet: dict) -> None:
@@ -464,7 +549,6 @@ class MeshtasticListener:
             return None
 
         incoming_lat, incoming_lon = position.get('latitude'), position.get('longitude')
-
         try:
             self.db.upsert_position(
                 node_num=packet['from'],
@@ -508,8 +592,37 @@ class MeshtasticListener:
         else:
             logging.info(f'Waypoint packet received from non-admin node: {self.db.get_shortname(sender)}. Ignoring.')
 
+    def __handle_instance_advertisement__(self, packet: dict) -> None:
+        self.__print_packet_received__(logging.info, packet)
+        try:
+            adverstise_payload = AdvertiseInstancePayload.model_validate(packet.get('decoded', {}).get('payload', {}))
+
+            incoming_advertised_node = self.db.get_node(adverstise_payload.nodeNum)
+            if incoming_advertised_node is not None and not incoming_advertised_node.isHost:
+                # handle the case where a non-listener node is now advertising as a listener
+                message = f'Registered new Meshtastic Listener instance: {incoming_advertised_node.nodeNum} ({self.__sanitize_string__(str(incoming_advertised_node.longName))}) v{adverstise_payload.version}'
+                logging.info(message)
+                self.__notify_admins__(message)
+            
+            self.db.mark_node_as_listener(
+                node_id=adverstise_payload.nodeNum,
+                version=adverstise_payload.version)
+            
+            if not adverstise_payload.ack:
+                # send an ack back to the advertising node to establish a link
+                self.__send_advertise_payload__(destinationId=adverstise_payload.nodeNum, ack=True)
+
+        except ItemNotFound as e:
+            logging.error(f'Unable to update software host Node: {e}')
+            
+        except ValidationError as e:
+            logging.error(f'Payload validation failure for packet ({e}): {packet}')
+
     ### NOTIFICATIONS ###
-    def __notify_admins__(self, message: str) -> None:
+    def __notify_admins__(self, message: str, priority: bool = False) -> None:
+        message = f"{self.__human_readable_ts__()} - {message}"
+        if priority:
+            message = f'🔔URGENT🔔\n{message}'
         admin_nodes = self.db.get_active_admin_nodes()
         if admin_nodes is not None and len(admin_nodes) > 0:
             for admin_node in admin_nodes:
@@ -517,18 +630,18 @@ class MeshtasticListener:
                     to_id=admin_node.nodeNum,
                     message=message
                 )
+                self.__trigger_notifications__(admin_node.nodeNum, lookback_days=3)
             logging.info(f"Queued notification to {len(admin_nodes)} admin nodes")
 
-    def __trigger_notifications__(self, node_num: int, lookback_days: int = 3) -> None:
+    def __trigger_notifications__(self, node_num: int, lookback_days: int = 3, batch_size: int = 3) -> None:
         pending_notifications = self.db.get_pending_notifications(
             to_id=node_num,
             timestamp_cutoff=int(time.time() - timedelta(days=lookback_days).total_seconds())
         )
         if len(pending_notifications) > 0 and self.notification_ts < time.time():
-            # TODO - only queue HIGHEST priority messages.
-            # Only send 2-3 notifications at a time from oldest to newest
-            if len(pending_notifications) > 3:
-                pending_notifications = pending_notifications[:-3]
+            # TODO - get high priority messages first, then everything else.
+            if len(pending_notifications) > batch_size:
+                pending_notifications = pending_notifications[:-batch_size]
             logging.info(f"Sending {len(pending_notifications)} notifications to node: {node_num}")
             for notif in pending_notifications:
                 message_metadata = self.interface.sendText(
@@ -564,32 +677,23 @@ class MeshtasticListener:
                 logging.debug(f"Received encrypted packet from {packet.get('from', 'UNKNOWN')}. Ignoring.")
                 return
             
-            packet = self.__sanitize_packet__(packet)
+            portnum = packet.get('decoded', {}).get('portnum', None)
+            portnum_type = getattr(PortNum, portnum, None)
             
+            if portnum_type == self.__advertise_portnum__:
+                self.__decode_raw_advertise_data__(packet)
+            packet = self.__sanitize_packet__(packet=packet)
+
             self.__handle_new_node__(packet['from'])
 
-            # self.db.update_node_last_heard(
-            #     node_num=packet['from'],
-            #     last_heard=packet.get('rxTime', int(time.time()))
-            # )
+            # checks if the sender has a pending notification (run async to avoid blocking)
+            threading.Thread(
+                target=self.__trigger_notifications__,
+                args=(packet.get('from'),),
+                daemon=True
+            ).start()
 
-            portnum = packet.get('decoded', {}).get('portnum', None)
-
-            # checks if the sender has a pending notification
-            self.__trigger_notifications__(packet['from'])
-            
-            try:
-                self.db.insert_message_history(
-                    rx_time=int(time.time()),
-                    from_id=packet['from'],
-                    to_id=packet['to'],
-                    portnum=portnum,
-                    packet_raw=packet
-                )
-            except KeyError as e:
-                logging.exception(f"{e}: Failed to insert message history for packet: {packet}")
-
-            match getattr(PortNum, portnum, None):
+            match portnum_type:
                 case PortNum.TEXT_MESSAGE_APP:
                     self.__handle_text_message__(packet)
                 case PortNum.TELEMETRY_APP:
@@ -605,17 +709,21 @@ class MeshtasticListener:
                 case PortNum.ROUTING_APP:
                     # this is how we confirm that a message was received by the notify_node
                     self.__check_notification_received__(packet)
+                case PortNum.PRIVATE_APP:
+                    self.__handle_instance_advertisement__(packet)
                 case PortNum.STORE_FORWARD_APP | PortNum.ADMIN_APP | PortNum.ATAK_PLUGIN | PortNum.NODEINFO_APP:
                     # Note: we used to handle NODEINFO_APP packets, but it caused too many pulls of the node DB
                     # now we're just running it on a n minute cron refresh to local
                     pass
                 case _:
                     logging.info(f"Received unhandled {portnum} packet: {packet}\n")
+
         except UnicodeDecodeError:
             logging.error(f"Message decoding failed due to UnicodeDecodeError: {packet}")
+            
         except Exception as e:
             logging.exception(f"Encountered fatal error in main loop: {e}")
-            self.__notify_admins__(f'Encountered a Fatal Error: {str(e)}')
+            self.__notify_admins__(str(e), priority=True)
 
     def __exit__(self, signum, frame) -> None:
         logging.info("Received shutdown signal. Exiting gracefully...")
@@ -633,13 +741,10 @@ class MeshtasticListener:
         pub.subscribe(self.__on_receive__, "meshtastic.receive")
         logging.info("Subscribed to meshtastic.receive")
 
-        # Use multiprocessing for CPU-bound tasks, threading for IO-bound
-        # Here, we use multiprocessing.Pool for scheduled tasks
-        # Each task runs in its own process
-
         self.threads = [
             threading.Thread(target=self.__traceroute_upstream__, name='traceroute_task', daemon=True),
             threading.Thread(target=self.__check_node_health__, name='health_check_task', daemon=True),
+            threading.Thread(target=self.__advertise_instance__, name='advertise_instance_task', daemon=True),
         ]
 
         try:
@@ -679,6 +784,8 @@ if __name__ == "__main__":
         logging.warning(f"Connection to {device_ip} refused. Exiting...")
         exit(1)
 
+    version = toml.load('pyproject.toml')['project']['version']
+
     db_object = ListenerDb(
         hostname=environ.get("POSTGRES_HOSTNAME", "listener_db"),
         username=environ.get("POSTGRES_USER", 'postgres'),
@@ -689,12 +796,14 @@ if __name__ == "__main__":
     cmd_handler = CommandHandler(
         cmd_db=db_object,
         server_node_id=int(interface.localNode.nodeNum),
+        version=version,
         prefix=environ.get("CMD_PREFIX", '!')
     )
 
     listener = MeshtasticListener(
         interface=interface,
         db_object=db_object,
+        version=version,
         cmd_handler=cmd_handler,
         update_interval_minutes=int(environ.get("UPDATE_INTERVAL", 10)),
         admin_nodes=load_node_env_var("ADMIN_NODE_IDS")
