@@ -438,8 +438,6 @@ class MeshtasticListener:
 
     ### PACKET HANDLERS ###
     def __handle_text_message__(self, packet: dict) -> None:
-        self.__print_packet_received__(logging.info, packet)
-
         # this adds the functionality of all listener nodes replying in the same channel at once
         # if it's the default channel (0), channel will be None and the messsage will be sent directly to the fromId
         channel: int | None = packet.get('channel')
@@ -451,7 +449,9 @@ class MeshtasticListener:
         elif payload.fromId in [n.nodeNum for n in self.db.get_listener_nodes()]:
             logging.debug(f'Message received from another listener node {payload.fromId}. Ignoring to prevent loops.')
             return None
-
+    
+        self.__print_packet_received__(logging.info, packet)
+        
         response = None
         if self.cmd_handler is not None:
             try:
