@@ -109,28 +109,39 @@ class MeshtasticListener:
         self.__load_local_nodes__()
 
     ### UTILITY FUNCTIONS
-    def __send_messages__(self, text: str, destinationId: int) -> None:
-        # splits the input text into chunks of char_limit length
-        # 233 bytes is set by the meshtastic constants in mesh_pb.pyi
-        # round down to 200 to account for the message header and pagination footer
+    def __send_messages__(self, text: str, destinationId: int, channel: int | None = None) -> None:
+        '''
+        sends messages either directly to the destinationId or to a specific channel
+
+        splits the input text into chunks of char_limit length
+        233 bytes is set by the meshtastic constants in mesh_pb.pyi
+        round down to 200 to account for the message header and pagination footer
+        '''
         messages = [text[i:i + self.char_limit] for i in range(0, len(text), self.char_limit)]
         logging.debug(f'Transmitting response message in {len(messages)} part(s)')
         for i, message in enumerate(messages):
             if len(messages) > 1:
                 message += f'\n({i + 1}/{len(messages)})'
-            self.interface.sendText(
-                text=message,
-                destinationId=destinationId,
-                channelIndex=0
-            )
+            
+            if channel is not None:
+                self.interface.sendText(
+                    text=message,
+                    channelIndex=channel
+                )
+            else:
+                self.interface.sendText(
+                    text=message,
+                    destinationId=destinationId
+                )
+
             
     def __print_packet_received__(self, logger: Callable, message: dict) -> None:
         node_num = message.get('from', 'UNKNOWN')
         if int(node_num) == int(self.local_node_id):
             return
         
+        channel = message.get('channel', 0)
         packet = message.get('decoded', {})
-
         snr = message.get('rxSnr', "N/A")
         rx_rssi = message.get('rxRssi', "N/A")
         msg_type = packet.get('portnum', 'UNKNOWN')
@@ -138,7 +149,7 @@ class MeshtasticListener:
         shortname = self.db.get_shortname(node_num)
         log_insert = f"node {node_num}" if str(shortname) == str(node_num) else f"{node_num} ({shortname})"
 
-        logger(f"Received {msg_type} payload from {log_insert} ({rx_rssi} dB rxRssi, {snr} rxSNR): {json.dumps(packet)}")
+        logger(f"Received {msg_type} payload from {log_insert} on channel {channel} ({rx_rssi} dB rxRssi, {snr} rxSNR): {json.dumps(packet)}")
 
     def __human_readable_ts__(self, rxTime: int | None = None) -> str:
         if rxTime is None:
@@ -428,6 +439,10 @@ class MeshtasticListener:
     def __handle_text_message__(self, packet: dict) -> None:
         self.__print_packet_received__(logging.info, packet)
 
+        # this adds the functionality of all listener nodes replying in the same channel at once
+        # if it's the default channel (0), channel will be None and the messsage will be sent directly to the fromId
+        channel: int | None = packet.get('channel')
+
         response = None
         if self.cmd_handler is not None:
             payload = MessageReceived.model_validate(packet)
@@ -446,7 +461,11 @@ class MeshtasticListener:
 
             if isinstance(response, str):
                 logging.info(f'Replying to {payload.fromId}: {response}')
-                self.__send_messages__(text=response, destinationId=payload.fromId)
+                self.__send_messages__(
+                    text=response,
+                    destinationId=payload.fromId,
+                    channel=channel
+                )
 
             elif isinstance(response, list):
                 logging.info(f'Sending waypoint to {payload.fromId}: {response}')
@@ -689,7 +708,7 @@ class MeshtasticListener:
             # checks if the sender has a pending notification (run async to avoid blocking)
             threading.Thread(
                 target=self.__trigger_notifications__,
-                args=(packet.get('from'),),
+                args=(packet['from'],),
                 daemon=True
             ).start()
 
