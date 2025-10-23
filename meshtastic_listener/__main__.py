@@ -123,12 +123,14 @@ class MeshtasticListener:
             if len(messages) > 1:
                 message += f'\n({i + 1}/{len(messages)})'
             
-            if channel is not None:
+            if channel is not None and channel != 0:
+                # send to non-default channel
                 self.interface.sendText(
                     text=message,
                     channelIndex=channel
                 )
             else:
+                # send direct message
                 self.interface.sendText(
                     text=message,
                     destinationId=destinationId
@@ -442,13 +444,16 @@ class MeshtasticListener:
         # if it's the default channel (0), channel will be None and the messsage will be sent directly to the fromId
         channel: int | None = packet.get('channel')
 
+        payload = MessageReceived.model_validate(packet)
+        if payload.decoded.text is None:
+            logging.warning(f'Message received has no text payload: {payload.model_dump()}')
+            return None
+        elif payload.fromId in [n.nodeNum for n in self.db.get_listener_nodes()]:
+            logging.debug(f'Message received from another listener node {payload.fromId}. Ignoring to prevent loops.')
+            return None
+
         response = None
         if self.cmd_handler is not None:
-            payload = MessageReceived.model_validate(packet)
-            if payload.decoded.text is None:
-                logging.warning(f'Message received has no text payload: {payload.model_dump()}')
-                return None
-            
             try:
                 response = self.cmd_handler.handle_command(
                     context=payload,
