@@ -133,7 +133,6 @@ class MeshtasticListener:
                     text=message,
                     destinationId=destinationId
                 )
-
             
     def __print_packet_received__(self, logger: Callable, message: dict) -> None:
         node_num = message.get('from', 'UNKNOWN')
