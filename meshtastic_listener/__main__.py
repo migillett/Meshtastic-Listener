@@ -17,7 +17,7 @@ from meshtastic_listener.data_structures import (
     NodeHealthCheck, InsufficientDataError,
     AdvertiseInstancePayload
 )
-from meshtastic_listener.utils import coords_int_to_float, load_node_env_var
+from meshtastic_listener.utils import coords_int_to_float, load_node_env_var, system_stats
 
 from pubsub import pub
 from meshtastic import BROADCAST_ADDR
@@ -225,36 +225,6 @@ class MeshtasticListener:
 
         logging.debug(f'Pushed {len(self.interface.nodesByNum)} node details to DB')
 
-    def __health_check_diff__(self, new_health_check: NodeHealthCheck) -> str:
-        '''
-        Compares the new health check with the previous one and returns a string of differences.
-        '''
-        if self.previous_health_check is None:
-            self.previous_health_check = new_health_check
-            return "Initial health check recorded."
-
-        diff = []
-        if new_health_check.channelUsage != self.previous_health_check.channelUsage:
-            diff.append(f"Channel Usage: {self.previous_health_check.channelUsage}% -> {new_health_check.channelUsage}%")
-        
-        trace_avg = new_health_check.TracerouteStatistics.average()
-        prev_trace_avg = self.previous_health_check.TracerouteStatistics.average()
-        if trace_avg != prev_trace_avg:
-            diff.append(f"Traceroute Success Rate: {prev_trace_avg}% -> {trace_avg}%")
-        
-        if new_health_check.environmentMetrics.temperature != self.previous_health_check.environmentMetrics.temperature:
-            diff.append(f"Temperature: {self.previous_health_check.environmentMetrics.temperature}°C -> {new_health_check.environmentMetrics.temperature}°C")
-        
-        if new_health_check.environmentMetrics.relativeHumidity != self.previous_health_check.environmentMetrics.relativeHumidity:
-            diff.append(f"Humidity: {self.previous_health_check.environmentMetrics.relativeHumidity}% -> {new_health_check.environmentMetrics.relativeHumidity}%")
-
-        self.previous_health_check = new_health_check
-
-        if diff:
-            return f'Statistics delta since last poll:\n' + "\n".join(diff)
-        else:
-            return "No significant changes in health check."
-
     def __send_advertise_payload__(self, destinationId: str | int = BROADCAST_ADDR, ack: bool = False) -> None:
         '''
         Sends an instance advertisement packet to the mesh. Default is to broadcast to channel 0.
@@ -356,9 +326,7 @@ class MeshtasticListener:
         while not self.shutdown_flag.is_set():
             self.__send_advertise_payload__()
             self.__check_listener_instances__()
-            self.__sleep_with_exit__(
-                sleep_interval_minutes=60
-            )
+            self.__sleep_with_exit__(60)
 
     def __check_node_health__(self) -> None:
         '''
@@ -386,28 +354,30 @@ class MeshtasticListener:
                         node_num=self.local_node_id,
                         lookback_ts=lookback_ts
                     ),
-                    TracerouteStatistics=self.db.return_traceroute_success_rate(
+                    tracerouteStatistics=self.db.return_traceroute_success_rate(
                         from_id=self.local_node_id,
                         lookback_ts=lookback_ts
                     ),
                     environmentMetrics=self.db.get_average_environment_metrics(
                         node_num=self.local_node_id,
                         lookback_ts=lookback_ts
-                    )
+                    ),
+                    systemResources=system_stats()
                 )
-
-                logging.info(f'{self.__health_check_diff__(health_check_stats)}')
 
                 alert_context = ''
 
+                ### CHANNEL UTILIZATION ###
                 if health_check_stats.channelUsage >= settings.channelUsageThreshold:
                     alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
 
-                trace_avg = health_check_stats.TracerouteStatistics.average()
-                if trace_avg <= settings.tracerouteFailureThreshold and health_check_stats.TracerouteStatistics.total >= 30:
+                ### TRACEROUTE SUCCESS RATE ###
+                trace_avg = health_check_stats.tracerouteStatistics.average()
+                if trace_avg <= settings.tracerouteFailureThreshold and health_check_stats.tracerouteStatistics.total >= 30:
                     # 30 for minimum statistical significance
                     alert_context += f'Low TR Success Rate: {trace_avg}%\n'
 
+                ### TEMPERATURE ###
                 if health_check_stats.environmentMetrics.temperature is not None:
                     # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
                     # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
@@ -417,12 +387,19 @@ class MeshtasticListener:
                     elif health_check_stats.environmentMetrics.temperature <= settings.lowTemperatureThreshold:
                         alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
                 
+                ### HUMIDITY ###
                 if health_check_stats.environmentMetrics.relativeHumidity is not None:
                     if health_check_stats.environmentMetrics.relativeHumidity >= settings.highHumidityThreshold:
                         alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
 
+                ### SYSTEM STATS ###
+                if health_check_stats.systemResources.cpuUsagePercent >= settings.cpuUsageThreshold:
+                    alert_context += f'High CPU Usage: {health_check_stats.systemResources.cpuUsagePercent}%\n'
+                if health_check_stats.systemResources.memoryUsagePercent >= settings.memoryUsageThreshold:
+                    alert_context += f'High Memory Usage: {health_check_stats.systemResources.memoryUsagePercent}%\n'
+
                 if alert_context != '':
-                    self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context}Lookback Period: {lookback_hours} hours', priority=True)
+                    self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context}', priority=True)
 
                 self.previous_health_check = health_check_stats
 
@@ -451,7 +428,7 @@ class MeshtasticListener:
             return None
     
         self.__print_packet_received__(logging.info, packet)
-        
+
         response = None
         if self.cmd_handler is not None:
             try:

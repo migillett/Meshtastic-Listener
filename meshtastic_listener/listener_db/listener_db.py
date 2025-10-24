@@ -646,7 +646,9 @@ class ListenerDb:
                     highTempThreshold=60.0,
                     lowTempThreshold=0.0,
                     highHumidityThreshold=75.0,
-                    tracerouteFailureThreshold=15.0
+                    tracerouteFailureThreshold=15.0,
+                    cpuUsageThreshold=90.0,
+                    memoryUsageThreshold=90.0
                 )
                 session.add(settings)
                 session.commit()
@@ -655,7 +657,9 @@ class ListenerDb:
                 highTemperatureThreshold=settings.highTempThreshold,
                 lowTemperatureThreshold=settings.lowTempThreshold,
                 highHumidityThreshold=settings.highHumidityThreshold,
-                tracerouteFailureThreshold=settings.tracerouteFailureThreshold
+                tracerouteFailureThreshold=settings.tracerouteFailureThreshold,
+                cpuUsageThreshold=settings.cpuUsageThreshold,
+                memoryUsageThreshold=settings.memoryUsageThreshold
             )
     
     def update_alert_settings(self, new_settings: AlertSettings) -> None:
