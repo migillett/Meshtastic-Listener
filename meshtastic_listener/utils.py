@@ -2,6 +2,10 @@ import logging
 import math
 from os import environ
 
+from .data_structures import SystemResources
+
+import psutil
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,3 +30,17 @@ def load_node_env_var(env_var_name: str) -> list[int] | None:
             raise EnvironmentError(f"Invalid node_id: {node_id}. It must be an integer.")
     else:
         return [int(node_id) for node_id in nodes]
+
+def system_stats() -> SystemResources:
+    """
+    Gather system resource usage statistics.
+    """
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    
+    return SystemResources(
+        cpuUsagePercent=round(cpu_usage, 1),
+        memoryUsagePercent=round(memory.percent, 1),
+        diskUsagePercent=round(disk.percent, 1)
+    )

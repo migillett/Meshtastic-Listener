@@ -126,6 +126,8 @@ class AlertThresholdSettings(Base):
     lowTempThreshold = Column(Float, default=0.0, nullable=False) # Celsius
     highHumidityThreshold = Column(Float, default=60.0, nullable=False) # percentage
     tracerouteFailureThreshold = Column(Float, default=50.0, nullable=False) # percentage
+    cpuUsageThreshold = Column(Float, default=90.0, nullable=False) # percentage
+    memoryUsageThreshold = Column(Float, default=90.0, nullable=False) # percentage
 
 
 class Subscriptions(Base):

@@ -23,6 +23,11 @@ class NodeRoles(StrEnum):
     ROUTER_CLIENT = "ROUTER_CLIENT" # RIP router client
     CLIENT_BASE = "CLIENT_BASE"
 
+class SystemResources(BaseModel):
+    cpuUsagePercent: float = 0.0
+    memoryUsagePercent: float = 0.0
+    diskUsagePercent: float = 0.0
+
 class Decoded(BaseModel):
     portnum: str
     bitfield: Optional[int] = None
@@ -130,25 +135,31 @@ class AlertSettings(BaseModel):
     lowTemperatureThreshold: float
     highHumidityThreshold: float
     tracerouteFailureThreshold: float
+    cpuUsageThreshold: float
+    memoryUsageThreshold: float
 
 class NodeHealthCheck(BaseModel):
     nodeNum: int
     startTs: int = 0
     endTs: int = Field(default=int(datetime.now().timestamp()))
     channelUsage: float = Field(ge=0.0, le=100.0) # percentage
-    TracerouteStatistics: TracerouteStatistics
+    tracerouteStatistics: TracerouteStatistics
     environmentMetrics: EnvironmentPayload = Field(default=EnvironmentPayload())
+    systemResources: SystemResources = Field(default=SystemResources())
 
     def status(self) -> str:
         status = f'''{datetime.fromtimestamp(self.startTs).strftime('%Y-%m-%d %H:%M')}
 CH USAGE: {round(self.channelUsage, 2)}%
-TR SENT: {self.TracerouteStatistics.total}
-TR SUCCESS: {round(self.TracerouteStatistics.average(), 0)}%'''
+TR SENT: {self.tracerouteStatistics.total}
+TR SUCCESS: {round(self.tracerouteStatistics.average(), 0)}%'''
         # Force to integer to save on character counts
         if self.environmentMetrics.temperature is not None:
             status += f'\nTEMP: {int(self.environmentMetrics.temperature)}°C'
         if self.environmentMetrics.relativeHumidity is not None:
             status += f'\nHUMIDITY: {int(self.environmentMetrics.relativeHumidity)}%'
+        if self.systemResources:
+            status += f'\nCPU: {int(self.systemResources.cpuUsagePercent)}%'
+            status += f'\nMEM: {int(self.systemResources.memoryUsagePercent)}%'
         return status.strip()
 
 class AdvertiseInstancePayload(BaseModel):
