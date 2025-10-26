@@ -35,7 +35,7 @@ def system_stats() -> SystemResources:
     """
     Gather system resource usage statistics.
     """
-    cpu_usage = psutil.cpu_percent(interval=1)
+    cpu_usage = psutil.cpu_percent(interval=None)
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
     
