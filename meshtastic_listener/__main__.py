@@ -399,7 +399,7 @@ class MeshtasticListener:
                     alert_context += f'High Memory Usage: {health_check_stats.systemResources.memoryUsagePercent}%\n'
 
                 if alert_context != '':
-                    self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context}', priority=True)
+                    self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context.strip()}', priority=True)
 
                 self.previous_health_check = health_check_stats
 
