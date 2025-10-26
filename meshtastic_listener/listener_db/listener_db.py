@@ -81,7 +81,6 @@ class ListenerDb:
                 )
             session.execute(stmt)
             session.commit()
-        logger.debug(f'Inserted node into DB: {node.model_dump_json()}')
 
     def mark_node_as_listener(self, node_id: int, version: str) -> None:
         with self.session() as session:
@@ -565,10 +564,12 @@ class ListenerDb:
                 if item.txTime is not None and item.rxTime is not None
             ]
 
+            avg = durations[0] if len(durations) == 1 else mean(durations)
+
             return TracerouteStatistics(
                 total=len(items),
                 successes=sum(1 for item in items if item.tracerouteDetails is not None),
-                avgTraceDuration=round(mean(durations), 2) if durations else 0.0
+                avgTraceDuration=round(avg, 2) if durations else 0.0
             )
         
     def select_favorite_nodes(self) -> list[Node]:

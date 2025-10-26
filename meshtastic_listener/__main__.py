@@ -183,7 +183,7 @@ class MeshtasticListener:
         response = {}
         for key in packet:
             if isinstance(packet[key], bytes) or key == 'raw':
-                logging.debug(f'Dropping raw bytes from packet: {key}:{packet[key]}')
+                continue
             elif isinstance(packet[key], dict):
                 response[key] = self.__sanitize_packet__(packet[key])
             else:
@@ -399,7 +399,7 @@ class MeshtasticListener:
                     alert_context += f'High Memory Usage: {health_check_stats.systemResources.memoryUsagePercent}%\n'
 
                 if alert_context != '':
-                    self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context}', priority=True)
+                    self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context.strip()}', priority=True)
 
                 self.previous_health_check = health_check_stats
 
@@ -427,7 +427,7 @@ class MeshtasticListener:
             logging.debug(f'Message received from another listener node {payload.fromId}. Ignoring to prevent loops.')
             return None
     
-        self.__print_packet_received__(logging.info, packet)
+        self.__print_packet_received__(logging.debug, packet)
 
         response = None
         if self.cmd_handler is not None:
@@ -558,7 +558,7 @@ class MeshtasticListener:
                 altitude=position.get('altitude'),
                 precision_bits=position.get('precisionBits')
             )
-            logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
+            logging.debug(f'Updated position for node {packet["from"]}')
         except ItemNotFound as e:
             logging.warning(e)
 

@@ -35,12 +35,10 @@ def system_stats() -> SystemResources:
     """
     Gather system resource usage statistics.
     """
-    cpu_usage = psutil.cpu_percent(interval=1)
-    memory = psutil.virtual_memory()
-    disk = psutil.disk_usage('/')
-    
-    return SystemResources(
-        cpuUsagePercent=round(cpu_usage, 1),
-        memoryUsagePercent=round(memory.percent, 1),
-        diskUsagePercent=round(disk.percent, 1)
+    stats = SystemResources(
+        cpuUsagePercent=round(psutil.cpu_percent(interval=None), 1),
+        memoryUsagePercent=round(psutil.virtual_memory().percent, 1),
+        diskUsagePercent=round(psutil.disk_usage('/').percent, 1)
     )
+    logger.debug(f"System Resource Statistics: {stats.model_dump()}")
+    return stats

@@ -54,6 +54,7 @@ uv sync
 | `ENABLE_DEBUG`       | Sets the logger to debug mode if set to `True`.                                                   | `False`       |
 | `POSTGRES_DB` | The name of the Postgres database. | `listener_db` |
 | `POSTGRES_PASSWORD` | The password of the user to connect to the database | No default defined |
+| `ENABLE_DEBUG` | Sets the default logging level to `debug` if set to `true` | `false` |
 
 ## Docker Compose
 This repo has a [Docker Compose](docker-compose.yml) file to faster deploys. You'll also want to modify the [environment secrets](secrets_example.env) for your specific use as well. For examples on various docker deployments, see the [Docker Compose Readme](docker-examples.md)
