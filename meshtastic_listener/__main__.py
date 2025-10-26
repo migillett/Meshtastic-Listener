@@ -427,7 +427,7 @@ class MeshtasticListener:
             logging.debug(f'Message received from another listener node {payload.fromId}. Ignoring to prevent loops.')
             return None
     
-        self.__print_packet_received__(logging.info, packet)
+        self.__print_packet_received__(logging.debug, packet)
 
         response = None
         if self.cmd_handler is not None:
