@@ -81,7 +81,6 @@ class ListenerDb:
                 )
             session.execute(stmt)
             session.commit()
-        logger.debug(f'Inserted node into DB: {node.model_dump_json()}')
 
     def mark_node_as_listener(self, node_id: int, version: str) -> None:
         with self.session() as session:

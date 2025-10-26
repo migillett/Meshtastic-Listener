@@ -183,7 +183,7 @@ class MeshtasticListener:
         response = {}
         for key in packet:
             if isinstance(packet[key], bytes) or key == 'raw':
-                logging.debug(f'Dropping raw bytes from packet: {key}:{packet[key]}')
+                continue
             elif isinstance(packet[key], dict):
                 response[key] = self.__sanitize_packet__(packet[key])
             else:
@@ -558,7 +558,7 @@ class MeshtasticListener:
                 altitude=position.get('altitude'),
                 precision_bits=position.get('precisionBits')
             )
-            logging.debug(f'Updated position for node {packet["from"]}: {self.db.get_node(packet["from"])}')
+            logging.debug(f'Updated position for node {packet["from"]}')
         except ItemNotFound as e:
             logging.warning(e)
 
