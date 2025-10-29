@@ -544,13 +544,6 @@ class MeshtasticListener:
                 metrics
             )
 
-        elif 'powerMetrics' in telemetry:
-            # we don't care about power metrics
-            pass
-
-        else:
-            logging.error(f"Unknown telemetry type: {telemetry}")
-
     def __handle_traceroute__(self, packet: dict) -> None:
         packet_decoded = packet.get('decoded', {})
         id = packet_decoded.get('requestId', packet['id'])
