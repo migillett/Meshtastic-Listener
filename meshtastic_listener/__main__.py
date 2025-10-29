@@ -15,7 +15,7 @@ from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload,
     NodeHealthCheck, InsufficientDataError,
-    AdvertiseInstancePayload
+    AdvertiseInstancePayload, AlertSettings
 )
 from meshtastic_listener.utils import coords_int_to_float, load_node_env_var, system_stats
 
@@ -273,7 +273,7 @@ class MeshtasticListener:
         This function is designed to run in a thread in a loop.
         '''
 
-        favorites = self.db.select_favorite_nodes()
+        favorites = self.db.get_favorite_nodes()
         if len(favorites) > 0:
             logging.info(f'Favorite nodes set to: {[self.__sanitize_string__(str(f.longName)) for f in favorites]}')
         else:
@@ -328,6 +328,62 @@ class MeshtasticListener:
             self.__check_listener_instances__()
             self.__sleep_with_exit__(60)
 
+    def __check_traceroute_responses__(self, alert_settings: AlertSettings, lookback_ts: int) -> None:
+        for node in self.db.get_favorite_nodes():
+            traceroute_results = self.db.get_traceroute_results_by_node(
+                source_id=self.local_node_id,
+                target_id=node.nodeNum,
+                lookback_ts=lookback_ts
+            )
+            total = len(traceroute_results)
+            if total == 0:
+                continue
+
+            successful = len([t for t in traceroute_results if t.rxTime is not None])
+            rate = (successful / total * 100)
+
+            if total >= 3 and rate <= alert_settings.tracerouteFailureThreshold:
+                alert_msg = f'Low Traceroute Success Rate to favorite node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}): {rate:.2f}% over last {total} attempts.'
+                logging.warning(alert_msg)
+                self.__notify_admins__(alert_msg, priority=True)
+
+    def __create_node_health_alert__(self, alert_settings: AlertSettings, health_check_stats: NodeHealthCheck) -> str:
+        alert_context = ''
+        
+        ### CHANNEL UTILIZATION ###
+        if health_check_stats.channelUsage >= alert_settings.channelUsageThreshold:
+            alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
+
+        ### TRACEROUTE SUCCESS RATE ###
+        trace_avg = health_check_stats.tracerouteStatistics.average()
+        if trace_avg <= alert_settings.tracerouteFailureThreshold and health_check_stats.tracerouteStatistics.total >= 30:
+            # 30 for minimum statistical significance
+            alert_context += f'Low TR Success Rate: {trace_avg}%\n'
+
+        ### TEMPERATURE ###
+        if health_check_stats.environmentMetrics.temperature is not None:
+            # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
+            # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
+            # give a buffer of +-20C for high and low temp warnings
+            if health_check_stats.environmentMetrics.temperature >= alert_settings.highTemperatureThreshold:
+                alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
+            elif health_check_stats.environmentMetrics.temperature <= alert_settings.lowTemperatureThreshold:
+                alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
+        
+        ### HUMIDITY ###
+        if health_check_stats.environmentMetrics.relativeHumidity is not None:
+            if health_check_stats.environmentMetrics.relativeHumidity >= alert_settings.highHumidityThreshold:
+                alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
+
+        ### SYSTEM STATS ###
+        if health_check_stats.systemResources.cpuUsagePercent >= alert_settings.cpuUsageThreshold:
+            alert_context += f'High CPU Usage: {health_check_stats.systemResources.cpuUsagePercent}%\n'
+        if health_check_stats.systemResources.memoryUsagePercent >= alert_settings.memoryUsageThreshold:
+            alert_context += f'High Memory Usage: {health_check_stats.systemResources.memoryUsagePercent}%\n'
+
+        return alert_context
+
+
     def __check_node_health__(self) -> None:
         '''
         Using the software host node ID, pull the last n hours of metrics and see what general trends are.
@@ -341,10 +397,13 @@ class MeshtasticListener:
         while not self.shutdown_flag.is_set():
             try:
                 settings = self.db.get_alert_settings()
-                logging.debug(f'Fetched alert settings from DB: {settings.model_dump()}')
-                
                 now = time.time()
                 lookback_ts = int(now - timedelta(hours=lookback_hours).total_seconds())
+
+                self.__check_traceroute_responses__(
+                    alert_settings=settings,
+                    lookback_ts=lookback_ts
+                )
 
                 health_check_stats = NodeHealthCheck(
                     nodeNum=self.local_node_id,
@@ -354,7 +413,7 @@ class MeshtasticListener:
                         node_num=self.local_node_id,
                         lookback_ts=lookback_ts
                     ),
-                    tracerouteStatistics=self.db.return_traceroute_success_rate(
+                    tracerouteStatistics=self.db.get_traceroute_success_rate(
                         from_id=self.local_node_id,
                         lookback_ts=lookback_ts
                     ),
@@ -365,39 +424,10 @@ class MeshtasticListener:
                     systemResources=system_stats()
                 )
 
-                alert_context = ''
-
-                ### CHANNEL UTILIZATION ###
-                if health_check_stats.channelUsage >= settings.channelUsageThreshold:
-                    alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
-
-                ### TRACEROUTE SUCCESS RATE ###
-                trace_avg = health_check_stats.tracerouteStatistics.average()
-                if trace_avg <= settings.tracerouteFailureThreshold and health_check_stats.tracerouteStatistics.total >= 30:
-                    # 30 for minimum statistical significance
-                    alert_context += f'Low TR Success Rate: {trace_avg}%\n'
-
-                ### TEMPERATURE ###
-                if health_check_stats.environmentMetrics.temperature is not None:
-                    # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
-                    # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
-                    # give a buffer of +-20C for high and low temp warnings
-                    if health_check_stats.environmentMetrics.temperature >= settings.highTemperatureThreshold:
-                        alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
-                    elif health_check_stats.environmentMetrics.temperature <= settings.lowTemperatureThreshold:
-                        alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
-                
-                ### HUMIDITY ###
-                if health_check_stats.environmentMetrics.relativeHumidity is not None:
-                    if health_check_stats.environmentMetrics.relativeHumidity >= settings.highHumidityThreshold:
-                        alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
-
-                ### SYSTEM STATS ###
-                if health_check_stats.systemResources.cpuUsagePercent >= settings.cpuUsageThreshold:
-                    alert_context += f'High CPU Usage: {health_check_stats.systemResources.cpuUsagePercent}%\n'
-                if health_check_stats.systemResources.memoryUsagePercent >= settings.memoryUsageThreshold:
-                    alert_context += f'High Memory Usage: {health_check_stats.systemResources.memoryUsagePercent}%\n'
-
+                alert_context = self.__create_node_health_alert__(
+                    alert_settings=settings,
+                    health_check_stats=health_check_stats
+                )
                 if alert_context != '':
                     self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context.strip()}', priority=True)
 
