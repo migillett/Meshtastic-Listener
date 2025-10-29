@@ -29,7 +29,7 @@ class CommandHandler:
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''
-        1: !t - rx stats
+        1: !r - rx stats
         '''
         return f'RX HOPS: {context.hopLimit} / {context.hopStart}\nRX SNR: {context.rxSnr}\nRX RSSI: {context.rxRssi}'
 
@@ -64,6 +64,29 @@ class CommandHandler:
         for link in links:
             connection_status = '⚠️' if link.reconnectAttempts > 0 else '☑️'
             response += f'{link.nodeNum} ({link.longName}): {link.hostSoftwareVersion} {connection_status}\n'
+        return response.strip()
+    
+    def cmd_traceroute_health(self) -> str:
+        '''
+        5: !t - Get traceroute health summary
+        '''
+        response = ''
+        nodes = self.db.get_favorite_nodes()
+        if len(nodes) == 0:
+            return 'No favorite nodes found'
+        
+        for node in nodes:
+            if node.nodeNum == self.server_node_id:
+                continue
+            results = self.db.get_traceroute_results_by_node(
+                source_id=self.server_node_id,
+                target_id=node.nodeNum
+            )
+            if len(results) == 0:
+                response += f'{node.shortName}: No traces\n'
+            else:
+                successes = sum(1 for r in results if r.rxTime is not None)
+                response += f'{node.shortName}: {successes}/{len(results)}\n'
         return response.strip()
 
     # def cmd_subscriptions(self, context: MessageReceived) -> str:
@@ -116,7 +139,7 @@ class CommandHandler:
                 command = context.decoded.text[1:].lower().split(' ')[0]
                 logging.info(f'Command received: {command} From: {context.fromId}')
                 match command:
-                    case 't':
+                    case 'r':
                         return self.cmd_reply(context)
                     
                     case 'c':
@@ -132,6 +155,9 @@ class CommandHandler:
 
                     case 'l':
                         return self.cmd_links()
+                    
+                    case 't':
+                        return self.cmd_traceroute_health()
                     
                     case 'i':
                         return self.cmd_info()

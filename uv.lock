@@ -377,7 +377,7 @@ wheels = [
 
 [[package]]
 name = "meshtatic-listener"
-version = "2.1.17"
+version = "2.1.18"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },

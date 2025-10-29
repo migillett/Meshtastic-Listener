@@ -92,7 +92,7 @@ def test_listener():
     test_commands = [
         (None, ''),
         ('!h', ''), # this message will be long, so just check for a basic response
-        ('!t', 'RX HOPS:'),
+        ('!r', 'RX HOPS:'),
         ('!w', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above
         ('!i', 'Meshtastic Listener testing'),
         ('!l', '1234567890 (TEST): testing'),

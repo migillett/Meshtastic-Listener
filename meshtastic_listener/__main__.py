@@ -148,7 +148,7 @@ class MeshtasticListener:
         msg_type = packet.get('portnum', 'UNKNOWN')
 
         shortname = self.db.get_shortname(node_num)
-        log_insert = f"node {node_num}" if str(shortname) == str(node_num) else f"{node_num} ({shortname})"
+        log_insert = self.__sanitize_string__(f"node {node_num}" if str(shortname) == str(node_num) else f"{node_num} ({shortname})")
 
         logger(f"Received {msg_type} payload from {log_insert} on channel {channel} ({rx_rssi} dB rxRssi, {snr} rxSNR): {json.dumps(packet)}")
 
@@ -469,7 +469,7 @@ class MeshtasticListener:
                 self.__send_messages__(text=str(e), destinationId=payload.fromId)
 
             if isinstance(response, str):
-                logging.info(f'Replying to {payload.fromId}: {response}')
+                logging.info(self.__sanitize_string__(f'Replying to {payload.fromId}: {response}'))
                 self.__send_messages__(
                     text=response,
                     destinationId=payload.fromId,
