@@ -303,7 +303,7 @@ class MeshtasticListener:
                         destinationId=target.nodeNum,
                         portNum=PortNum.TRACEROUTE_APP,
                         wantResponse=True,
-                        onResponse=self.interface.onResponseTraceRoute,
+                        # onResponse=self.interface.onResponseTraceRoute,
                         channelIndex=0,
                         hopLimit=self.max_hops,
                     )
