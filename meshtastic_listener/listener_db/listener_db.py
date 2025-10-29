@@ -587,10 +587,9 @@ class ListenerDb:
                 Node.lastHeard.desc()
             ).all()
 
-    def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
+    def select_traceroute_target(self, fromId: int) -> Node:
         '''
         Returns 1 node (if any) if it is a favorite node or is another listener node,
-        is less than maxHops hops away,
         is NOT the current node,
         and has not had a traceroute attempt (txTime) sent to it in the past 3 hours.
         '''
@@ -600,11 +599,10 @@ class ListenerDb:
                 Node
             ).filter(
                 (Node.isFavorite == True) | (Node.isHost == True),
-                Node.hopsAway <= maxHops,
                 Node.nodeNum != fromId,
                 ~Node.nodeNum.in_(
                     session.query(Traceroute.toId).filter(
-                        Traceroute.txTime > three_hours_ago
+                        Traceroute.txTime >= three_hours_ago
                     )
                 )
             ).order_by(

@@ -287,10 +287,7 @@ class MeshtasticListener:
                 self.__sleep_with_exit__(sleep_interval_minutes=15)
             
             else:
-                target = self.db.select_traceroute_target(
-                    fromId=self.local_node_id,
-                    maxHops=self.max_hops
-                )
+                target = self.db.select_traceroute_target(fromId=self.local_node_id)
                 if not target:
                     logging.warning("No valid traceroute nodes found in DB. Delaying next traceroute request for 1 hour.")
                     self.__sleep_with_exit__(sleep_interval_minutes=60)
