@@ -328,8 +328,7 @@ class MeshtasticListener:
             self.__check_listener_instances__()
             self.__sleep_with_exit__(60)
 
-    def __check_traceroute_responses__(self, alert_settings: AlertSettings) -> None:
-        lookback_ts = int(time.time() - timedelta(hours=12).total_seconds())
+    def __check_traceroute_responses__(self, alert_settings: AlertSettings, lookback_ts: int) -> None:
         for node in self.db.get_favorite_nodes():
             traceroute_results = self.db.get_traceroute_results_by_node(
                 source_id=self.local_node_id,
@@ -340,6 +339,7 @@ class MeshtasticListener:
             if total == 0:
                 continue
 
+            # rxTime != None implies a response
             successful = len([t for t in traceroute_results if t.rxTime is not None])
             rate = (successful / total * 100)
 
@@ -393,6 +393,7 @@ class MeshtasticListener:
         '''
 
         # for every n minutes of updater interval, look back 1 hour
+        # 15 minutes -> 15 hours lookback
         lookback_hours = int(self.update_interval.total_seconds() / 60)
 
         while not self.shutdown_flag.is_set():
@@ -401,7 +402,10 @@ class MeshtasticListener:
                 now = time.time()
                 lookback_ts = int(now - timedelta(hours=lookback_hours).total_seconds())
 
-                self.__check_traceroute_responses__(settings)
+                self.__check_traceroute_responses__(
+                    alert_settings=settings,
+                    lookback_ts=lookback_ts
+                )
 
                 health_check_stats = NodeHealthCheck(
                     nodeNum=self.local_node_id,
