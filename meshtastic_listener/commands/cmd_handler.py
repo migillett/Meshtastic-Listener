@@ -1,8 +1,9 @@
 import logging
 import inspect
+from time import time
+from datetime import timedelta
 
 from meshtastic_listener.data_structures import MessageReceived, NodeHealthCheck
-from meshtastic_listener.commands.subscriptions import handle_subscription_command
 from meshtastic_listener.listener_db.listener_db import ListenerDb, Waypoints
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,9 @@ class CommandHandler:
         '''
         5: !t - Get traceroute health summary
         '''
-        response = ''
+        lookback_ts = int(time()) - timedelta(days=1).total_seconds()
+        
+        response = 'Traceroute Summary:\n'
         nodes = self.db.get_favorite_nodes()
         if len(nodes) == 0:
             return 'No favorite nodes found'
@@ -80,13 +83,15 @@ class CommandHandler:
                 continue
             results = self.db.get_traceroute_results_by_node(
                 source_id=self.server_node_id,
-                target_id=node.nodeNum
+                target_id=node.nodeNum,
+                lookback_ts=lookback_ts
             )
             if len(results) == 0:
                 response += f'{node.shortName}: No traces\n'
             else:
                 successes = sum(1 for r in results if r.rxTime is not None)
-                response += f'{node.shortName}: {successes}/{len(results)}\n'
+                percentage = int((successes / len(results)) * 100)
+                response += f'{node.shortName}: {successes}/{len(results)} {percentage}%\n'
         return response.strip()
 
     # def cmd_subscriptions(self, context: MessageReceived) -> str:

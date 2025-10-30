@@ -87,16 +87,38 @@ def test_listener():
                 message_received = json.load(json_file)
                 listener.__on_receive__(packet=message_received)
     
+    message_received = {
+        "from": 1111111111,
+        "to": 1234567890,
+        "decoded": {
+            "portnum": "TEXT_MESSAGE_APP",
+            "bitfield": 0,
+            "text": ""
+        },
+        "id": 222222222,
+        "rxTime": 0,
+        "rxSnr": 6.75,
+        "hopLimit": 7,
+        "wantAck": True,
+        "rxRssi": -35,
+        "hopStart": 7,
+        "publicKey": "asdfasdfasdfasdfasdfasdfasdf=",
+        "pkiEncrypted": True,
+        "fromId": "!12345678",
+        "toId": "!12345678"
+    }
+
     # a list of commands and the expected response from the BBS
     # we'll do a check of response.startswith(expected_response) for each command
     test_commands = [
         (None, ''),
-        ('!h', ''), # this message will be long, so just check for a basic response
-        ('!r', 'RX HOPS:'),
+        ('!r', 'RX HOPS: 7 / 7\nRX SNR: 6.75\nRX RSSI: -35'),
         ('!w', 'Sent 1 waypoint to your map'), # we created 1 waypoint using the JSON test above
-        ('!i', 'Meshtastic Listener testing'),
-        ('!l', '1234567890 (TEST): testing'),
         ('!c', 'No health check data available.'),  # no health check data in the test messages
+        ('!l', '1234567890 (TEST): testing'),
+        ('!t', 'Traceroute Summary:'),
+        ('!i', 'Meshtastic Listener testing'),
+        ('!h', ''), # this message will be long, so just check for a basic response
 
         # SUBSCRIPTIONS
         # ('!s', 'Subscription Commands:'),
@@ -112,27 +134,6 @@ def test_listener():
         # ('!s rm *', 'Unsubscribed from all topics'),
         # ('!s add *', 'Successfully subscribed to all topics'),
     ]
-
-    message_received = {
-        "from": 1234567890,
-        "to": 1234567890,
-        "decoded": {
-            "portnum": "TEXT_MESSAGE_APP",
-            "bitfield": 0,
-            "text": ""
-        },
-        "id": 1234567890,
-        "rxTime": 0,
-        "rxSnr": 6.75,
-        "hopLimit": 7,
-        "wantAck": True,
-        "rxRssi": -35,
-        "hopStart": 7,
-        "publicKey": "asdfasdfasdfasdfasdfasdfasdf=",
-        "pkiEncrypted": True,
-        "fromId": "!12345678",
-        "toId": "!12345678"
-    }
 
     for message in test_commands:
         print(f'Sending message: {message[0]}')

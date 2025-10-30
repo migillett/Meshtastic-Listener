@@ -143,14 +143,12 @@ class MeshtasticListener:
         
         channel = message.get('channel', 0)
         packet = message.get('decoded', {})
-        snr = message.get('rxSnr', "N/A")
-        rx_rssi = message.get('rxRssi', "N/A")
         msg_type = packet.get('portnum', 'UNKNOWN')
 
         shortname = self.db.get_shortname(node_num)
         log_insert = self.__sanitize_string__(f"node {node_num}" if str(shortname) == str(node_num) else f"{node_num} ({shortname})")
 
-        logger(f"Received {msg_type} payload from {log_insert} on channel {channel} ({rx_rssi} dB rxRssi, {snr} rxSNR): {json.dumps(packet)}")
+        logger(f"Received {msg_type} payload from {log_insert} on channel {channel}: {json.dumps(packet)}")
 
     def __human_readable_ts__(self, rxTime: int | None = None) -> str:
         if rxTime is None:
