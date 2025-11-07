@@ -386,15 +386,16 @@ class MeshtasticListener:
         This function is designed to run in a thread in a loop.
         '''
 
-        # for every n minutes of updater interval, look back 1 hour
-        # 15 minutes -> 15 hours lookback
+        # for every n minutes of updater interval, look back 2 hours
+        # 15 minutes -> 30 hours lookback
         lookback_hours = int(self.update_interval.total_seconds() / 60)
+        logging.info(f'Node health check will look back {lookback_hours * 2} hours for metrics.')
 
         while not self.shutdown_flag.is_set():
             try:
                 settings = self.db.get_alert_settings()
                 now = time.time()
-                lookback_ts = int(now - timedelta(hours=lookback_hours).total_seconds())
+                lookback_ts = int(now - timedelta(hours=lookback_hours * 2).total_seconds())
 
                 self.__check_traceroute_responses__(
                     alert_settings=settings,
