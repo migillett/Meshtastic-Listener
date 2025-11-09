@@ -465,7 +465,8 @@ class MeshtasticListener:
                 )
             
             except UnknownCommandError as e:
-                self.__send_messages__(text=str(e), destinationId=payload.fromId)
+                # don't advertise that we exist if someone is just testing commands on other nodes
+                logging.warning(str(e))
 
             if isinstance(response, str):
                 logging.info(self.__sanitize_string__(f'Replying to {payload.fromId}: {response}'))

@@ -2,6 +2,7 @@ import logging
 import inspect
 from time import time
 from datetime import timedelta
+from statistics import mean
 
 from meshtastic_listener.data_structures import MessageReceived, NodeHealthCheck
 from meshtastic_listener.listener_db.listener_db import ListenerDb, Waypoints
@@ -86,12 +87,20 @@ class CommandHandler:
                 target_id=node.nodeNum,
                 lookback_ts=lookback_ts
             )
+
             if len(results) == 0:
                 response += f'{node.shortName}: No traces\n'
             else:
+                hops = []
+                for r in results:
+                    if r.tracerouteDetails and 'routeBack' in r.tracerouteDetails:
+                        hops.append(len(r.tracerouteDetails.get('routeBack', [])))
+                avg_hops = round(mean(hops), 2) if len(hops) > 0 else 0
+
                 successes = sum(1 for r in results if r.rxTime is not None)
                 percentage = int((successes / len(results)) * 100)
-                response += f'{node.shortName}: {successes}/{len(results)} {percentage}%\n'
+                snr = f'{int(mean(r.snrAvg for r in results if r.snrAvg is not None))}dB SNR' if successes > 0 else ''
+                response += f'{node.shortName}: {successes}/{len(results)} {percentage}% {snr} {avg_hops} hops\n'
         return response.strip()
 
     # def cmd_subscriptions(self, context: MessageReceived) -> str:
@@ -171,6 +180,5 @@ class CommandHandler:
                         return self.cmd_help()
 
                     case _:
-                        logger.warning(f'Unknown command: {command}')
                         raise UnknownCommandError(f'Unknown command: {command}')
         return None
