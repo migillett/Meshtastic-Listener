@@ -138,7 +138,12 @@ class CommandHandler:
 
     def handle_bell_alert(self, context: MessageReceived) -> None:
         logging.warning(f'Received Alert from {context.fromId}: {context.model_dump_json()}')
+        return None
 
+    def handle_help_message(self, context: MessageReceived) -> str:
+        logging.info(f'Test message received from {context.fromId}')
+        return f'Received your test message\n{self.cmd_reply(context)}'
+    
     def handle_command(
             self,
             context: MessageReceived,
@@ -147,11 +152,10 @@ class CommandHandler:
         
         if context.decoded.text is not None:
             if "🔔" in context.decoded.text:
-                self.handle_bell_alert(context)
+                return self.handle_bell_alert(context)
 
             elif context.decoded.text.lower().strip() == 'test':
-                logging.info(f'Test message received from {context.fromId}')
-                return f'Received your test message\n{self.cmd_reply(context)}'
+                return self.handle_help_message(context)
 
             elif context.decoded.text.startswith(self.prefix):
                 command = context.decoded.text[1:].lower().split(' ')[0]
