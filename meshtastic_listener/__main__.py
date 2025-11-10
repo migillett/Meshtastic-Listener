@@ -15,7 +15,7 @@ from meshtastic_listener.data_structures import (
     MessageReceived, NodeBase, WaypointPayload,
     DevicePayload, TransmissionPayload, EnvironmentPayload,
     NodeHealthCheck, InsufficientDataError,
-    AdvertiseInstancePayload
+    AdvertiseInstancePayload, AlertSettings
 )
 from meshtastic_listener.utils import coords_int_to_float, load_node_env_var, system_stats
 
@@ -143,14 +143,12 @@ class MeshtasticListener:
         
         channel = message.get('channel', 0)
         packet = message.get('decoded', {})
-        snr = message.get('rxSnr', "N/A")
-        rx_rssi = message.get('rxRssi', "N/A")
         msg_type = packet.get('portnum', 'UNKNOWN')
 
         shortname = self.db.get_shortname(node_num)
-        log_insert = f"node {node_num}" if str(shortname) == str(node_num) else f"{node_num} ({shortname})"
+        log_insert = self.__sanitize_string__(f"node {node_num}" if str(shortname) == str(node_num) else f"{node_num} ({shortname})")
 
-        logger(f"Received {msg_type} payload from {log_insert} on channel {channel} ({rx_rssi} dB rxRssi, {snr} rxSNR): {json.dumps(packet)}")
+        logger(f"Received {msg_type} payload from {log_insert} on channel {channel}: {json.dumps(packet)}")
 
     def __human_readable_ts__(self, rxTime: int | None = None) -> str:
         if rxTime is None:
@@ -273,7 +271,7 @@ class MeshtasticListener:
         This function is designed to run in a thread in a loop.
         '''
 
-        favorites = self.db.select_favorite_nodes()
+        favorites = self.db.get_favorite_nodes()
         if len(favorites) > 0:
             logging.info(f'Favorite nodes set to: {[self.__sanitize_string__(str(f.longName)) for f in favorites]}')
         else:
@@ -287,10 +285,7 @@ class MeshtasticListener:
                 self.__sleep_with_exit__(sleep_interval_minutes=15)
             
             else:
-                target = self.db.select_traceroute_target(
-                    fromId=self.local_node_id,
-                    maxHops=self.max_hops
-                )
+                target = self.db.select_traceroute_target(fromId=self.local_node_id)
                 if not target:
                     logging.warning("No valid traceroute nodes found in DB. Delaying next traceroute request for 1 hour.")
                     self.__sleep_with_exit__(sleep_interval_minutes=60)
@@ -303,7 +298,6 @@ class MeshtasticListener:
                         destinationId=target.nodeNum,
                         portNum=PortNum.TRACEROUTE_APP,
                         wantResponse=True,
-                        onResponse=self.interface.onResponseTraceRoute,
                         channelIndex=0,
                         hopLimit=self.max_hops,
                     )
@@ -328,6 +322,63 @@ class MeshtasticListener:
             self.__check_listener_instances__()
             self.__sleep_with_exit__(60)
 
+    def __check_traceroute_responses__(self, alert_settings: AlertSettings, lookback_ts: int) -> None:
+        for node in self.db.get_favorite_nodes():
+            traceroute_results = self.db.get_traceroute_results_by_node(
+                source_id=self.local_node_id,
+                target_id=node.nodeNum,
+                lookback_ts=lookback_ts
+            )
+            total = len(traceroute_results)
+            if total == 0:
+                continue
+
+            # rxTime != None implies a response
+            successful = len([t for t in traceroute_results if t.rxTime is not None])
+            rate = (successful / total * 100)
+
+            if total >= 3 and rate <= alert_settings.tracerouteFailureThreshold:
+                alert_msg = f'Low Traceroute Success Rate to favorite node {node.nodeNum} ({self.__sanitize_string__(str(node.longName))}): {rate:.2f}% over last {total} attempts.'
+                logging.warning(alert_msg)
+                self.__notify_admins__(alert_msg, priority=True)
+
+    def __create_node_health_alert__(self, alert_settings: AlertSettings, health_check_stats: NodeHealthCheck) -> str:
+        alert_context = ''
+        
+        ### CHANNEL UTILIZATION ###
+        if health_check_stats.channelUsage >= alert_settings.channelUsageThreshold:
+            alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
+
+        ### TRACEROUTE SUCCESS RATE ###
+        trace_avg = health_check_stats.tracerouteStatistics.average()
+        if trace_avg <= alert_settings.tracerouteFailureThreshold and health_check_stats.tracerouteStatistics.total >= 30:
+            # 30 for minimum statistical significance
+            alert_context += f'Low TR Success Rate: {trace_avg}%\n'
+
+        ### TEMPERATURE ###
+        if health_check_stats.environmentMetrics.temperature is not None:
+            # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
+            # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
+            # give a buffer of +-20C for high and low temp warnings
+            if health_check_stats.environmentMetrics.temperature >= alert_settings.highTemperatureThreshold:
+                alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
+            elif health_check_stats.environmentMetrics.temperature <= alert_settings.lowTemperatureThreshold:
+                alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
+        
+        ### HUMIDITY ###
+        if health_check_stats.environmentMetrics.relativeHumidity is not None:
+            if health_check_stats.environmentMetrics.relativeHumidity >= alert_settings.highHumidityThreshold:
+                alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
+
+        ### SYSTEM STATS ###
+        if health_check_stats.systemResources.cpuUsagePercent >= alert_settings.cpuUsageThreshold:
+            alert_context += f'High CPU Usage: {health_check_stats.systemResources.cpuUsagePercent}%\n'
+        if health_check_stats.systemResources.memoryUsagePercent >= alert_settings.memoryUsageThreshold:
+            alert_context += f'High Memory Usage: {health_check_stats.systemResources.memoryUsagePercent}%\n'
+
+        return alert_context
+
+
     def __check_node_health__(self) -> None:
         '''
         Using the software host node ID, pull the last n hours of metrics and see what general trends are.
@@ -335,16 +386,21 @@ class MeshtasticListener:
         This function is designed to run in a thread in a loop.
         '''
 
-        # for every n minutes of updater interval, look back 1 hour
+        # for every n minutes of updater interval, look back 2 hours
+        # 15 minutes -> 30 hours lookback
         lookback_hours = int(self.update_interval.total_seconds() / 60)
+        logging.info(f'Node health check will look back {lookback_hours * 2} hours for metrics.')
 
         while not self.shutdown_flag.is_set():
             try:
                 settings = self.db.get_alert_settings()
-                logging.debug(f'Fetched alert settings from DB: {settings.model_dump()}')
-                
                 now = time.time()
-                lookback_ts = int(now - timedelta(hours=lookback_hours).total_seconds())
+                lookback_ts = int(now - timedelta(hours=lookback_hours * 2).total_seconds())
+
+                self.__check_traceroute_responses__(
+                    alert_settings=settings,
+                    lookback_ts=lookback_ts
+                )
 
                 health_check_stats = NodeHealthCheck(
                     nodeNum=self.local_node_id,
@@ -354,7 +410,7 @@ class MeshtasticListener:
                         node_num=self.local_node_id,
                         lookback_ts=lookback_ts
                     ),
-                    tracerouteStatistics=self.db.return_traceroute_success_rate(
+                    tracerouteStatistics=self.db.get_traceroute_success_rate(
                         from_id=self.local_node_id,
                         lookback_ts=lookback_ts
                     ),
@@ -365,39 +421,10 @@ class MeshtasticListener:
                     systemResources=system_stats()
                 )
 
-                alert_context = ''
-
-                ### CHANNEL UTILIZATION ###
-                if health_check_stats.channelUsage >= settings.channelUsageThreshold:
-                    alert_context += f'High Channel Usage: {health_check_stats.channelUsage}%\n'
-
-                ### TRACEROUTE SUCCESS RATE ###
-                trace_avg = health_check_stats.tracerouteStatistics.average()
-                if trace_avg <= settings.tracerouteFailureThreshold and health_check_stats.tracerouteStatistics.total >= 30:
-                    # 30 for minimum statistical significance
-                    alert_context += f'Low TR Success Rate: {trace_avg}%\n'
-
-                ### TEMPERATURE ###
-                if health_check_stats.environmentMetrics.temperature is not None:
-                    # https://helium.nebra.com/datasheets/hotspots/outdoor/Nebra%20Outdoor%20Hotspot%20Datasheet.pdf
-                    # the rated ambient operating temperature for the Nebra Outdoor Miner is -20C to 80C
-                    # give a buffer of +-20C for high and low temp warnings
-                    if health_check_stats.environmentMetrics.temperature >= settings.highTemperatureThreshold:
-                        alert_context += f'High Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
-                    elif health_check_stats.environmentMetrics.temperature <= settings.lowTemperatureThreshold:
-                        alert_context += f'Low Temperature: {health_check_stats.environmentMetrics.temperature}°C\n'
-                
-                ### HUMIDITY ###
-                if health_check_stats.environmentMetrics.relativeHumidity is not None:
-                    if health_check_stats.environmentMetrics.relativeHumidity >= settings.highHumidityThreshold:
-                        alert_context += f'High Humidity: {health_check_stats.environmentMetrics.relativeHumidity}%\n'
-
-                ### SYSTEM STATS ###
-                if health_check_stats.systemResources.cpuUsagePercent >= settings.cpuUsageThreshold:
-                    alert_context += f'High CPU Usage: {health_check_stats.systemResources.cpuUsagePercent}%\n'
-                if health_check_stats.systemResources.memoryUsagePercent >= settings.memoryUsageThreshold:
-                    alert_context += f'High Memory Usage: {health_check_stats.systemResources.memoryUsagePercent}%\n'
-
+                alert_context = self.__create_node_health_alert__(
+                    alert_settings=settings,
+                    health_check_stats=health_check_stats
+                )
                 if alert_context != '':
                     self.__notify_admins__(f'Node: {self.interface.getLongName()}\n{alert_context.strip()}', priority=True)
 
@@ -438,10 +465,11 @@ class MeshtasticListener:
                 )
             
             except UnknownCommandError as e:
-                self.__send_messages__(text=str(e), destinationId=payload.fromId)
+                # don't advertise that we exist if someone is just testing commands on other nodes
+                logging.warning(str(e))
 
             if isinstance(response, str):
-                logging.info(f'Replying to {payload.fromId}: {response}')
+                logging.info(self.__sanitize_string__(f'Replying to {payload.fromId}: {response}'))
                 self.__send_messages__(
                     text=response,
                     destinationId=payload.fromId,
@@ -511,13 +539,6 @@ class MeshtasticListener:
                 packet.get('rxTime', int(time.time())),
                 metrics
             )
-
-        elif 'powerMetrics' in telemetry:
-            # we don't care about power metrics
-            pass
-
-        else:
-            logging.error(f"Unknown telemetry type: {telemetry}")
 
     def __handle_traceroute__(self, packet: dict) -> None:
         packet_decoded = packet.get('decoded', {})

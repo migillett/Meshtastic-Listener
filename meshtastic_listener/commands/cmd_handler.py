@@ -1,8 +1,10 @@
 import logging
 import inspect
+from time import time
+from datetime import timedelta
+from statistics import mean
 
 from meshtastic_listener.data_structures import MessageReceived, NodeHealthCheck
-from meshtastic_listener.commands.subscriptions import handle_subscription_command
 from meshtastic_listener.listener_db.listener_db import ListenerDb, Waypoints
 
 logger = logging.getLogger(__name__)
@@ -29,7 +31,7 @@ class CommandHandler:
 
     def cmd_reply(self, context: MessageReceived) -> str:
         '''
-        1: !t - rx stats
+        1: !r - rx stats
         '''
         return f'RX HOPS: {context.hopLimit} / {context.hopStart}\nRX SNR: {context.rxSnr}\nRX RSSI: {context.rxRssi}'
 
@@ -64,6 +66,41 @@ class CommandHandler:
         for link in links:
             connection_status = '⚠️' if link.reconnectAttempts > 0 else '☑️'
             response += f'{link.nodeNum} ({link.longName}): {link.hostSoftwareVersion} {connection_status}\n'
+        return response.strip()
+    
+    def cmd_traceroute_health(self) -> str:
+        '''
+        5: !t - Get traceroute health summary
+        '''
+        lookback_ts = int(time()) - timedelta(days=1).total_seconds()
+        
+        response = 'Traceroute Summary:\n'
+        nodes = self.db.get_favorite_nodes()
+        if len(nodes) == 0:
+            return 'No favorite nodes found'
+        
+        for node in nodes:
+            if node.nodeNum == self.server_node_id:
+                continue
+            results = self.db.get_traceroute_results_by_node(
+                source_id=self.server_node_id,
+                target_id=node.nodeNum,
+                lookback_ts=lookback_ts
+            )
+
+            if len(results) == 0:
+                response += f'{node.shortName}: No traces\n'
+            else:
+                hops = []
+                for r in results:
+                    if r.tracerouteDetails and 'routeBack' in r.tracerouteDetails:
+                        hops.append(len(r.tracerouteDetails.get('routeBack', [])))
+                avg_hops = round(mean(hops), 2) if len(hops) > 0 else 0
+
+                successes = sum(1 for r in results if r.rxTime is not None)
+                percentage = int((successes / len(results)) * 100)
+                snr = f'{int(mean(r.snrAvg for r in results if r.snrAvg is not None))}dB SNR' if successes > 0 else ''
+                response += f'{node.shortName}: {successes}/{len(results)} {percentage}% {snr} {avg_hops} hops\n'
         return response.strip()
 
     # def cmd_subscriptions(self, context: MessageReceived) -> str:
@@ -101,7 +138,12 @@ class CommandHandler:
 
     def handle_bell_alert(self, context: MessageReceived) -> None:
         logging.warning(f'Received Alert from {context.fromId}: {context.model_dump_json()}')
+        return None
 
+    def handle_help_message(self, context: MessageReceived) -> str:
+        logging.info(f'Test message received from {context.fromId}')
+        return f'Received your test message\n{self.cmd_reply(context)}'
+    
     def handle_command(
             self,
             context: MessageReceived,
@@ -110,13 +152,16 @@ class CommandHandler:
         
         if context.decoded.text is not None:
             if "🔔" in context.decoded.text:
-                self.handle_bell_alert(context)
+                return self.handle_bell_alert(context)
+
+            elif context.decoded.text.lower().strip() == 'test':
+                return self.handle_help_message(context)
 
             elif context.decoded.text.startswith(self.prefix):
                 command = context.decoded.text[1:].lower().split(' ')[0]
                 logging.info(f'Command received: {command} From: {context.fromId}')
                 match command:
-                    case 't':
+                    case 'r':
                         return self.cmd_reply(context)
                     
                     case 'c':
@@ -133,6 +178,9 @@ class CommandHandler:
                     case 'l':
                         return self.cmd_links()
                     
+                    case 't':
+                        return self.cmd_traceroute_health()
+                    
                     case 'i':
                         return self.cmd_info()
                     
@@ -140,6 +188,5 @@ class CommandHandler:
                         return self.cmd_help()
 
                     case _:
-                        logger.warning(f'Unknown command: {command}')
-                        raise UnknownCommandError(f'Unknown command: {command}')
+                        raise UnknownCommandError(f'Unknown command: {context.decoded.text}')
         return None

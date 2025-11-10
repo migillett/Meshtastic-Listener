@@ -533,17 +533,19 @@ class ListenerDb:
             )
             session.commit()
 
-    def retrieve_traceroute_results(self) -> list[Traceroute]:
+    def get_traceroute_results_by_node(self, source_id: int, target_id: int, lookback_ts: int = 0) -> list[Traceroute]:
         with self.session() as session:
             return session.query(
                 Traceroute
             ).filter(
-                Traceroute.tracerouteDetails.isnot(None)
+                Traceroute.txTime >= lookback_ts,
+                Traceroute.fromId == source_id,
+                Traceroute.toId == target_id
             ).order_by(
                 Traceroute.rxTime.desc()
             ).all()
         
-    def return_traceroute_success_rate(self, from_id: int, lookback_ts: int = 0) -> TracerouteStatistics:
+    def get_traceroute_success_rate(self, from_id: int, lookback_ts: int = 0) -> TracerouteStatistics:
         '''
         Given all traceroutes sent by this node, return the percentage of responses
         '''
@@ -572,23 +574,22 @@ class ListenerDb:
                 avgTraceDuration=round(avg, 2) if durations else 0.0
             )
         
-    def select_favorite_nodes(self) -> list[Node]:
+    def get_favorite_nodes(self) -> list[Node]:
         '''
-        Returns all nodes marked as favorite nodes
+        Returns all nodes marked as favorite nodes or listener nodes
         '''
         with self.session() as session:
             return session.query(
                 Node
             ).filter(
-                Node.isFavorite == True
+                (Node.isFavorite == True) | (Node.isHost == True)
             ).order_by(
                 Node.lastHeard.desc()
             ).all()
 
-    def select_traceroute_target(self, fromId: int, maxHops: int = 5) -> Node:
+    def select_traceroute_target(self, fromId: int) -> Node:
         '''
         Returns 1 node (if any) if it is a favorite node or is another listener node,
-        is less than maxHops hops away,
         is NOT the current node,
         and has not had a traceroute attempt (txTime) sent to it in the past 3 hours.
         '''
@@ -598,11 +599,10 @@ class ListenerDb:
                 Node
             ).filter(
                 (Node.isFavorite == True) | (Node.isHost == True),
-                Node.hopsAway <= maxHops,
                 Node.nodeNum != fromId,
                 ~Node.nodeNum.in_(
                     session.query(Traceroute.toId).filter(
-                        Traceroute.txTime > three_hours_ago
+                        Traceroute.txTime >= three_hours_ago
                     )
                 )
             ).order_by(
