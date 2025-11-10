@@ -149,6 +149,10 @@ class CommandHandler:
             if "🔔" in context.decoded.text:
                 self.handle_bell_alert(context)
 
+            elif context.decoded.text.lower().strip() == 'test':
+                logging.info(f'Test message received from {context.fromId}')
+                return f'Received your test message\n{self.cmd_reply(context)}'
+
             elif context.decoded.text.startswith(self.prefix):
                 command = context.decoded.text[1:].lower().split(' ')[0]
                 logging.info(f'Command received: {command} From: {context.fromId}')
