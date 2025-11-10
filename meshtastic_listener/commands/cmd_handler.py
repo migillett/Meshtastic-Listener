@@ -184,5 +184,5 @@ class CommandHandler:
                         return self.cmd_help()
 
                     case _:
-                        raise UnknownCommandError(f'Unknown command: {command}')
+                        raise UnknownCommandError(f'Unknown command: {context.decoded.text}')
         return None
