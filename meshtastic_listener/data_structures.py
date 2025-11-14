@@ -148,7 +148,7 @@ class NodeHealthCheck(BaseModel):
     systemResources: SystemResources = Field(default=SystemResources())
 
     def status(self) -> str:
-        status = f'''{datetime.fromtimestamp(self.startTs).strftime('%Y-%m-%d %H:%M')}
+        status = f'''{datetime.fromtimestamp(self.endTs).strftime('%Y-%m-%d %H:%M')}
 CH USAGE: {round(self.channelUsage, 2)}%
 TR SENT: {self.tracerouteStatistics.total}
 TR SUCCESS: {round(self.tracerouteStatistics.average(), 0)}%'''
